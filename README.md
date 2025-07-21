@@ -40,22 +40,70 @@ cloudbox/
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- Docker & Docker Compose
+- Git
+
+### Automated Installation
+
 ```bash
-# Clone and start with Docker
-git clone https://github.com/your-org/cloudbox.git
+# Clone the repository
+git clone https://github.com/ekoppen/cloudbox.git
 cd cloudbox
+
+# Run the installation script
+./install.sh
+
+# Or with custom configuration
+./install.sh --frontend-port 8080 --backend-port 9000 --host myserver.com
+```
+
+### Manual Installation
+
+```bash
+# 1. Clone repository
+git clone https://github.com/ekoppen/cloudbox.git
+cd cloudbox
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 3. Start services
 docker-compose up -d
 
-# Access dashboard
+# 4. Access your CloudBox
 open http://localhost:3000
+```
+
+### Installation Options
+
+```bash
+# Basic installation
+./install.sh
+
+# Custom ports
+./install.sh --frontend-port 8080 --backend-port 9000
+
+# Remote server installation
+./install.sh --host myserver.com --frontend-port 3000
+
+# Update existing installation
+./install.sh --update
+
+# Full options
+./install.sh --help
 ```
 
 ## 📚 Documentation
 
 - [Getting Started](./docs/getting-started.md)
+- [Installation Guide](./docs/installation.md)
 - [API Reference](./docs/api-reference.md)
-- [SDK Documentation](./docs/sdk-documentation.md)
+- [SDK Documentation](./docs/sdk.md)
+- [Configuration](./docs/configuration.md)
 - [Deployment Guide](./docs/deployment.md)
+- [Development Guide](./docs/development.md)
 
 ## 🔧 Development
 
