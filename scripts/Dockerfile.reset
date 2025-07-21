@@ -1,0 +1,24 @@
+FROM golang:1.21-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git gcc musl-dev
+
+WORKDIR /app
+
+# Copy only go.mod first and initialize fresh go.sum
+COPY go.mod ./
+
+# Initialize module and download dependencies (generates fresh go.sum)
+RUN go mod download && go mod tidy
+
+# Copy source code
+COPY reset-admin-password.go .
+
+# Build with CGO enabled (required for bcrypt)
+RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o reset-admin reset-admin-password.go
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/reset-admin .
+CMD ["./reset-admin"]

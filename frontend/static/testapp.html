@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBox BaaS Test App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button { cursor: pointer; padding: 0.5rem 1rem; border-bottom: 2px solid transparent; }
+        .tab-button.active { border-bottom-color: #3b82f6; background-color: #eff6ff; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">☁️ CloudBox BaaS Test App</h1>
+            <p class="text-gray-600">Test alle features van je Backend-as-a-Service</p>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="connection-status" class="mb-6 p-4 border rounded-lg bg-white">
+            <div class="flex items-center justify-between">
+                <span class="font-medium">Backend Status:</span>
+                <span id="status-indicator" class="px-3 py-1 rounded-full text-sm">Verbinden...</span>
+            </div>
+        </div>
+
+        <!-- Project Configuration -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Project Configuratie</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Backend URL</label>
+                    <input type="text" id="backend-url" value="http://localhost:8080" 
+                           class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Project Slug</label>
+                    <input type="text" id="project-slug" placeholder="my-project" 
+                           class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                    <input type="password" id="api-key" placeholder="Enter API key" 
+                           class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <button onclick="testConnection()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Test Verbinding
+            </button>
+        </div>
+
+        <!-- Security Notice -->
+        <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 class="text-lg font-semibold mb-2 text-blue-800">🔒 API Key Security</h3>
+            <p class="text-blue-700 text-sm">
+                <strong>Authentication endpoints</strong> (register/login) werken zonder API key. 
+                <strong>Project data endpoints</strong> vereisen een geldige API key. 
+                Vul je Project Slug en API Key in om project-specifieke features te testen.
+            </p>
+        </div>
+
+        <!-- Quick Test -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">🔐 Quick Authentication Test (No API Key Required)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h4 class="font-medium mb-2">Register User</h4>
+                    <input type="email" id="quick-email" placeholder="test@example.com" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <input type="password" id="quick-password" placeholder="password123" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <input type="text" id="quick-name" placeholder="Test User" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <button onclick="quickRegister()" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Register
+                    </button>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Login</h4>
+                    <input type="email" id="login-email" placeholder="test@example.com" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <input type="password" id="login-password" placeholder="password123" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <button onclick="quickLogin()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Login
+                    </button>
+                    <div id="auth-result" class="mt-2 p-2 bg-gray-50 rounded text-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Data Test -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">📊 Project Data Test (API Key Required)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h4 class="font-medium mb-2">Create Data</h4>
+                    <input type="text" id="table-name" placeholder="users" value="users" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <textarea id="json-data" placeholder='{"name": "John Doe", "email": "john@example.com"}' rows="3" class="w-full p-2 border border-gray-300 rounded-md mb-2"></textarea>
+                    <button onclick="testCreateData()" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Create Record (Requires API Key)
+                    </button>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Read Data</h4>
+                    <input type="text" id="read-table" placeholder="users" value="users" class="w-full p-2 border border-gray-300 rounded-md mb-2">
+                    <button onclick="testReadData()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Get Records (Requires API Key)
+                    </button>
+                    <div id="data-result" class="mt-2 p-2 bg-gray-50 rounded text-sm max-h-32 overflow-auto"></div>
+                </div>
+            </div>
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p class="text-yellow-800 text-sm">
+                    💡 <strong>Tip:</strong> Als je "API key required" errors krijgt, ga naar je CloudBox dashboard → Project Settings → API Keys om een key te genereren.
+                </p>
+            </div>
+        </div>
+
+        <!-- Response Log -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Response Log</h3>
+            <div id="response-log" class="space-y-2 max-h-64 overflow-auto mb-4"></div>
+            <button onclick="clearLog()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                Clear Log
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Global configuration
+        let config = {
+            backendUrl: 'http://localhost:8080',
+            projectSlug: '',
+            apiKey: '',
+            authToken: ''
+        };
+
+        // Utility functions
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('response-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            let bgColor = 'bg-blue-50 border-blue-200 text-blue-800';
+            if (type === 'success') bgColor = 'bg-green-50 border-green-200 text-green-800';
+            if (type === 'error') bgColor = 'bg-red-50 border-red-200 text-red-800';
+            if (type === 'warning') bgColor = 'bg-yellow-50 border-yellow-200 text-yellow-800';
+            
+            logEntry.className = `p-3 border rounded-md ${bgColor}`;
+            logEntry.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <span class="text-xs font-mono">[${timestamp}]</span>
+                        <pre class="mt-1 text-sm whitespace-pre-wrap">${message}</pre>
+                    </div>
+                </div>
+            `;
+            
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+        }
+
+        function clearLog() {
+            document.getElementById('response-log').innerHTML = '';
+        }
+
+        function getApiUrl(endpoint) {
+            const baseUrl = document.getElementById('backend-url').value;
+            const slug = document.getElementById('project-slug').value;
+            
+            if (endpoint.startsWith('/p/')) {
+                return `${baseUrl}${endpoint.replace(':project_slug', slug)}`;
+            }
+            return `${baseUrl}${endpoint}`;
+        }
+
+        function getHeaders(includeAuth = false) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            const apiKey = document.getElementById('api-key').value;
+            if (apiKey) {
+                headers['X-API-Key'] = apiKey;
+            }
+            
+            if (includeAuth && config.authToken) {
+                headers['Authorization'] = `Bearer ${config.authToken}`;
+            }
+            
+            return headers;
+        }
+
+        async function makeRequest(url, options = {}) {
+            try {
+                log(`Making request to: ${url}`, 'info');
+                
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`Success: ${JSON.stringify(data, null, 2)}`, 'success');
+                    return { success: true, data };
+                } else {
+                    log(`Error: ${response.status} - ${JSON.stringify(data, null, 2)}`, 'error');
+                    return { success: false, error: data };
+                }
+            } catch (error) {
+                log(`Network Error: ${error.message}`, 'error');
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Connection testing
+        async function testConnection() {
+            const url = getApiUrl('/health');
+            const result = await makeRequest(url);
+            
+            const statusElement = document.getElementById('status-indicator');
+            if (result.success) {
+                statusElement.textContent = 'Connected ✅';
+                statusElement.className = 'px-3 py-1 rounded-full text-sm bg-green-100 text-green-800';
+            } else {
+                statusElement.textContent = 'Disconnected ❌';
+                statusElement.className = 'px-3 py-1 rounded-full text-sm bg-red-100 text-red-800';
+            }
+        }
+
+        // Quick authentication functions
+        async function quickRegister() {
+            const email = document.getElementById('quick-email').value;
+            const password = document.getElementById('quick-password').value;
+            const name = document.getElementById('quick-name').value;
+            
+            if (!email || !password || !name) {
+                log('Please fill in all registration fields', 'warning');
+                return;
+            }
+            
+            const url = getApiUrl('/api/v1/auth/register');
+            const result = await makeRequest(url, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ email, password, name })
+            });
+            
+            if (result.success) {
+                document.getElementById('login-email').value = email;
+                document.getElementById('login-password').value = password;
+                log('Registration successful! Email auto-filled in login form.', 'success');
+            }
+        }
+
+        async function quickLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!email || !password) {
+                log('Please fill in email and password', 'warning');
+                return;
+            }
+            
+            const url = getApiUrl('/api/v1/auth/login');
+            const result = await makeRequest(url, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (result.success && result.data.token) {
+                config.authToken = result.data.token;
+                document.getElementById('auth-result').innerHTML = `
+                    <strong>Login Successful!</strong><br>
+                    <span class="text-xs">Token: ${result.data.token.substring(0, 30)}...</span><br>
+                    <span class="text-xs">User: ${result.data.user.name}</span>
+                `;
+            }
+        }
+
+        // Project data testing functions
+        async function testCreateData() {
+            const tableName = document.getElementById('table-name').value;
+            const jsonData = document.getElementById('json-data').value;
+            const projectSlug = document.getElementById('project-slug').value;
+            
+            if (!tableName || !jsonData) {
+                log('Please fill in table name and JSON data', 'warning');
+                return;
+            }
+            
+            if (!projectSlug) {
+                log('Please fill in Project Slug first', 'warning');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(jsonData);
+                const url = getApiUrl(`/p/:project_slug/api/data/${tableName}`);
+                
+                const result = await makeRequest(url, {
+                    method: 'POST',
+                    headers: getHeaders(true),
+                    body: JSON.stringify(data)
+                });
+                
+                if (result.success) {
+                    document.getElementById('json-data').value = '';
+                    log('Data created successfully!', 'success');
+                }
+            } catch (error) {
+                log(`Invalid JSON: ${error.message}`, 'error');
+            }
+        }
+
+        async function testReadData() {
+            const tableName = document.getElementById('read-table').value;
+            const projectSlug = document.getElementById('project-slug').value;
+            
+            if (!tableName) {
+                log('Please enter table name', 'warning');
+                return;
+            }
+            
+            if (!projectSlug) {
+                log('Please fill in Project Slug first', 'warning');
+                return;
+            }
+            
+            const url = getApiUrl(`/p/:project_slug/api/data/${tableName}`);
+            const result = await makeRequest(url, {
+                method: 'GET',
+                headers: getHeaders(true)
+            });
+            
+            if (result.success) {
+                document.getElementById('data-result').innerHTML = `<pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+            } else {
+                document.getElementById('data-result').innerHTML = `<span class="text-red-600">Error: ${JSON.stringify(result.error, null, 2)}</span>`;
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            testConnection();
+            log('CloudBox Test App initialized. Ready to test your BaaS!', 'success');
+        });
+    </script>
+</body>
+</html>

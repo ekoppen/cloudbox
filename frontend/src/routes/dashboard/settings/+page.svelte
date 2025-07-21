@@ -1,0 +1,239 @@
+<script lang="ts">
+  import { theme, type AccentColor } from '$lib/stores/theme';
+  import { auth } from '$lib/stores/auth';
+  import Card from '$lib/components/ui/card.svelte';
+  import Button from '$lib/components/ui/button.svelte';
+  import Icon from '$lib/components/ui/icon.svelte';
+  
+  const accentColors: { name: AccentColor; label: string; preview: string; darkPreview: string }[] = [
+    { name: 'blue', label: 'Blauw', preview: 'bg-blue-500', darkPreview: 'bg-blue-400' },
+    { name: 'green', label: 'Groen', preview: 'bg-green-600', darkPreview: 'bg-green-400' },
+    { name: 'purple', label: 'Paars', preview: 'bg-purple-500', darkPreview: 'bg-purple-300' },
+    { name: 'orange', label: 'Oranje', preview: 'bg-orange-500', darkPreview: 'bg-orange-400' },
+    { name: 'red', label: 'Rood', preview: 'bg-red-500', darkPreview: 'bg-red-300' },
+    { name: 'pink', label: 'Roze', preview: 'bg-pink-500', darkPreview: 'bg-pink-300' },
+  ];
+
+  function handleAccentColorChange(accentColor: AccentColor) {
+    console.log('Settings: changing accent color to', accentColor);
+    theme.setAccentColor(accentColor);
+  }
+
+  // Debug function to check current classes
+  function debugClasses() {
+    if (typeof document !== 'undefined') {
+      const classes = document.documentElement.classList.toString();
+      console.log('Current HTML classes:', classes);
+      
+      // Check computed styles
+      const computedStyle = getComputedStyle(document.documentElement);
+      console.log('CSS Variables:', {
+        background: computedStyle.getPropertyValue('--background'),
+        foreground: computedStyle.getPropertyValue('--foreground'),
+        primary: computedStyle.getPropertyValue('--primary'),
+        card: computedStyle.getPropertyValue('--card')
+      });
+    }
+  }
+</script>
+
+<div class="space-y-8">
+  <!-- Page Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-foreground">Instellingen</h1>
+      <p class="text-muted-foreground mt-2">Pas uw voorkeuren en thema aan</p>
+    </div>
+  </div>
+
+  <!-- Theme Settings -->
+  <Card class="p-6">
+    <div class="flex items-center space-x-3 mb-6">
+      <Icon name="palette" size={24} />
+      <h2 class="text-xl font-semibold text-card-foreground">Thema & Uiterlijk</h2>
+    </div>
+
+    <div class="space-y-6">
+      <!-- Dark/Light Mode -->
+      <div>
+        <h3 class="text-lg font-medium text-card-foreground mb-3">Thema Modus</h3>
+        <div class="flex space-x-4">
+          <button
+            on:click={() => theme.setTheme('light')}
+            class="flex items-center space-x-3 p-4 border-2 rounded-lg transition-colors"
+            class:border-primary={$theme.theme === 'light'}
+            class:border-border={$theme.theme !== 'light'}
+            class:bg-primary-50={$theme.theme === 'light'}
+          >
+            <Icon name="sun" size={20} />
+            <div class="text-left">
+              <div class="font-medium text-card-foreground">Licht</div>
+              <div class="text-sm text-muted-foreground">Lichte achtergrond</div>
+            </div>
+          </button>
+          
+          <button
+            on:click={() => theme.setTheme('dark')}
+            class="flex items-center space-x-3 p-4 border-2 rounded-lg transition-colors"
+            class:border-primary={$theme.theme === 'dark'}
+            class:border-border={$theme.theme !== 'dark'}
+            class:bg-primary-50={$theme.theme === 'dark'}
+          >
+            <Icon name="moon" size={20} />
+            <div class="text-left">
+              <div class="font-medium text-card-foreground">Donker</div>
+              <div class="text-sm text-muted-foreground">Donkere achtergrond</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Accent Color -->
+      <div>
+        <h3 class="text-lg font-medium text-card-foreground mb-3">Accent Kleur</h3>
+        <div class="grid grid-cols-2 gap-3">
+          {#each accentColors as color}
+            <button
+              on:click={() => handleAccentColorChange(color.name)}
+              class="flex items-center space-x-3 p-3 border-2 rounded-lg transition-all duration-200 hover:scale-105"
+              class:border-primary={$theme.accentColor === color.name}
+              class:border-border={$theme.accentColor !== color.name}
+              class:bg-muted={$theme.accentColor === color.name}
+              class:shadow-md={$theme.accentColor === color.name}
+            >
+              <div class="w-5 h-5 rounded-full {$theme.theme === 'dark' ? color.darkPreview : color.preview} shadow-sm"></div>
+              <span class="font-medium text-card-foreground">{color.label}</span>
+              {#if $theme.accentColor === color.name}
+                <Icon name="user" size={14} className="ml-auto text-primary" />
+              {/if}
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Theme Preview -->
+      <div>
+        <h3 class="text-lg font-medium text-card-foreground mb-3">Live Preview</h3>
+        <div class="border border-border rounded-lg p-4 space-y-4">
+          <!-- Header Preview -->
+          <div class="flex items-center justify-between p-3 bg-card rounded border border-border">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <Icon name="cloud" size={16} color="white" />
+              </div>
+              <div>
+                <div class="font-medium text-card-foreground">CloudBox</div>
+                <div class="text-sm text-muted-foreground">Preview van je theme</div>
+              </div>
+            </div>
+            <div class="bg-primary text-primary-foreground px-3 py-1 rounded text-sm font-medium">
+              Actief
+            </div>
+          </div>
+          
+          <!-- Button Preview -->
+          <div class="space-y-3">
+            <div class="flex space-x-3">
+              <button class="bg-primary text-primary-foreground px-4 py-2 rounded font-medium hover:opacity-90 transition-opacity">
+                Primary Button
+              </button>
+              <button class="bg-secondary text-secondary-foreground px-4 py-2 rounded font-medium border border-border hover:bg-muted transition-colors">
+                Secondary Button
+              </button>
+            </div>
+            
+            <!-- Test different approaches -->
+            <div class="space-y-2">
+              <div class="flex space-x-3">
+                <button style="background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground));" class="px-4 py-2 rounded font-medium">
+                  Inline Style
+                </button>
+                <button class="theme-primary px-4 py-2 rounded font-medium">
+                  Utility Class
+                </button>
+              </div>
+              <div class="text-xs text-muted-foreground">
+                Primary CSS var: <span class="font-mono">{$theme.theme === 'dark' ? 'dark' : 'light'} mode</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Color Bar Preview -->
+          <div class="flex space-x-2">
+            <div class="bg-primary h-3 rounded flex-1" title="Primary Color"></div>
+            <div class="bg-secondary h-3 rounded flex-1" title="Secondary Color"></div>
+            <div class="bg-muted h-3 rounded flex-1" title="Muted Color"></div>
+            <div class="bg-accent h-3 rounded flex-1" title="Accent Color"></div>
+          </div>
+          
+          <!-- Info -->
+          <div class="text-xs text-muted-foreground text-center p-2 bg-muted rounded">
+            Huidige theme: <span class="font-medium text-foreground">{$theme.theme === 'dark' ? 'Donker' : 'Licht'}</span> • 
+            Accent: <span class="font-medium text-primary">{accentColors.find(c => c.name === $theme.accentColor)?.label}</span>
+          </div>
+          
+          <!-- Debug Button -->
+          <button 
+            on:click={debugClasses}
+            class="w-full text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded hover:bg-muted transition-colors"
+          >
+            🔍 Debug Classes (Check Console)
+          </button>
+        </div>
+      </div>
+    </div>
+  </Card>
+
+  <!-- Account Settings -->
+  <Card class="p-6">
+    <div class="flex items-center space-x-3 mb-6">
+      <Icon name="user" size={24} />
+      <h2 class="text-xl font-semibold text-card-foreground">Account</h2>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-card-foreground mb-2">Email</label>
+        <div class="p-3 bg-muted rounded-lg text-muted-foreground">
+          {$auth.user?.email || 'Niet beschikbaar'}
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-card-foreground mb-2">Naam</label>
+        <div class="p-3 bg-muted rounded-lg text-muted-foreground">
+          {$auth.user?.name || 'Niet beschikbaar'}
+        </div>
+      </div>
+
+      <div class="pt-4">
+        <Button variant="outline" size="sm">
+          Profiel Bewerken
+        </Button>
+      </div>
+    </div>
+  </Card>
+
+  <!-- Application Info -->
+  <Card class="p-6">
+    <div class="flex items-center space-x-3 mb-6">
+      <Icon name="cloud" size={24} />
+      <h2 class="text-xl font-semibold text-card-foreground">Applicatie Info</h2>
+    </div>
+
+    <div class="space-y-3 text-sm">
+      <div class="flex justify-between">
+        <span class="text-muted-foreground">Versie</span>
+        <span class="text-card-foreground font-medium">v1.0.0-alpha</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-muted-foreground">Status</span>
+        <span class="text-green-600 font-medium">MVP Development</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-muted-foreground">Laatst bijgewerkt</span>
+        <span class="text-card-foreground font-medium">Vandaag</span>
+      </div>
+    </div>
+  </Card>
+</div>

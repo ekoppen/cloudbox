@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBox SDK - Simple Chat Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+        .auth-container {
+            background-color: #f9f9f9;
+        }
+        .chat-container {
+            background-color: #f0f8ff;
+        }
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: white;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+            background-color: #e8f4f8;
+        }
+        .message .author {
+            font-weight: bold;
+            color: #2c5aa0;
+        }
+        .message .time {
+            color: #666;
+            font-size: 0.8em;
+            float: right;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>CloudBox SDK - Simple Chat Example</h1>
+    
+    <div class="container auth-container">
+        <h2>Authentication</h2>
+        <div id="auth-forms">
+            <div id="login-form">
+                <h3>Login</h3>
+                <input type="email" id="login-email" placeholder="Email" value="john@example.com">
+                <input type="password" id="login-password" placeholder="Password" value="password123">
+                <button onclick="login()">Login</button>
+                <button onclick="showRegister()">Register Instead</button>
+            </div>
+            
+            <div id="register-form" class="hidden">
+                <h3>Register</h3>
+                <input type="text" id="register-name" placeholder="Full Name" value="John Doe">
+                <input type="email" id="register-email" placeholder="Email" value="john@example.com">
+                <input type="password" id="register-password" placeholder="Password" value="password123">
+                <button onclick="register()">Register</button>
+                <button onclick="showLogin()">Login Instead</button>
+            </div>
+        </div>
+        
+        <div id="auth-status" class="hidden">
+            <p><strong>Logged in as:</strong> <span id="current-user"></span></p>
+            <button onclick="logout()">Logout</button>
+        </div>
+        
+        <div id="status-message"></div>
+    </div>
+
+    <div class="container chat-container hidden" id="chat-container">
+        <h2>Live Chat</h2>
+        <div id="connection-status" class="status">
+            <strong>Connection:</strong> <span id="connection-text">Disconnected</span>
+        </div>
+        
+        <div class="messages" id="messages"></div>
+        
+        <div>
+            <input type="text" id="message-input" placeholder="Type your message..." style="width: 60%">
+            <button onclick="sendMessage()" id="send-btn">Send</button>
+            <button onclick="connectRealtime()" id="connect-btn">Connect</button>
+            <button onclick="disconnectRealtime()" id="disconnect-btn" class="hidden">Disconnect</button>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <button onclick="loadMessages()">Load Recent Messages</button>
+            <button onclick="clearMessages()">Clear Messages</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // This would normally be imported from npm package
+        // For demo purposes, we'll simulate the SDK
+        
+        class CloudBoxDemo {
+            constructor(config) {
+                this.config = config;
+                this.auth = new AuthDemo(this);
+                this.messaging = new MessagingDemo(this);
+            }
+            
+            getProjectApiPath() {
+                return `/p/${this.config.projectSlug}/api`;
+            }
+            
+            async ping() {
+                return true; // Simulate successful connection
+            }
+        }
+        
+        class AuthDemo {
+            constructor(cloudbox) {
+                this.cloudbox = cloudbox;
+                this.currentUser = null;
+                this.currentSession = null;
+            }
+            
+            async register(email, password, name) {
+                // Simulate registration
+                const user = {
+                    id: 'user_123',
+                    email,
+                    name,
+                    created_at: new Date().toISOString()
+                };
+                
+                const session = {
+                    id: 'session_123',
+                    token: 'demo_token_123',
+                    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                };
+                
+                this.currentUser = user;
+                this.currentSession = session;
+                
+                return { user, session };
+            }
+            
+            async login(credentials) {
+                // Simulate login
+                return this.register(credentials.email, credentials.password, 'Demo User');
+            }
+            
+            async logout() {
+                this.currentUser = null;
+                this.currentSession = null;
+            }
+            
+            get user() {
+                return this.currentUser;
+            }
+            
+            get isAuthenticated() {
+                return !!(this.currentUser && this.currentSession);
+            }
+        }
+        
+        class MessagingDemo {
+            constructor(cloudbox) {
+                this.cloudbox = cloudbox;
+                this.websocket = null;
+                this.subscriptions = new Map();
+                this.messages = [
+                    {
+                        id: '1',
+                        content: 'Welcome to CloudBox Chat!',
+                        user_id: 'system',
+                        user_name: 'System',
+                        created_at: new Date(Date.now() - 60000).toISOString()
+                    },
+                    {
+                        id: '2',
+                        content: 'This is a demo of the CloudBox SDK messaging capabilities.',
+                        user_id: 'system',
+                        user_name: 'System',
+                        created_at: new Date(Date.now() - 30000).toISOString()
+                    }
+                ];
+            }
+            
+            async createChannel(name, options = {}) {
+                return {
+                    id: 'general_123',
+                    name,
+                    description: options.description || '',
+                    type: options.type || 'public'
+                };
+            }
+            
+            async connectRealtime() {
+                // Simulate WebSocket connection
+                this.websocket = { readyState: 1 }; // OPEN
+                updateConnectionStatus('Connected', 'success');
+                
+                // Simulate receiving a message after connection
+                setTimeout(() => {
+                    this.simulateMessage('Welcome! You are now connected to the chat.');
+                }, 1000);
+                
+                return Promise.resolve();
+            }
+            
+            disconnectRealtime() {
+                this.websocket = null;
+                updateConnectionStatus('Disconnected', 'error');
+            }
+            
+            async sendMessage(channelId, content) {
+                if (!this.cloudbox.auth.isAuthenticated) {
+                    throw new Error('Not authenticated');
+                }
+                
+                const message = {
+                    id: Date.now().toString(),
+                    content,
+                    user_id: this.cloudbox.auth.user.id,
+                    user_name: this.cloudbox.auth.user.name,
+                    created_at: new Date().toISOString()
+                };
+                
+                this.messages.push(message);
+                displayMessage(message);
+                
+                // Simulate echo response
+                setTimeout(() => {
+                    this.simulateMessage(`Echo: ${content}`);
+                }, 500);
+                
+                return message;
+            }
+            
+            async getMessages(channelId, options = {}) {
+                return [...this.messages];
+            }
+            
+            subscribeToChannel(channelId, callback) {
+                const key = `channel:${channelId}`;
+                if (!this.subscriptions.has(key)) {
+                    this.subscriptions.set(key, new Set());
+                }
+                this.subscriptions.get(key).add(callback);
+                
+                return {
+                    unsubscribe: () => {
+                        const callbacks = this.subscriptions.get(key);
+                        if (callbacks) {
+                            callbacks.delete(callback);
+                        }
+                    }
+                };
+            }
+            
+            simulateMessage(content) {
+                const message = {
+                    id: Date.now().toString(),
+                    content,
+                    user_id: 'demo_bot',
+                    user_name: 'Demo Bot',
+                    created_at: new Date().toISOString()
+                };
+                
+                this.messages.push(message);
+                displayMessage(message);
+            }
+            
+            get isConnected() {
+                return this.websocket !== null;
+            }
+        }
+        
+        // Initialize CloudBox SDK
+        const cloudbox = new CloudBoxDemo({
+            apiKey: 'demo-api-key',
+            projectSlug: 'demo-project',
+            endpoint: 'https://api.cloudbox.dev'
+        });
+        
+        let channelSubscription = null;
+        let currentChannel = null;
+        
+        // Auth functions
+        window.login = async function() {
+            try {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                
+                const response = await cloudbox.auth.login({ email, password });
+                
+                showStatus('Login successful!', 'success');
+                updateAuthUI();
+                document.getElementById('chat-container').classList.remove('hidden');
+                
+                // Auto-create and join general channel
+                currentChannel = await cloudbox.messaging.createChannel('general', {
+                    description: 'General chat room'
+                });
+                
+            } catch (error) {
+                showStatus('Login failed: ' + error.message, 'error');
+            }
+        };
+        
+        window.register = async function() {
+            try {
+                const name = document.getElementById('register-name').value;
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+                
+                const response = await cloudbox.auth.register(email, password, name);
+                
+                showStatus('Registration successful!', 'success');
+                updateAuthUI();
+                document.getElementById('chat-container').classList.remove('hidden');
+                
+                // Auto-create and join general channel
+                currentChannel = await cloudbox.messaging.createChannel('general', {
+                    description: 'General chat room'
+                });
+                
+            } catch (error) {
+                showStatus('Registration failed: ' + error.message, 'error');
+            }
+        };
+        
+        window.logout = async function() {
+            await cloudbox.auth.logout();
+            if (channelSubscription) {
+                channelSubscription.unsubscribe();
+            }
+            cloudbox.messaging.disconnectRealtime();
+            
+            updateAuthUI();
+            document.getElementById('chat-container').classList.add('hidden');
+            document.getElementById('messages').innerHTML = '';
+            showStatus('Logged out successfully', 'success');
+        };
+        
+        // Chat functions
+        window.connectRealtime = async function() {
+            try {
+                await cloudbox.messaging.connectRealtime();
+                
+                // Subscribe to channel messages
+                channelSubscription = cloudbox.messaging.subscribeToChannel(currentChannel.id, (data) => {
+                    console.log('Received realtime message:', data);
+                });
+                
+                document.getElementById('connect-btn').classList.add('hidden');
+                document.getElementById('disconnect-btn').classList.remove('hidden');
+                
+            } catch (error) {
+                showStatus('Failed to connect: ' + error.message, 'error');
+            }
+        };
+        
+        window.disconnectRealtime = function() {
+            cloudbox.messaging.disconnectRealtime();
+            if (channelSubscription) {
+                channelSubscription.unsubscribe();
+            }
+            
+            document.getElementById('connect-btn').classList.remove('hidden');
+            document.getElementById('disconnect-btn').classList.add('hidden');
+        };
+        
+        window.sendMessage = async function() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            try {
+                await cloudbox.messaging.sendMessage(currentChannel.id, message);
+                input.value = '';
+            } catch (error) {
+                showStatus('Failed to send message: ' + error.message, 'error');
+            }
+        };
+        
+        window.loadMessages = async function() {
+            try {
+                const messages = await cloudbox.messaging.getMessages(currentChannel.id);
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML = '';
+                
+                messages.forEach(message => {
+                    displayMessage(message);
+                });
+                
+                showStatus('Messages loaded', 'success');
+            } catch (error) {
+                showStatus('Failed to load messages: ' + error.message, 'error');
+            }
+        };
+        
+        window.clearMessages = function() {
+            document.getElementById('messages').innerHTML = '';
+        };
+        
+        // UI helper functions
+        window.showLogin = function() {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+        };
+        
+        window.showRegister = function() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        };
+        
+        function updateAuthUI() {
+            const isAuth = cloudbox.auth.isAuthenticated;
+            
+            document.getElementById('auth-forms').classList.toggle('hidden', isAuth);
+            document.getElementById('auth-status').classList.toggle('hidden', !isAuth);
+            
+            if (isAuth) {
+                document.getElementById('current-user').textContent = cloudbox.auth.user.name;
+            }
+        }
+        
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 3000);
+        }
+        
+        function updateConnectionStatus(text, type) {
+            const statusElement = document.getElementById('connection-status');
+            const textElement = document.getElementById('connection-text');
+            
+            textElement.textContent = text;
+            statusElement.className = `status ${type}`;
+        }
+        
+        function displayMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const time = new Date(message.created_at).toLocaleTimeString();
+            
+            messageDiv.innerHTML = `
+                <span class="time">${time}</span>
+                <span class="author">${message.user_name}:</span>
+                ${message.content}
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Enable enter key for message input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('message-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+        
+        // Initialize connection status
+        updateConnectionStatus('Disconnected', 'error');
+        
+        console.log('CloudBox SDK Demo loaded');
+        console.log('Available commands:');
+        console.log('- Use the UI to login/register');
+        console.log('- Connect to realtime messaging');
+        console.log('- Send messages to see the SDK in action');
+    </script>
+</body>
+</html>

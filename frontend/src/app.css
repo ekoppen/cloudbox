@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Soft Light Theme */
+    --background: 210 20% 98%; /* Soft off-white #f8f9fa */
+    --foreground: 222 47% 11%; /* Dark gray #1e293b */
+    --card: 0 0% 100%; /* Pure white for cards */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221.2 83.2% 53.3%; /* Default blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 94%; /* Light gray */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 94%;
+    --muted-foreground: 215 20.2% 40%; /* Medium gray */
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%; /* Subtle borders */
+    --input: 210 40% 96%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Soft Dark Theme - Gray based, not black */
+    --background: 222 47% 11%; /* Dark blue-gray #1e293b */
+    --foreground: 210 20% 95%; /* Soft white #f1f5f9 */
+    --card: 222 47% 14%; /* Slightly lighter #252f3f */
+    --card-foreground: 210 20% 95%;
+    --popover: 222 47% 14%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 217.2 91.2% 59.8%; /* Bright primary for dark */
+    --primary-foreground: 222 47% 11%;
+    --secondary: 222 47% 17%; /* Secondary surface #2d3748 */
+    --secondary-foreground: 210 20% 95%;
+    --muted: 222 47% 17%;
+    --muted-foreground: 215 20.2% 65%; /* Light gray text */
+    --accent: 222 47% 17%;
+    --accent-foreground: 210 20% 95%;
+    --destructive: 0 80% 65%; /* Softer red for dark mode */
+    --destructive-foreground: 210 20% 95%;
+    --border: 222 47% 20%; /* Subtle borders in dark */
+    --input: 222 47% 20%; /* Input backgrounds */
+    --ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Vibrant Accent Colors - More visible */
+  .accent-blue {
+    --primary: 221 83% 53%; /* Blue 500 - #3b82f6 */
+    --ring: 221 83% 53%;
+  }
+  
+  .dark.accent-blue {
+    --primary: 213 94% 68%; /* Light Blue 400 - #60a5fa */
+    --ring: 213 94% 68%;
+  }
+  
+  .accent-green {
+    --primary: 142 71% 45%; /* Green 500 - #10b981 */
+    --ring: 142 71% 45%;
+  }
+  
+  .dark.accent-green {
+    --primary: 142 76% 60%; /* Light Green 400 - #34d399 */
+    --ring: 142 76% 60%;
+  }
+  
+  .accent-purple {
+    --primary: 262 83% 58%; /* Purple 500 - #8b5cf6 */
+    --ring: 262 83% 58%;
+  }
+  
+  .dark.accent-purple {
+    --primary: 262 83% 70%; /* Light Purple 400 - #a78bfa */
+    --ring: 262 83% 70%;
+  }
+  
+  .accent-orange {
+    --primary: 25 95% 53%; /* Orange 500 - #f97316 */
+    --ring: 25 95% 53%;
+  }
+  
+  .dark.accent-orange {
+    --primary: 25 95% 65%; /* Light Orange 400 - #fb923c */
+    --ring: 25 95% 65%;
+  }
+  
+  .accent-red {
+    --primary: 0 84% 60%; /* Red 500 - #ef4444 */
+    --ring: 0 84% 60%;
+  }
+  
+  .dark.accent-red {
+    --primary: 0 84% 70%; /* Light Red 400 - #f87171 */
+    --ring: 0 84% 70%;
+  }
+  
+  .accent-pink {
+    --primary: 330 81% 60%; /* Pink 500 - #ec4899 */
+    --ring: 330 81% 60%;
+  }
+  
+  .dark.accent-pink {
+    --primary: 330 81% 70%; /* Light Pink 400 - #f472b6 */
+    --ring: 330 81% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    min-height: 100vh;
+  }
+  
+  /* Ensure all major containers use theme colors */
+  main {
+    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    min-height: 100vh;
+  }
+  
+  /* Force update any containers that might have fixed colors */
+  .min-h-screen {
+    background-color: hsl(var(--background)) !important;
+  }
+}
+
+/* Force theme colors on critical elements */
+@layer utilities {
+  .theme-bg {
+    background-color: hsl(var(--background)) !important;
+  }
+  
+  .theme-text {
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  .theme-primary {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--input));
+}
