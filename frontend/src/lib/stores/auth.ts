@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { API_ENDPOINTS, createApiRequest } from '$lib/config';
 
 export interface User {
   id: number;
@@ -118,10 +119,9 @@ function createAuthStore() {
       // Send logout request to invalidate refresh token
       if (currentState.refreshToken) {
         try {
-          await fetch('http://localhost:8080/api/v1/auth/logout', {
+          await createApiRequest(API_ENDPOINTS.auth.logout, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
               ...(currentState.token && { Authorization: `Bearer ${currentState.token}` })
             },
             body: JSON.stringify({ refresh_token: currentState.refreshToken }),
@@ -159,11 +159,8 @@ function createAuthStore() {
         throw new Error('No refresh token available');
       }
       
-      const response = await fetch('http://localhost:8080/api/v1/auth/refresh', {
+      const response = await createApiRequest(API_ENDPOINTS.auth.refresh, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ refresh_token: currentState.refreshToken }),
       });
       

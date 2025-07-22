@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -22,11 +23,8 @@
     error = '';
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+      const response = await createApiRequest(API_ENDPOINTS.auth.login, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ email, password, remember_me: rememberMe }),
       });
 
