@@ -61,7 +61,7 @@
   ];
 
   let corsConfig: CORSConfig = {
-    allowed_origins: ['https://mijnapp.nl'],
+    allowed_origins: ['https://place.holder'],
     allowed_methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowed_headers: ['Content-Type', 'Authorization', 'X-API-Key'],
     allow_credentials: true,
