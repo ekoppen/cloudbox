@@ -1,10 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
-  import { toastStore } from '$lib/stores/toast';
-  import { goto } from '$app/navigation';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -12,6 +9,8 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  import { toastStore } from '$lib/stores/toast';
+  import { goto } from '$app/navigation';
 
   interface APIKey {
     id: number;
@@ -61,7 +60,7 @@
   ];
 
   let corsConfig: CORSConfig = {
-    allowed_origins: ['https://mijnapp.nl'],
+    allowed_origins: ['http://localhost:3000', 'https://mijnapp.nl'],
     allowed_methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowed_headers: ['Content-Type', 'Authorization', 'X-API-Key'],
     allow_credentials: true,
@@ -126,7 +125,7 @@
   async function deleteKey(keyId: number) {
     if (confirm('Weet je zeker dat je deze API key wilt verwijderen?')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/api-keys/${keyId}`, {
+        const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/api-keys/${keyId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
@@ -149,7 +148,7 @@
   async function deleteProject() {
     if (confirm('Weet je ABSOLUUT ZEKER dat je dit project wilt verwijderen?\n\nDit zal ALLE data permanent verwijderen:\n- Alle collections en documenten\n- Alle bestanden\n- Alle gebruikers\n- Alle berichten\n- Alle API keys\n\nDeze actie kan NIET ongedaan gemaakt worden!')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}`, {
+        const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
@@ -653,7 +652,7 @@
           <Label>Voorbeeld gebruik</Label>
           <div class="mt-1 bg-muted p-3 rounded text-sm font-mono">
             <div class="text-muted-foreground">curl -H "X-API-Key: {showKeyDetails.key}" \</div>
-            <div class="ml-4 text-muted-foreground">${API_BASE_URL}/p/project-slug/api/data/users</div>
+            <div class="ml-4 text-muted-foreground">http://localhost:8080/p/project-slug/api/data/users</div>
           </div>
         </div>
 

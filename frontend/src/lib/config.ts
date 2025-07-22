@@ -24,6 +24,13 @@ export const API_ENDPOINTS = {
     update: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
     delete: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
   },
+  organizations: {
+    list: `${API_BASE_URL}/api/v1/organizations`,
+    create: `${API_BASE_URL}/api/v1/organizations`,
+    get: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}`,
+    update: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}`,
+    delete: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}`,
+  },
   admin: {
     stats: {
       overview: `${API_BASE_URL}/api/v1/admin/stats/overview`,

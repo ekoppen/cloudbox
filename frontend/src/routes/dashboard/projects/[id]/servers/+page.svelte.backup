@@ -1,26 +1,15 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { onMount } from 'svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { toast } from '$lib/stores/toast';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Button from '$lib/components/ui/button.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Modal from '$lib/components/ui/modal.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Input from '$lib/components/ui/input.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Label from '$lib/components/ui/label.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Select from '$lib/components/ui/select.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Textarea from '$lib/components/ui/textarea.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
 
   let projectId = $page.params.id;
   let webServers = [];
@@ -56,13 +45,13 @@
       const headers = auth.getAuthHeader();
 
       // Load web servers
-      const serversRes = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers`, { headers });
+      const serversRes = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/web-servers`, { headers });
       if (serversRes.ok) {
         webServers = await serversRes.json();
       }
 
       // Load SSH keys
-      const keysRes = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/ssh-keys`, { headers });
+      const keysRes = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/ssh-keys`, { headers });
       if (keysRes.ok) {
         sshKeys = await keysRes.json();
       }
@@ -77,7 +66,7 @@
 
   async function createWebServer() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers`, {
+      const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/web-servers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +96,7 @@
   async function testConnection(serverId: number) {
     testingConnection[serverId] = true;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers/${serverId}/test`, {
+      const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/web-servers/${serverId}/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +126,7 @@
     if (!confirm('Weet je zeker dat je deze webserver wilt verwijderen?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers/${serverId}`, {
+      const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/web-servers/${serverId}`, {
         method: 'DELETE',
         headers: auth.getAuthHeader()
       });

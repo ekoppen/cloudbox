@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
   import { toastStore } from '$lib/stores/toast';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -44,7 +44,7 @@
 
   async function loadOrganizations() {
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/organizations`, {
+      const response = await createApiRequest(API_ENDPOINTS.organizations.list, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
         },
@@ -69,7 +69,7 @@
     }
 
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/organizations`, {
+      const response = await createApiRequest(API_ENDPOINTS.organizations.create, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@
   async function deleteOrganization(orgId: number) {
     if (confirm('Weet je zeker dat je deze organization wilt verwijderen?\n\nAlle projecten in deze organization worden verplaatst naar "Geen Organization".')) {
       try {
-        const response = await createApiRequest(`${API_BASE_URL}/api/v1/organizations/${orgId}`, {
+        const response = await createApiRequest(API_ENDPOINTS.organizations.delete(orgId.toString()), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
