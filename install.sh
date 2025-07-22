@@ -18,6 +18,7 @@ BACKEND_PORT=8080
 DB_PORT=5432
 REDIS_PORT=6379
 ALLOWED_HOST=""
+API_HOST=""
 INSTALL_MODE="install"
 ENV_FILE=".env"
 
@@ -59,6 +60,7 @@ OPTIONS:
     -d, --db-port          Database port (default: 5432)
     -r, --redis-port       Redis port (default: 6379)
     -H, --host             Add allowed host (e.g., server hostname)
+    --api-host             API host/domain (e.g., api.example.com)
     --env-file             Environment file path (default: .env)
 
 EXAMPLES:
@@ -69,7 +71,10 @@ EXAMPLES:
     ./install.sh --host myserver.com
 
     # Install with custom ports
-    ./install.sh -p 8080 -b 9000 --host api.example.com
+    ./install.sh -p 8080 -b 9000 --host example.com
+
+    # Install with subdomain for API
+    ./install.sh --host cloudbox.example.com --api-host api.cloudbox.example.com
 
     # Local development installation
     ./install.sh -p 3001 -b 8081
@@ -115,6 +120,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -H|--host)
             ALLOWED_HOST="$2"
+            shift 2
+            ;;
+        --api-host)
+            API_HOST="$2"
             shift 2
             ;;
         --env-file)
@@ -177,6 +186,18 @@ generate_env_file() {
     # Generate random JWT secret
     JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "your-super-secret-jwt-key-$(date +%s)")
     
+    # Determine API URL based on configuration
+    if [[ -n "$API_HOST" ]]; then
+        PUBLIC_API_URL="https://${API_HOST}"
+        print_info "Using API subdomain: $API_HOST"
+    elif [[ -n "$ALLOWED_HOST" ]]; then
+        PUBLIC_API_URL="https://${ALLOWED_HOST}:${BACKEND_PORT}"
+        print_info "Using main domain with backend port: $ALLOWED_HOST:$BACKEND_PORT"
+    else
+        PUBLIC_API_URL="http://localhost:${BACKEND_PORT}"
+        print_info "Using localhost configuration for development"
+    fi
+    
     cat > "${ENV_FILE}" << EOF
 # CloudBox Environment Configuration
 # Generated on $(date)
@@ -218,6 +239,9 @@ CORS_ORIGINS=http://localhost:${FRONTEND_PORT}
 # Upload Configuration
 MAX_FILE_SIZE=10MB
 UPLOAD_DIR=./uploads
+
+# Frontend Configuration
+PUBLIC_API_URL=${PUBLIC_API_URL}
 
 # Email Configuration (Optional)
 # SMTP_HOST=
@@ -375,6 +399,23 @@ prompt_for_configuration() {
         echo
     fi
     
+    # API Host configuration prompt
+    if [[ -n "$ALLOWED_HOST" ]] && [[ -z "$API_HOST" ]]; then
+        echo "🔗 API Configuration:"
+        echo "   Do you want to use a separate subdomain for the API?"
+        echo "   Example: api.${ALLOWED_HOST} instead of ${ALLOWED_HOST}:8080"
+        echo
+        read -p "🚀 API subdomain (leave empty to use main domain with port): " input_api_host
+        
+        if [[ -n "$input_api_host" ]]; then
+            API_HOST="$input_api_host"
+            print_success "Will configure API subdomain: $API_HOST"
+        else
+            print_info "Will use main domain with backend port"
+        fi
+        echo
+    fi
+    
     # Port configuration confirmation
     if [[ "$FRONTEND_PORT" != "3000" ]] || [[ "$BACKEND_PORT" != "8080" ]]; then
         print_info "🔧 Custom port configuration detected:"
@@ -385,9 +426,19 @@ prompt_for_configuration() {
     
     # Summary
     print_info "📝 Installation Summary:"
-    echo "   Frontend URL: http://${ALLOWED_HOST:-localhost}:$FRONTEND_PORT"
-    echo "   Backend URL:  http://${ALLOWED_HOST:-localhost}:$BACKEND_PORT"
-    echo "   Admin URL:    http://${ALLOWED_HOST:-localhost}:$FRONTEND_PORT/admin"
+    if [[ -n "$ALLOWED_HOST" ]]; then
+        echo "   Frontend URL: https://${ALLOWED_HOST}:$FRONTEND_PORT"
+        if [[ -n "$API_HOST" ]]; then
+            echo "   API URL:      https://${API_HOST}"
+        else
+            echo "   API URL:      https://${ALLOWED_HOST}:$BACKEND_PORT"
+        fi
+        echo "   Admin URL:    https://${ALLOWED_HOST}:$FRONTEND_PORT/admin"
+    else
+        echo "   Frontend URL: http://localhost:$FRONTEND_PORT"
+        echo "   API URL:      http://localhost:$BACKEND_PORT"
+        echo "   Admin URL:    http://localhost:$FRONTEND_PORT/admin"
+    fi
     echo
     
     read -p "✅ Continue with this configuration? (Y/n): " -n 1 -r
