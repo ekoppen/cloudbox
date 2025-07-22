@@ -104,6 +104,7 @@ open http://localhost:3000
 - [Configuration](./docs/configuration.md)
 - [Deployment Guide](./docs/deployment.md)
 - [Development Guide](./docs/development.md)
+- [Troubleshooting](./docs/troubleshooting.md)
 
 ## 🔧 Development
 

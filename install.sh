@@ -268,18 +268,38 @@ update_docker_compose() {
 
 # Function to initialize database
 init_database() {
-    print_info "Initializing database..."
+    print_info "Initializing database and services..."
     
-    # Wait for database to be ready
-    print_info "Waiting for database to start..."
+    # Wait for all services to be healthy
+    print_info "Waiting for services to become healthy..."
+    local max_attempts=60
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if $DOCKER_COMPOSE_CMD ps --format json | grep -q '"Health":"healthy".*postgres' && \
+           $DOCKER_COMPOSE_CMD ps --format json | grep -q '"Health":"healthy".*redis'; then
+            print_success "All services are healthy!"
+            break
+        fi
+        
+        if [ $attempt -eq 1 ] || [ $((attempt % 10)) -eq 0 ]; then
+            print_info "Attempt $attempt/$max_attempts: Waiting for services to be healthy..."
+            $DOCKER_COMPOSE_CMD ps
+        fi
+        
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    
+    if [ $attempt -gt $max_attempts ]; then
+        print_warning "Services took longer than expected to start"
+        print_info "You can check service status with: $DOCKER_COMPOSE_CMD ps"
+        print_info "View logs with: $DOCKER_COMPOSE_CMD logs -f"
+    fi
+    
+    # Give backend a moment to complete its startup
+    print_info "Allowing backend to complete startup..."
     sleep 10
-    
-    # Check if we can connect to the database
-    $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U cloudbox > /dev/null 2>&1 && {
-        print_success "Database is ready"
-    } || {
-        print_warning "Database might still be starting up"
-    }
 }
 
 # Function to create default admin user
