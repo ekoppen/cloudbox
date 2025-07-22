@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth';
-  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, API_BASE_URL, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -72,7 +72,7 @@
     creating = true;
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/projects', {
+      const response = await createApiRequest(API_ENDPOINTS.projects.create, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,

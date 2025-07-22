@@ -44,7 +44,7 @@
 
   async function loadOrganizations() {
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/organizations', {
+      const response = await createApiRequest(`${API_BASE_URL}/api/v1/organizations`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
         },
@@ -69,7 +69,7 @@
     }
 
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/organizations', {
+      const response = await createApiRequest(`${API_BASE_URL}/api/v1/organizations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@
   async function deleteOrganization(orgId: number) {
     if (confirm('Weet je zeker dat je deze organization wilt verwijderen?\n\nAlle projecten in deze organization worden verplaatst naar "Geen Organization".')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/organizations/${orgId}`, {
+        const response = await createApiRequest(`${API_BASE_URL}/api/v1/organizations/${orgId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
