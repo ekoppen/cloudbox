@@ -167,6 +167,13 @@ check_prerequisites() {
     # Detect Docker Compose command
     detect_docker_compose
     
+    # Check if curl is installed (needed for health checks)
+    if ! command -v curl &> /dev/null; then
+        print_error "curl is not installed. Please install curl first."
+        print_info "Install curl: sudo apt-get install curl (Ubuntu/Debian) or brew install curl (macOS)"
+        exit 1
+    fi
+    
     # Check if ports are available
     if ss -tlnp | grep -q ":${FRONTEND_PORT} "; then
         print_warning "Port ${FRONTEND_PORT} is already in use. Frontend might conflict."
@@ -368,10 +375,63 @@ init_database() {
 create_admin_user() {
     print_info "Setting up default admin user..."
     
-    # This would typically be done by the backend on first run
-    # or through a separate admin setup script
-    print_info "Default admin user will be created on first backend startup"
-    print_info "Default credentials: admin@cloudbox.local / admin123"
+    # Wait for backend to be fully ready
+    print_info "Waiting for backend to be ready..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if curl -f http://localhost:${BACKEND_PORT}/health >/dev/null 2>&1; then
+            print_success "Backend is ready!"
+            break
+        fi
+        
+        if [ $((attempt % 5)) -eq 0 ]; then
+            print_info "Attempt $attempt/$max_attempts: Backend not ready yet..."
+        fi
+        
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    if [ $attempt -gt $max_attempts ]; then
+        print_warning "Backend took too long to start, admin user creation may fail"
+    fi
+    
+    # Create default admin user in database
+    print_info "Creating default admin user..."
+    
+    # Password hash for 'admin123' using bcrypt
+    local password_hash='\$2a\$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
+    
+    local create_user_sql="
+    INSERT INTO users (email, password_hash, name, role, is_active, created_at, updated_at) 
+    VALUES (
+        'admin@cloudbox.local', 
+        '${password_hash}', 
+        'CloudBox Admin',
+        'superadmin', 
+        true, 
+        NOW(), 
+        NOW()
+    ) ON CONFLICT (email) DO UPDATE SET 
+        password_hash = EXCLUDED.password_hash,
+        role = EXCLUDED.role,
+        name = EXCLUDED.name,
+        updated_at = NOW();
+    "
+    
+    if $DOCKER_COMPOSE_CMD exec -T postgres psql -U cloudbox -d cloudbox -c "$create_user_sql" >/dev/null 2>&1; then
+        print_success "Default admin user created successfully!"
+        print_info "Login credentials:"
+        print_info "  Email:    admin@cloudbox.local"
+        print_info "  Password: admin123"
+        print_warning "⚠️  Remember to change these credentials after first login!"
+    else
+        print_warning "Failed to create admin user in database"
+        print_info "You can create the admin user manually after installation"
+        print_info "Default credentials would be: admin@cloudbox.local / admin123"
+    fi
 }
 
 # Function to prompt for configuration
