@@ -377,25 +377,44 @@ create_admin_user() {
     
     # Wait for backend to be fully ready
     print_info "Waiting for backend to be ready..."
-    local max_attempts=30
+    local max_attempts=60  # Increased from 30 to 60 (2 minutes)
     local attempt=1
     
+    # First wait for Docker containers to be healthy
+    print_info "Checking Docker container health..."
+    local container_wait=0
+    while [ $container_wait -lt 30 ]; do
+        if $DOCKER_COMPOSE_CMD ps --filter "health=healthy" | grep -q "cloudbox-backend"; then
+            print_info "Backend container is healthy!"
+            break
+        fi
+        sleep 2
+        container_wait=$((container_wait + 1))
+    done
+    
+    # Now check the HTTP health endpoint
+    print_info "Testing backend HTTP endpoint..."
     while [ $attempt -le $max_attempts ]; do
-        if curl -f http://localhost:${BACKEND_PORT}/health >/dev/null 2>&1; then
-            print_success "Backend is ready!"
+        # Check both localhost and container network
+        if curl -f -s http://localhost:${BACKEND_PORT}/health >/dev/null 2>&1 || \
+           curl -f -s http://127.0.0.1:${BACKEND_PORT}/health >/dev/null 2>&1; then
+            print_success "Backend HTTP endpoint is ready!"
+            # Extra wait to ensure database connections are stable
+            sleep 3
             break
         fi
         
-        if [ $((attempt % 5)) -eq 0 ]; then
-            print_info "Attempt $attempt/$max_attempts: Backend not ready yet..."
+        if [ $((attempt % 10)) -eq 0 ]; then
+            print_info "Attempt $attempt/$max_attempts: Backend HTTP endpoint not ready yet..."
         fi
         
-        sleep 2
+        sleep 3  # Increased from 2 to 3 seconds
         attempt=$((attempt + 1))
     done
     
     if [ $attempt -gt $max_attempts ]; then
         print_warning "Backend took too long to start, admin user creation may fail"
+        print_info "You can try running the installation again or create the admin user manually"
     fi
     
     # Create default admin user in database
