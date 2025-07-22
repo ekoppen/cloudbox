@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
@@ -75,7 +76,7 @@
 
   async function loadSystemStats(headers) {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/admin/stats/system', { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.systemHealth, { headers });
       if (response.ok) {
         const stats = await response.json();
         systemStats = {
@@ -99,7 +100,7 @@
 
   async function loadUserGrowth(headers) {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/admin/stats/user-growth?days=30', { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.userGrowth + '?days=30', { headers });
       if (response.ok) {
         userGrowth = await response.json();
       } else {
@@ -114,7 +115,7 @@
 
   async function loadProjectActivity(headers) {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/admin/stats/project-activity?days=7', { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.projectActivity + '?days=7', { headers });
       if (response.ok) {
         projectActivity = await response.json();
       } else {

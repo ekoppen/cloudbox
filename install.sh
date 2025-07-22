@@ -402,7 +402,7 @@ create_admin_user() {
     print_info "Creating default admin user..."
     
     # Password hash for 'admin123' using bcrypt
-    local password_hash='\$2a\$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
+    local password_hash='\$2a\$10\$72Eg6eu/TToC/T5MzsnEuOwbmp8ITu0m1LfYiDY3KmGofxkwEZCD.'
     
     local create_user_sql="
     INSERT INTO users (email, password_hash, name, role, is_active, created_at, updated_at) 
