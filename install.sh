@@ -46,6 +46,11 @@ CloudBox Installation Script
 USAGE:
     ./install.sh [OPTIONS]
 
+DESCRIPTION:
+    Interactive installation script for CloudBox Backend-as-a-Service platform.
+    If no hostname is specified via --host, you will be prompted to enter one
+    during installation for optimal configuration.
+
 OPTIONS:
     -h, --help              Show this help message
     -u, --update            Update existing installation
@@ -57,17 +62,26 @@ OPTIONS:
     --env-file             Environment file path (default: .env)
 
 EXAMPLES:
-    # Basic installation
+    # Interactive installation (recommended)
     ./install.sh
 
-    # Install with custom ports
-    ./install.sh -p 8080 -b 9000
-
-    # Install for remote server
+    # Silent installation with hostname
     ./install.sh --host myserver.com
+
+    # Install with custom ports
+    ./install.sh -p 8080 -b 9000 --host api.example.com
+
+    # Local development installation
+    ./install.sh -p 3001 -b 8081
 
     # Update existing installation
     ./install.sh --update
+
+INTERACTIVE MODE:
+    When run without --host, the script will prompt you to enter:
+    - Hostname or domain name for remote access
+    - Port configuration confirmation
+    - Installation summary review
 
 EOF
 }
@@ -219,27 +233,51 @@ EOF
 
 # Function to update Vite config with allowed hosts
 update_vite_config() {
+    local vite_config="frontend/vite.config.ts"
+    
+    if [[ ! -f "$vite_config" ]]; then
+        print_warning "Vite config not found, skipping host configuration"
+        return
+    fi
+    
+    print_info "Updating Vite configuration..."
+    
+    # Create backup
+    cp "$vite_config" "${vite_config}.backup"
+    
+    # Build allowed hosts array
+    local hosts_array=""
     if [[ -n "$ALLOWED_HOST" ]]; then
-        print_info "Updating Vite configuration with allowed host: ${ALLOWED_HOST}"
-        
-        local vite_config="frontend/vite.config.ts"
-        
-        if [[ -f "$vite_config" ]]; then
-            # Create allowed hosts array
-            local hosts="['${ALLOWED_HOST}', 'localhost', '127.0.0.1', '0.0.0.0']"
-            
-            # Update vite config
-            sed -i.bak "s/allowedHosts: \[.*\]/allowedHosts: ${hosts}/" "$vite_config" || {
-                # If allowedHosts doesn't exist, add it
-                sed -i.bak "/port: ${FRONTEND_PORT}/a\\
-\\t\\tallowedHosts: ${hosts}" "$vite_config"
-            }
-            
-            print_success "Vite configuration updated"
+        hosts_array="'${ALLOWED_HOST}', 'localhost', '127.0.0.1', '0.0.0.0'"
+        print_info "Adding allowed host: $ALLOWED_HOST"
+    else
+        hosts_array="'localhost', '127.0.0.1', '0.0.0.0'"
+        print_info "Configuring for localhost access only"
+    fi
+    
+    # Update or add allowedHosts configuration
+    if grep -q "allowedHosts:" "$vite_config"; then
+        # Update existing allowedHosts
+        sed -i.tmp "s/allowedHosts: \[.*\]/allowedHosts: [${hosts_array}]/" "$vite_config"
+        print_success "Updated existing allowedHosts configuration"
+    else
+        # Add allowedHosts to server configuration
+        if grep -q "host: '0.0.0.0'," "$vite_config"; then
+            # Add after host line
+            sed -i.tmp "/host: '0.0.0.0',/a\\
+\\t\\tallowedHosts: [${hosts_array}]," "$vite_config"
+            print_success "Added allowedHosts to server configuration"
         else
-            print_warning "Vite config not found, skipping host configuration"
+            print_warning "Could not automatically add allowedHosts, manual configuration may be needed"
         fi
     fi
+    
+    # Clean up temporary files
+    rm -f "${vite_config}.tmp"
+    
+    # Show the relevant part of the config
+    print_info "Vite server configuration:"
+    grep -A 5 -B 2 "server:" "$vite_config" | head -10
 }
 
 # Function to update Docker Compose with custom ports
@@ -312,6 +350,54 @@ create_admin_user() {
     print_info "Default credentials: admin@cloudbox.local / admin123"
 }
 
+# Function to prompt for configuration
+prompt_for_configuration() {
+    echo
+    print_info "📋 CloudBox Installation Configuration"
+    echo "======================================"
+    echo
+    
+    # Hostname/Domain prompt
+    if [[ -z "$ALLOWED_HOST" ]]; then
+        echo "🌐 Domain/Hostname Configuration:"
+        echo "   Enter the hostname or domain name for this CloudBox installation."
+        echo "   This can be a server hostname, domain name, or IP address."
+        echo "   Examples: myserver.com, cloudbox.example.com, 192.168.1.100, mgmt01"
+        echo
+        read -p "🔗 Hostname/Domain (leave empty for localhost only): " input_host
+        
+        if [[ -n "$input_host" ]]; then
+            ALLOWED_HOST="$input_host"
+            print_success "Will configure for hostname: $ALLOWED_HOST"
+        else
+            print_info "Configuration set for localhost access only"
+        fi
+        echo
+    fi
+    
+    # Port configuration confirmation
+    if [[ "$FRONTEND_PORT" != "3000" ]] || [[ "$BACKEND_PORT" != "8080" ]]; then
+        print_info "🔧 Custom port configuration detected:"
+        echo "   Frontend: $FRONTEND_PORT"
+        echo "   Backend:  $BACKEND_PORT"
+        echo
+    fi
+    
+    # Summary
+    print_info "📝 Installation Summary:"
+    echo "   Frontend URL: http://${ALLOWED_HOST:-localhost}:$FRONTEND_PORT"
+    echo "   Backend URL:  http://${ALLOWED_HOST:-localhost}:$BACKEND_PORT"
+    echo "   Admin URL:    http://${ALLOWED_HOST:-localhost}:$FRONTEND_PORT/admin"
+    echo
+    
+    read -p "✅ Continue with this configuration? (Y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        print_info "Installation cancelled by user."
+        exit 0
+    fi
+}
+
 # Function to perform installation
 perform_install() {
     print_info "Starting CloudBox installation..."
@@ -327,6 +413,9 @@ perform_install() {
             exit 0
         fi
     fi
+    
+    # Prompt for configuration if not provided via CLI
+    prompt_for_configuration
     
     # Generate environment file
     generate_env_file
@@ -400,24 +489,39 @@ show_access_info() {
     print_success "🚀 CloudBox is now running!"
     echo
     echo "📊 Access your CloudBox installation:"
-    echo "   Frontend:  http://localhost:${FRONTEND_PORT}"
-    echo "   Backend:   http://localhost:${BACKEND_PORT}"
-    echo "   Admin:     http://localhost:${FRONTEND_PORT}/admin"
+    
+    # Local access
+    echo "   📍 Local Access:"
+    echo "     Frontend:  http://localhost:${FRONTEND_PORT}"
+    echo "     Backend:   http://localhost:${BACKEND_PORT}"
+    echo "     Admin:     http://localhost:${FRONTEND_PORT}/admin"
     echo
+    
+    # Remote access if hostname was configured
     if [[ -n "$ALLOWED_HOST" ]]; then
-        echo "   Remote:    http://${ALLOWED_HOST}:${FRONTEND_PORT}"
-        echo "   Admin:     http://${ALLOWED_HOST}:${FRONTEND_PORT}/admin"
+        echo "   🌐 Remote Access:"
+        echo "     Frontend:  http://${ALLOWED_HOST}:${FRONTEND_PORT}"
+        echo "     Backend:   http://${ALLOWED_HOST}:${BACKEND_PORT}"
+        echo "     Admin:     http://${ALLOWED_HOST}:${FRONTEND_PORT}/admin"
+        echo
+        print_info "✅ Configured for hostname: $ALLOWED_HOST"
+        echo "   Make sure your firewall allows connections on ports $FRONTEND_PORT and $BACKEND_PORT"
         echo
     fi
+    
     echo "🔐 Default admin credentials:"
     echo "   Email:     admin@cloudbox.local"
     echo "   Password:  admin123"
+    echo "   📝 Remember to change these credentials after first login!"
     echo
     echo "📝 Useful commands:"
     echo "   View logs:    $DOCKER_COMPOSE_CMD logs -f"
     echo "   Stop:         $DOCKER_COMPOSE_CMD down"
     echo "   Restart:      $DOCKER_COMPOSE_CMD restart"
     echo "   Update:       ./install.sh --update"
+    if [[ -n "$ALLOWED_HOST" ]]; then
+        echo "   Reconfigure: ./install.sh --host $ALLOWED_HOST --update"
+    fi
     echo
     echo "📚 Documentation: https://github.com/ekoppen/cloudbox"
     echo
