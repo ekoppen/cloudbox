@@ -115,6 +115,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Function to detect and set Docker Compose command
+detect_docker_compose() {
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+        print_info "Using docker-compose (standalone)"
+    elif docker compose version &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker compose"
+        print_info "Using docker compose (Docker CLI plugin)"
+    else
+        print_error "Docker Compose not found. Please install Docker Compose."
+        print_info "Install Docker Compose: https://docs.docker.com/compose/install/"
+        exit 1
+    fi
+}
+
 # Function to check prerequisites
 check_prerequisites() {
     print_info "Checking prerequisites..."
@@ -126,12 +141,8 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if Docker Compose is installed
-    if ! command -v docker-compose &> /dev/null; then
-        print_error "Docker Compose is not installed. Please install Docker Compose first."
-        print_info "Install Docker Compose: https://docs.docker.com/compose/install/"
-        exit 1
-    fi
+    # Detect Docker Compose command
+    detect_docker_compose
     
     # Check if ports are available
     if ss -tlnp | grep -q ":${FRONTEND_PORT} "; then
@@ -264,7 +275,7 @@ init_database() {
     sleep 10
     
     # Check if we can connect to the database
-    docker-compose exec -T postgres pg_isready -U cloudbox > /dev/null 2>&1 && {
+    $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U cloudbox > /dev/null 2>&1 && {
         print_success "Database is ready"
     } || {
         print_warning "Database might still be starting up"
@@ -306,14 +317,14 @@ perform_install() {
     
     # Pull and build images
     print_info "Pulling Docker images..."
-    docker-compose pull
+    $DOCKER_COMPOSE_CMD pull
     
     print_info "Building application images..."
-    docker-compose build
+    $DOCKER_COMPOSE_CMD build
     
     # Start services
     print_info "Starting CloudBox services..."
-    docker-compose up -d
+    $DOCKER_COMPOSE_CMD up -d
     
     # Initialize database
     init_database
@@ -331,24 +342,24 @@ perform_update() {
     
     # Stop services
     print_info "Stopping services..."
-    docker-compose down
+    $DOCKER_COMPOSE_CMD down
     
     # Backup database
     print_info "Creating database backup..."
-    if docker-compose ps -q postgres > /dev/null 2>&1; then
-        docker-compose up -d postgres
+    if $DOCKER_COMPOSE_CMD ps -q postgres > /dev/null 2>&1; then
+        $DOCKER_COMPOSE_CMD up -d postgres
         sleep 5
-        docker-compose exec -T postgres pg_dump -U cloudbox cloudbox > "backup_$(date +%Y%m%d_%H%M%S).sql"
+        $DOCKER_COMPOSE_CMD exec -T postgres pg_dump -U cloudbox cloudbox > "backup_$(date +%Y%m%d_%H%M%S).sql"
         print_success "Database backup created"
     fi
     
     # Pull latest images
     print_info "Pulling latest Docker images..."
-    docker-compose pull
+    $DOCKER_COMPOSE_CMD pull
     
     # Rebuild images
     print_info "Rebuilding application images..."
-    docker-compose build --no-cache
+    $DOCKER_COMPOSE_CMD build --no-cache
     
     # Update configurations if host is specified
     if [[ -n "$ALLOWED_HOST" ]]; then
@@ -357,7 +368,7 @@ perform_update() {
     
     # Start services
     print_info "Starting updated services..."
-    docker-compose up -d
+    $DOCKER_COMPOSE_CMD up -d
     
     print_success "CloudBox update completed!"
     show_access_info
@@ -383,9 +394,9 @@ show_access_info() {
     echo "   Password:  admin123"
     echo
     echo "📝 Useful commands:"
-    echo "   View logs:    docker-compose logs -f"
-    echo "   Stop:         docker-compose down"
-    echo "   Restart:      docker-compose restart"
+    echo "   View logs:    $DOCKER_COMPOSE_CMD logs -f"
+    echo "   Stop:         $DOCKER_COMPOSE_CMD down"
+    echo "   Restart:      $DOCKER_COMPOSE_CMD restart"
     echo "   Update:       ./install.sh --update"
     echo
     echo "📚 Documentation: https://github.com/ekoppen/cloudbox"

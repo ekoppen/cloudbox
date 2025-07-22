@@ -7,7 +7,7 @@ Complete installation and setup guide for CloudBox Backend-as-a-Service platform
 Before installing CloudBox, ensure you have the following installed:
 
 - **Docker** (v20.10+)
-- **Docker Compose** (v2.0+)  
+- **Docker Compose** (v2.0+ or built-in `docker compose`)  
 - **Git**
 - **OpenSSL** (for generating secrets)
 
@@ -23,9 +23,12 @@ curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
 sudo usermod -aG docker $USER
 
-# Install Docker Compose
+# Install Docker Compose (if not using built-in docker compose)
 sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
+
+# Or verify built-in docker compose works
+docker compose version
 
 # Install Git and OpenSSL
 sudo apt install git openssl
@@ -313,12 +316,24 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 ```
 
+#### Docker Compose Version Issues
+
+If you get command not found errors:
+
+```bash
+# Check which version you have
+docker compose version    # Modern built-in version
+docker-compose version    # Standalone version
+
+# The install script automatically detects and uses the correct version
+```
+
 ### Getting Help
 
-1. Check logs: `docker-compose logs -f`
-2. Verify configuration: `docker-compose config`
-3. Check service status: `docker-compose ps`
-4. Restart services: `docker-compose restart`
+1. Check logs: `docker compose logs -f` (or `docker-compose logs -f`)
+2. Verify configuration: `docker compose config`
+3. Check service status: `docker compose ps`
+4. Restart services: `docker compose restart`
 
 ## Maintenance
 
