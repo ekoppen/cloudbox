@@ -146,6 +146,21 @@ export interface ExecuteFunctionOptions {
   timeout?: number;
 }
 
+export interface CreateFunctionOptions {
+  name: string;
+  description?: string;
+  runtime: 'nodejs18' | 'nodejs16' | 'nodejs14' | 'python3.9' | 'python3.8' | 'python3.7' | 'go1.19' | 'go1.18';
+  language: 'javascript' | 'python' | 'go';
+  code: string;
+  entry_point?: string;
+  timeout?: number;
+  memory?: number;
+  environment?: Record<string, any>;
+  commands?: string[];
+  dependencies?: Record<string, any>;
+  is_public?: boolean;
+}
+
 // Messaging types
 export interface Channel {
   id: string;
@@ -191,6 +206,31 @@ export interface RealtimeMessage {
 }
 
 export type RealtimeCallback = (message: RealtimeMessage) => void;
+
+// Backup types
+export interface Backup {
+  id: number;
+  name: string;
+  description?: string;
+  type: 'manual' | 'automatic';
+  status: 'creating' | 'completed' | 'failed';
+  size: number;
+  file_path?: string;
+  checksum?: string;
+  created_at: string;
+  completed_at?: string;
+  project_id: number;
+}
+
+export interface CreateBackupOptions {
+  name?: string;
+  description?: string;
+  type?: 'manual' | 'automatic';
+}
+
+export interface RestoreBackupOptions {
+  targetProjectId?: number;
+}
 
 // Error types
 export interface CloudBoxErrorDetails {

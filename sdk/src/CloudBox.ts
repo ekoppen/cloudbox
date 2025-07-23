@@ -6,6 +6,7 @@ import { Storage } from './services/Storage';
 import { Functions } from './services/Functions';
 import { Messaging } from './services/Messaging';
 import { Users } from './services/Users';
+import { Backups } from './services/Backups';
 import type { CloudBoxConfig } from './types';
 
 export class CloudBox extends EventEmitter {
@@ -19,6 +20,7 @@ export class CloudBox extends EventEmitter {
   public readonly functions: Functions;
   public readonly messaging: Messaging;
   public readonly users: Users;
+  public readonly backups: Backups;
 
   constructor(config: CloudBoxConfig) {
     super();
@@ -48,6 +50,7 @@ export class CloudBox extends EventEmitter {
     this.functions = new Functions(this);
     this.messaging = new Messaging(this);
     this.users = new Users(this);
+    this.backups = new Backups(this);
 
     // Set up auth event handling
     this.auth.on('login', (user) => {

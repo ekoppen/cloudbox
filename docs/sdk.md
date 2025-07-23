@@ -137,6 +137,29 @@ await channel.leave();
 ### Functions API
 
 ```typescript
+// Create function
+const func = await cloudbox.functions.create({
+  name: 'process-payment',
+  description: 'Process payment transactions',
+  runtime: 'nodejs18',
+  language: 'javascript',
+  code: `
+    exports.handler = async (data, context) => {
+      console.log('Processing payment:', data.amount);
+      return { status: 'success', transactionId: 'txn_123' };
+    };
+  `,
+  timeout: 30,
+  memory: 128,
+  environment: {
+    STRIPE_KEY: 'sk_test_...'
+  },
+  isPublic: true
+});
+
+// Deploy function
+await cloudbox.functions.deploy(func.id);
+
 // Execute function
 const result = await cloudbox.functions.execute('process-payment', {
   amount: 99.99,
@@ -144,10 +167,88 @@ const result = await cloudbox.functions.execute('process-payment', {
   userId: '123'
 });
 
-// Execute with timeout
+console.log('Result:', result.response);
+console.log('Execution time:', result.execution_time, 'ms');
+
+// Execute with timeout override
 const result = await cloudbox.functions.execute('slow-function', data, {
-  timeout: 30000 // 30 seconds
+  timeout: 60000 // 60 seconds
 });
+
+// Get function logs
+const logs = await cloudbox.functions.getLogs(func.id, {
+  limit: 100,
+  since: '2024-01-15T00:00:00Z'
+});
+
+// List functions
+const functions = await cloudbox.functions.list({
+  status: 'deployed',
+  limit: 20
+});
+
+// Update function
+await cloudbox.functions.update(func.id, {
+  timeout: 60,
+  memory: 256
+});
+
+// Delete function
+await cloudbox.functions.delete(func.id);
+```
+
+### Backup & Restore API
+
+```typescript
+// Create backup
+const backup = await cloudbox.backups.create({
+  name: 'Pre-deployment backup',
+  description: 'Backup before major update',
+  type: 'manual'
+});
+
+console.log('Backup created:', backup.id);
+console.log('Status:', backup.status); // "creating"
+
+// List backups
+const backups = await cloudbox.backups.list();
+console.log(`Found ${backups.length} backups`);
+
+backups.forEach(backup => {
+  console.log(`${backup.name} - ${backup.status} (${backup.size} bytes)`);
+});
+
+// Get backup details
+const backup = await cloudbox.backups.get(backupId);
+console.log('Backup status:', backup.status);
+console.log('Backup size:', backup.size, 'bytes');
+console.log('Checksum:', backup.checksum);
+
+// Monitor backup progress
+const waitForBackup = async (backupId) => {
+  let backup;
+  do {
+    backup = await cloudbox.backups.get(backupId);
+    console.log('Status:', backup.status);
+    
+    if (backup.status === 'creating') {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  } while (backup.status === 'creating');
+  
+  return backup;
+};
+
+// Restore backup to same project
+await cloudbox.backups.restore(backupId);
+
+// Restore backup to different project
+await cloudbox.backups.restore(backupId, {
+  targetProjectId: 2
+});
+
+// Delete backup
+await cloudbox.backups.delete(backupId);
 ```
 
 ### User Management API

@@ -10,6 +10,7 @@ export { Storage } from './services/Storage';
 export { Functions } from './services/Functions';
 export { Messaging } from './services/Messaging';
 export { Users } from './services/Users';
+export { Backups } from './services/Backups';
 
 // Types
 export * from './types';

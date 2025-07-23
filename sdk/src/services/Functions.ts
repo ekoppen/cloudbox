@@ -1,5 +1,5 @@
 import type { CloudBox } from '../CloudBox';
-import type { CloudFunction, FunctionExecution, ExecuteFunctionOptions } from '../types';
+import type { CloudFunction, FunctionExecution, ExecuteFunctionOptions, CreateFunctionOptions } from '../types';
 
 export class Functions {
   private cloudbox: CloudBox;
@@ -69,58 +69,64 @@ export class Functions {
   /**
    * Get all functions (admin only)
    */
+  async list(options: {
+    status?: 'draft' | 'building' | 'deployed' | 'error';
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<CloudFunction[]> {
+    const params = new URLSearchParams();
+    if (options.status) params.append('status', options.status);
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.offset) params.append('offset', options.offset.toString());
+    
+    const url = `${this.cloudbox.getAdminApiPath()}/functions${params.toString() ? `?${params}` : ''}`;
+    return this.cloudbox.apiClient.get<CloudFunction[]>(url);
+  }
+
+  /**
+   * @deprecated Use list() instead
+   */
   async getFunctions(): Promise<CloudFunction[]> {
-    return this.cloudbox.apiClient.get<CloudFunction[]>(
-      `${this.cloudbox.getAdminApiPath()}/functions`
-    );
+    return this.list();
   }
 
   /**
    * Create a new function (admin only)
    */
-  async createFunction(functionData: {
-    name: string;
-    description?: string;
-    runtime: string;
-    language: string;
-    code: string;
-    entry_point?: string;
-    timeout?: number;
-    memory?: number;
-    environment?: Record<string, any>;
-    is_public?: boolean;
-  }): Promise<CloudFunction> {
+  async create(options: CreateFunctionOptions): Promise<CloudFunction> {
     return this.cloudbox.apiClient.post<CloudFunction>(
       `${this.cloudbox.getAdminApiPath()}/functions`,
-      functionData
+      options
     );
+  }
+
+  /**
+   * @deprecated Use create() instead
+   */
+  async createFunction(functionData: CreateFunctionOptions): Promise<CloudFunction> {
+    return this.create(functionData);
   }
 
   /**
    * Get a specific function (admin only)
    */
-  async getFunction(functionId: string): Promise<CloudFunction> {
+  async get(functionId: string | number): Promise<CloudFunction> {
     return this.cloudbox.apiClient.get<CloudFunction>(
       `${this.cloudbox.getAdminApiPath()}/functions/${functionId}`
     );
   }
 
   /**
+   * @deprecated Use get() instead
+   */
+  async getFunction(functionId: string): Promise<CloudFunction> {
+    return this.get(functionId);
+  }
+
+  /**
    * Update a function (admin only)
    */
-  async updateFunction(functionId: string, updates: Partial<{
-    name: string;
-    description: string;
-    code: string;
-    runtime: string;
-    language: string;
-    entry_point: string;
-    timeout: number;
-    memory: number;
-    environment: Record<string, any>;
-    is_public: boolean;
-    is_active: boolean;
-  }>): Promise<CloudFunction> {
+  async update(functionId: string | number, updates: Partial<CreateFunctionOptions>): Promise<CloudFunction> {
     return this.cloudbox.apiClient.put<CloudFunction>(
       `${this.cloudbox.getAdminApiPath()}/functions/${functionId}`,
       updates
@@ -128,21 +134,42 @@ export class Functions {
   }
 
   /**
+   * @deprecated Use update() instead
+   */
+  async updateFunction(functionId: string, updates: Partial<CreateFunctionOptions>): Promise<CloudFunction> {
+    return this.update(functionId, updates);
+  }
+
+  /**
    * Delete a function (admin only)
    */
-  async deleteFunction(functionId: string): Promise<void> {
+  async delete(functionId: string | number): Promise<void> {
     await this.cloudbox.apiClient.delete(
       `${this.cloudbox.getAdminApiPath()}/functions/${functionId}`
     );
   }
 
   /**
+   * @deprecated Use delete() instead
+   */
+  async deleteFunction(functionId: string): Promise<void> {
+    return this.delete(functionId);
+  }
+
+  /**
    * Deploy a function (admin only)
    */
-  async deployFunction(functionId: string): Promise<{ message: string; status: string }> {
+  async deploy(functionId: string | number): Promise<{ message: string; status: string }> {
     return this.cloudbox.apiClient.post(
       `${this.cloudbox.getAdminApiPath()}/functions/${functionId}/deploy`
     );
+  }
+
+  /**
+   * @deprecated Use deploy() instead
+   */
+  async deployFunction(functionId: string): Promise<{ message: string; status: string }> {
+    return this.deploy(functionId);
   }
 
   /**
@@ -163,11 +190,25 @@ export class Functions {
   /**
    * Get function execution logs (admin only)
    */
+  async getLogs(functionId: string | number, options: {
+    limit?: number;
+    since?: string;
+    status?: 'success' | 'error' | 'timeout';
+  } = {}): Promise<FunctionExecution[]> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.since) params.append('since', options.since);
+    if (options.status) params.append('status', options.status);
+    
+    const url = `${this.cloudbox.getAdminApiPath()}/functions/${functionId}/logs${params.toString() ? `?${params}` : ''}`;
+    return this.cloudbox.apiClient.get<FunctionExecution[]>(url);
+  }
+
+  /**
+   * @deprecated Use getLogs() instead
+   */
   async getFunctionLogs(functionId: string, limit?: number): Promise<FunctionExecution[]> {
-    const params = limit ? `?limit=${limit}` : '';
-    return this.cloudbox.apiClient.get<FunctionExecution[]>(
-      `${this.cloudbox.getAdminApiPath()}/functions/${functionId}/logs${params}`
-    );
+    return this.getLogs(functionId, { limit });
   }
 
   /**

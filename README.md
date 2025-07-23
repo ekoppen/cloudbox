@@ -9,15 +9,17 @@ A self-hosted Backend-as-a-Service (BaaS) platform that provides essential backe
 - **Database Management** - RESTful API for document storage and retrieval
 - **File Storage** - Upload, manage and serve files with organized bucket system
 - **Real-time Messaging** - WebSocket-based messaging with channels and rooms
-- **Serverless Functions** - Deploy and execute custom functions
+- **Serverless Functions** - Multi-runtime function execution (Node.js, Python, Go) with Docker isolation
 - **Automated Deployments** - Git-based deployments with webhook support
+- **Backup & Restore** - Comprehensive project backup with atomic restore capabilities
 
 🛠 **Developer Tools**
-- **Admin Dashboard** - Comprehensive management interface with statistics
-- **Project Management** - Multi-project organization with API keys
-- **User Analytics** - Growth metrics and usage statistics
-- **System Monitoring** - Health metrics and performance tracking
-- **Backup & Recovery** - Automated database backups
+- **Admin Dashboard** - Real-time statistics and system health monitoring
+- **Project Management** - Multi-project organization with encrypted API keys
+- **User Analytics** - Growth metrics and usage statistics based on actual data
+- **System Monitoring** - Live performance tracking and resource utilization
+- **SSH Management** - Secure SSH key management with host verification
+- **Security** - AES-256-GCM encryption and comprehensive audit logging
 
 🔧 **Technical Stack**
 - **Frontend**: SvelteKit + TypeScript + TailwindCSS
