@@ -30,13 +30,7 @@
     total_count: number;
   }
 
-  let tables: Table[] = [
-    { name: 'users', rows: 127, size: '2.4 MB', created_at: '2025-01-15' },
-    { name: 'posts', rows: 1843, size: '8.7 MB', created_at: '2025-01-16' },
-    { name: 'comments', rows: 5621, size: '12.3 MB', created_at: '2025-01-16' },
-    { name: 'categories', rows: 23, size: '156 KB', created_at: '2025-01-17' },
-    { name: 'tags', rows: 89, size: '234 KB', created_at: '2025-01-17' }
-  ];
+  let tables: Table[] = [];
 
   let selectedTable: string = '';
   let tableData: TableData | null = null;

@@ -48,6 +48,7 @@
   let loading = false;
   let error = '';
   let activeTab = 'api-keys';
+  let showDeleteConfirm = false;
 
   // CORS form fields
   let newOrigin = '';
@@ -119,29 +120,58 @@
     }
   }
 
-  async function deleteProject() {
-    if (confirm('Weet je ABSOLUUT ZEKER dat je dit project wilt verwijderen?\n\nDit zal ALLE data permanent verwijderen:\n- Alle collections en documenten\n- Alle bestanden\n- Alle gebruikers\n- Alle berichten\n- Alle API keys\n\nDeze actie kan NIET ongedaan gemaakt worden!')) {
-      try {
-        const response = await createApiRequest(API_ENDPOINTS.projects.delete(projectId), {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${$auth.token}`,
-          },
-        });
+  function showDeleteProjectDialog() {
+    showDeleteConfirm = true;
+  }
 
-        if (response.ok) {
-          toastStore.success('Project succesvol verwijderd');
-          // Redirect to dashboard after a brief delay
-          setTimeout(() => {
-            goto('/dashboard');
-          }, 1500);
-        } else {
+  async function confirmDeleteProject() {
+    console.log('confirmDeleteProject called, projectId:', projectId);
+    showDeleteConfirm = false;
+    loading = true;
+    
+    try {
+      const deleteUrl = API_ENDPOINTS.projects.delete(projectId);
+      console.log('Delete URL:', deleteUrl);
+      console.log('Auth token exists:', !!$auth.token);
+      console.log('Auth token length:', $auth.token?.length || 0);
+      
+      const response = await createApiRequest(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Delete response status:', response.status);
+      console.log('Delete response statusText:', response.statusText);
+      console.log('Delete response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (response.ok) {
+        toastStore.success('Project succesvol verwijderd');
+        console.log('Project deleted successfully, redirecting...');
+        setTimeout(() => {
+          goto('/dashboard');
+        }, 1500);
+      } else {
+        let errorMessage = 'Fout bij verwijderen van project';
+        try {
           const data = await response.json();
-          toastStore.error(data.error || 'Fout bij verwijderen van project');
+          console.error('Delete failed with data:', data);
+          errorMessage = data.error || data.message || errorMessage;
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+          console.error('Raw response text:', await response.text());
         }
-      } catch (err) {
-        toastStore.error('Netwerkfout bij verwijderen van project');
+        toastStore.error(errorMessage);
       }
+    } catch (err) {
+      console.error('Delete error (full object):', err);
+      console.error('Delete error message:', err.message);
+      console.error('Delete error stack:', err.stack);
+      toastStore.error(`Netwerkfout bij verwijderen van project: ${err.message}`);
+    } finally {
+      loading = false;
     }
   }
 
@@ -507,8 +537,8 @@
               <p class="text-sm text-muted-foreground">
                 Verwijder dit project permanent. Deze actie kan niet ongedaan gemaakt worden.
               </p>
-              <Button variant="destructive" class="mt-2" on:click={deleteProject}>
-                Project Verwijderen
+              <Button variant="destructive" class="mt-2" on:click={showDeleteProjectDialog} disabled={loading}>
+                {loading ? 'Verwijderen...' : 'Project Verwijderen'}
               </Button>
             </div>
           </div>
@@ -641,6 +671,62 @@
               <div class="font-medium text-foreground">{formatDate(showKeyDetails.last_used_at)}</div>
             </div>
           {/if}
+        </div>
+      </div>
+    </Card>
+  </div>
+{/if}
+
+<!-- Delete Project Confirmation Modal -->
+{#if showDeleteConfirm}
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <Card class="max-w-md w-full p-6 border-2 border-destructive shadow-2xl">
+      <div class="flex items-center space-x-3 mb-4">
+        <div class="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
+          <Icon name="backup" size={20} className="text-destructive" />
+        </div>
+        <h2 class="text-xl font-bold text-destructive">Project Verwijderen</h2>
+      </div>
+      
+      <div class="space-y-4">
+        <p class="text-sm text-foreground">
+          Weet je <strong>ABSOLUUT ZEKER</strong> dat je dit project wilt verwijderen?
+        </p>
+        
+        <div class="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+          <p class="text-sm font-medium text-destructive mb-2">Dit zal ALLE data permanent verwijderen:</p>
+          <ul class="text-xs text-destructive space-y-1">
+            <li>• Alle collections en documenten</li>
+            <li>• Alle bestanden</li>
+            <li>• Alle gebruikers</li>
+            <li>• Alle berichten</li>
+            <li>• Alle API keys</li>
+          </ul>
+        </div>
+        
+        <p class="text-xs text-muted-foreground font-medium">
+          Deze actie kan NIET ongedaan gemaakt worden!
+        </p>
+        
+        <div class="flex space-x-3 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            on:click={() => showDeleteConfirm = false}
+            class="flex-1"
+            disabled={loading}
+          >
+            Annuleren
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            on:click={confirmDeleteProject}
+            class="flex-1"
+            disabled={loading}
+          >
+            {loading ? 'Verwijderen...' : 'Ja, Verwijderen'}
+          </Button>
         </div>
       </div>
     </Card>
