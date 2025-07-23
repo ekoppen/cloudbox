@@ -127,6 +127,63 @@ func (s *AuditService) LogLogin(c *gin.Context, userID uint, userName, userRole 
 	)
 }
 
+// LogOrganizationCreation logs organization creation
+func (s *AuditService) LogOrganizationCreation(c *gin.Context, orgID uint, orgName string, success bool, errorMsg string) error {
+	metadata := map[string]interface{}{
+		"organization_name": orgName,
+	}
+
+	return s.LogAction(
+		c,
+		models.AuditActionOrgCreate,
+		"organization",
+		fmt.Sprintf("%d", orgID),
+		fmt.Sprintf("Organization '%s' created", orgName),
+		success,
+		errorMsg,
+		metadata,
+	)
+}
+
+// LogOrganizationUpdate logs organization updates
+func (s *AuditService) LogOrganizationUpdate(c *gin.Context, orgID uint, orgName string, changedFields []string, success bool, errorMsg string) error {
+	metadata := map[string]interface{}{
+		"organization_name": orgName,
+		"changed_fields":    changedFields,
+	}
+
+	return s.LogAction(
+		c,
+		models.AuditActionOrgUpdate,
+		"organization",
+		fmt.Sprintf("%d", orgID),
+		fmt.Sprintf("Organization '%s' updated: %v", orgName, changedFields),
+		success,
+		errorMsg,
+		metadata,
+	)
+}
+
+// LogOrganizationDeletion logs organization deletion with additional context
+func (s *AuditService) LogOrganizationDeletion(c *gin.Context, orgID uint, orgName string, projectCount int, success bool, errorMsg string) error {
+	metadata := map[string]interface{}{
+		"organization_name": orgName,
+		"project_count":     projectCount,
+		"deleted_by_superadmin": c.GetString("user_role") == "superadmin",
+	}
+
+	return s.LogAction(
+		c,
+		models.AuditActionOrgDelete,
+		"organization",
+		fmt.Sprintf("%d", orgID),
+		fmt.Sprintf("Organization '%s' deleted (contained %d projects)", orgName, projectCount),
+		success,
+		errorMsg,
+		metadata,
+	)
+}
+
 // GetAuditLogs retrieves audit logs with filtering
 func (s *AuditService) GetAuditLogs(action string, resource string, actorID uint, limit int, offset int) ([]models.AuditLog, int64, error) {
 	var logs []models.AuditLog
