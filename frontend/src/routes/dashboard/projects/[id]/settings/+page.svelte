@@ -55,6 +55,13 @@
   let corsFormData = { ...corsConfig };
 
   $: projectId = $page.params.id;
+  
+  // Debug reactive project ID changes
+  $: {
+    console.log('Reactive update - projectId:', projectId);
+    console.log('Reactive update - page params:', $page.params);
+    console.log('Reactive update - page url:', $page.url.pathname);
+  }
 
   function generateAPIKey(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -131,6 +138,14 @@
     console.log('projectId length:', projectId?.length);
     console.log('URL params:', $page.params);
     console.log('Full URL:', $page.url.pathname);
+    
+    // Safety check for undefined project ID
+    if (!projectId || projectId === 'undefined') {
+      console.error('Project ID is undefined or invalid');
+      toastStore.error('Ongeldige project ID - probeer de pagina te vernieuwen');
+      showDeleteConfirm = false;
+      return;
+    }
     
     showDeleteConfirm = false;
     loading = true;
