@@ -1,12 +1,9 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { onMount } from 'svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Icon from '$lib/components/ui/icon.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   
   interface Project {
     id: number;
@@ -32,7 +29,7 @@
     error = '';
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}`, {
+      const response = await createApiRequest(API_ENDPOINTS.projects.get(projectId), {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',

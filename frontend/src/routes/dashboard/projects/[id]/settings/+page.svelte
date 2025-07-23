@@ -126,7 +126,7 @@
   async function deleteKey(keyId: number) {
     if (confirm('Weet je zeker dat je deze API key wilt verwijderen?')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/api-keys/${keyId}`, {
+        const response = await createApiRequest(API_ENDPOINTS.projects.delete(projectId), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
@@ -149,7 +149,7 @@
   async function deleteProject() {
     if (confirm('Weet je ABSOLUUT ZEKER dat je dit project wilt verwijderen?\n\nDit zal ALLE data permanent verwijderen:\n- Alle collections en documenten\n- Alle bestanden\n- Alle gebruikers\n- Alle berichten\n- Alle API keys\n\nDeze actie kan NIET ongedaan gemaakt worden!')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}`, {
+        const response = await createApiRequest(API_ENDPOINTS.projects.delete(projectId), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
