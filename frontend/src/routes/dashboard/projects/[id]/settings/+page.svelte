@@ -125,7 +125,13 @@
   }
 
   async function confirmDeleteProject() {
-    console.log('confirmDeleteProject called, projectId:', projectId);
+    console.log('confirmDeleteProject called');
+    console.log('Raw projectId:', projectId);
+    console.log('projectId type:', typeof projectId);
+    console.log('projectId length:', projectId?.length);
+    console.log('URL params:', $page.params);
+    console.log('Full URL:', $page.url.pathname);
+    
     showDeleteConfirm = false;
     loading = true;
     
