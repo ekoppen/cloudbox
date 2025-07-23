@@ -178,13 +178,22 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 // DeleteProject deletes a project
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 	userID := c.GetUint("user_id")
+	userRole := c.GetString("user_role")
 	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
 		return
 	}
 
-	result := h.db.Where("id = ? AND user_id = ?", uint(projectID), userID).Delete(&models.Project{})
+	var result *gorm.DB
+	if userRole == "superadmin" {
+		// Superadmin can delete any project
+		result = h.db.Where("id = ?", uint(projectID)).Delete(&models.Project{})
+	} else {
+		// Regular admin can only delete their own projects
+		result = h.db.Where("id = ? AND user_id = ?", uint(projectID), userID).Delete(&models.Project{})
+	}
+
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project"})
 		return
