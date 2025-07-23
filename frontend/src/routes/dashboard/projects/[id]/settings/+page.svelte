@@ -56,6 +56,18 @@
 
   $: projectId = $page.params.id;
   
+  // Fallback: extract project ID from URL if params.id is undefined
+  $: {
+    if (!projectId || projectId === 'undefined') {
+      const pathParts = $page.url.pathname.split('/');
+      const projectIndex = pathParts.indexOf('projects');
+      if (projectIndex !== -1 && pathParts[projectIndex + 1] && pathParts[projectIndex + 1] !== 'undefined') {
+        projectId = pathParts[projectIndex + 1];
+        console.log('Fallback project ID from URL:', projectId);
+      }
+    }
+  }
+  
   // Debug reactive project ID changes
   $: {
     console.log('Reactive update - projectId:', projectId);
