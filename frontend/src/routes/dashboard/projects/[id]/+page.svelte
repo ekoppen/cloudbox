@@ -26,53 +26,17 @@
   }
 
   let stats: ProjectStats = {
-    requests_today: 1247,
-    requests_week: 8934,
-    requests_month: 45621,
-    api_keys_count: 3,
-    database_tables: 5,
-    storage_used: 245.8,
-    users_count: 127,
-    deployments_count: 12
+    requests_today: 0,
+    requests_week: 0,
+    requests_month: 0,
+    api_keys_count: 0,
+    database_tables: 0,
+    storage_used: 0,
+    users_count: 0,
+    deployments_count: 0
   };
 
-  let recentActivity: RecentActivity[] = [
-    {
-      id: 1,
-      type: 'API',
-      message: 'Nieuw API verzoek ontvangen - POST /users',
-      timestamp: '2 minuten geleden',
-      status: 'success'
-    },
-    {
-      id: 2,
-      type: 'Database',
-      message: 'Database query uitgevoerd - SELECT * FROM projects',
-      timestamp: '5 minuten geleden',
-      status: 'success'
-    },
-    {
-      id: 3,
-      type: 'Authenticatie',
-      message: 'Nieuwe gebruiker geregistreerd',
-      timestamp: '12 minuten geleden',
-      status: 'success'
-    },
-    {
-      id: 4,
-      type: 'Error',
-      message: 'API rate limit bereikt voor key: abc123',
-      timestamp: '1 uur geleden',
-      status: 'warning'
-    },
-    {
-      id: 5,
-      type: 'Deployment',
-      message: 'Nieuwe versie succesvol gedeployeerd',
-      timestamp: '3 uur geleden',
-      status: 'success'
-    }
-  ];
+  let recentActivity: RecentActivity[] = [];
 
   $: projectId = $page.params.id;
 
