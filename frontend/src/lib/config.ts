@@ -49,6 +49,13 @@ export const API_ENDPOINTS = {
       get: (id: string) => `${API_BASE_URL}/api/v1/admin/projects/${id}`,
       update: (id: string) => `${API_BASE_URL}/api/v1/admin/projects/${id}`,
       delete: (id: string) => `${API_BASE_URL}/api/v1/admin/projects/${id}`,
+    },
+    system: {
+      info: `${API_BASE_URL}/api/v1/admin/system/info`,
+      settings: `${API_BASE_URL}/api/v1/admin/system/settings`,
+      restart: `${API_BASE_URL}/api/v1/admin/system/restart`,
+      clearCache: `${API_BASE_URL}/api/v1/admin/system/clear-cache`,
+      backup: `${API_BASE_URL}/api/v1/admin/system/backup`,
     }
   }
 } as const;

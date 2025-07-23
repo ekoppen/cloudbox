@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
@@ -42,10 +42,9 @@
     error = '';
 
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/projects', {
+      const response = await createApiRequest(API_ENDPOINTS.projects.list, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
       });
 
@@ -71,11 +70,10 @@
     creating = true;
 
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/projects', {
+      const response = await createApiRequest(API_ENDPOINTS.projects.create, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
         body: JSON.stringify(newProject),
       });

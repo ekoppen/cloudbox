@@ -1,22 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { toast } from '$lib/stores/toast';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Button from '$lib/components/ui/button.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Input from '$lib/components/ui/input.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Label from '$lib/components/ui/label.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Badge from '$lib/components/ui/badge.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Icon from '$lib/components/ui/icon.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
 
   let systemInfo = {
     version: '1.0.0',
@@ -53,7 +45,7 @@
 
   async function loadSystemInfo() {
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/system/info', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.info, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -73,10 +65,9 @@
 
   async function loadSystemSettings() {
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/system/settings', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.settings, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
       });
 
@@ -93,11 +84,10 @@
   async function saveSettings() {
     saving = true;
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/system/settings', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.settings, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
         body: JSON.stringify(systemSettings),
       });
@@ -122,11 +112,10 @@
 
     try {
       toast.info('Service wordt herstart...');
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/system/restart', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.restart, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
       });
 
@@ -145,11 +134,10 @@
   async function clearCache() {
     try {
       toast.info('Cache wordt geleegd...');
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/system/clear-cache', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.clearCache, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
       });
 
@@ -168,11 +156,10 @@
   async function runBackup() {
     try {
       toast.info('Backup wordt gestart...');
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/system/backup', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.backup, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
         },
       });
 

@@ -1,18 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { toast } from '$lib/stores/toast';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Button from '$lib/components/ui/button.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Input from '$lib/components/ui/input.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Label from '$lib/components/ui/label.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Badge from '$lib/components/ui/badge.svelte';
   import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Icon from '$lib/components/ui/icon.svelte';
@@ -63,7 +57,7 @@
     error = '';
 
     try {
-      const response = await fetch('${API_BASE_URL}/api/v1/admin/projects', {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.list, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
