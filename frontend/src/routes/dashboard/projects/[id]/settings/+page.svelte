@@ -64,6 +64,9 @@
       if (projectIndex !== -1 && pathParts[projectIndex + 1] && pathParts[projectIndex + 1] !== 'undefined') {
         projectId = pathParts[projectIndex + 1];
         console.log('Fallback project ID from URL:', projectId);
+      } else {
+        // Als laatste redmiddel, vraag gebruiker om handmatig te navigeren
+        console.error('Could not determine valid project ID from URL:', $page.url.pathname);
       }
     }
   }

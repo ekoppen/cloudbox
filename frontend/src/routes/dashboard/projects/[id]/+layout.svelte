@@ -20,6 +20,13 @@
 
   $: projectId = $page.params.id;
 
+  // Debug project ID changes in layout
+  $: {
+    console.log('Layout - projectId changed:', projectId);
+    console.log('Layout - page params:', $page.params);
+    console.log('Layout - page URL:', $page.url.pathname);
+  }
+
   onMount(() => {
     loadProject();
   });
@@ -50,8 +57,8 @@
     }
   }
 
-  // Navigation items Appwrite-style
-  const navItems = [
+  // Navigation items Appwrite-style - make reactive so they update when projectId changes
+  $: navItems = [
     { id: 'overview', name: 'Overzicht', icon: 'dashboard', href: `/dashboard/projects/${projectId}` },
     { id: 'database', name: 'Database', icon: 'database', href: `/dashboard/projects/${projectId}/database` },
     { id: 'auth', name: 'Authenticatie', icon: 'auth', href: `/dashboard/projects/${projectId}/auth` },
