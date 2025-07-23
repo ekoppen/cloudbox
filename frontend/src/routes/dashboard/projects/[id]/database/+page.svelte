@@ -48,44 +48,8 @@
 
   $: projectId = $page.params.id;
 
-  // Mock data voor geselecteerde tabel
+  // Empty function - will be replaced with real API calls
   function generateMockTableData(tableName: string): TableData {
-    if (tableName === 'users') {
-      return {
-        columns: [
-          { name: 'id', type: 'INTEGER', nullable: false },
-          { name: 'email', type: 'VARCHAR(255)', nullable: false },
-          { name: 'name', type: 'VARCHAR(255)', nullable: false },
-          { name: 'created_at', type: 'TIMESTAMP', nullable: false },
-          { name: 'is_active', type: 'BOOLEAN', nullable: false, default_value: 'true' },
-        ],
-        rows: [
-          { id: 1, email: 'jan@voorbeeld.nl', name: 'Jan de Vries', created_at: '2025-01-15 10:30:00', is_active: true },
-          { id: 2, email: 'sarah@test.nl', name: 'Sarah Johnson', created_at: '2025-01-15 11:45:00', is_active: true },
-          { id: 3, email: 'mike@demo.com', name: 'Mike Peters', created_at: '2025-01-16 09:15:00', is_active: false },
-          { id: 4, email: 'anna@cloudbox.nl', name: 'Anna de Jong', created_at: '2025-01-16 14:20:00', is_active: true },
-          { id: 5, email: 'tom@example.org', name: 'Tom Bakker', created_at: '2025-01-17 16:45:00', is_active: true },
-        ],
-        total_count: 127
-      };
-    } else if (tableName === 'posts') {
-      return {
-        columns: [
-          { name: 'id', type: 'INTEGER', nullable: false },
-          { name: 'title', type: 'VARCHAR(500)', nullable: false },
-          { name: 'content', type: 'TEXT', nullable: true },
-          { name: 'user_id', type: 'INTEGER', nullable: false },
-          { name: 'created_at', type: 'TIMESTAMP', nullable: false },
-          { name: 'published', type: 'BOOLEAN', nullable: false, default_value: 'false' },
-        ],
-        rows: [
-          { id: 1, title: 'Welkom bij CloudBox', content: 'Een geweldige self-hosted BaaS...', user_id: 1, created_at: '2025-01-15 12:00:00', published: true },
-          { id: 2, title: 'Hoe gebruik je de API', content: 'In deze post leggen we uit...', user_id: 2, created_at: '2025-01-16 09:30:00', published: true },
-          { id: 3, title: 'Database tips', content: 'Enkele handige tips voor...', user_id: 1, created_at: '2025-01-17 11:15:00', published: false },
-        ],
-        total_count: 1843
-      };
-    }
     return { columns: [], rows: [], total_count: 0 };
   }
 

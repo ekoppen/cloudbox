@@ -76,11 +76,8 @@
 
   $: projectId = $page.params.id;
 
-  // Generate mock chart data
-  let chartData = Array.from({ length: 7 }, (_, i) => ({
-    day: ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'][i],
-    requests: Math.floor(Math.random() * 2000) + 500
-  }));
+  // Chart data - will be loaded from API
+  let chartData: Array<{day: string, requests: number}> = [];
 
   function getStatusColor(status: string) {
     switch (status) {

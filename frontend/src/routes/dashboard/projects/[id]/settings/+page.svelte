@@ -31,34 +31,7 @@
     max_age: number;
   }
 
-  let apiKeys: APIKey[] = [
-    {
-      id: 1,
-      name: 'Frontend App',
-      key: 'cb_live_1234567890abcdef',
-      created_at: '2025-01-15T10:30:00Z',
-      last_used_at: '2025-01-19T20:05:00Z',
-      permissions: ['read', 'write'],
-      is_active: true
-    },
-    {
-      id: 2,
-      name: 'Mobile App',
-      key: 'cb_live_fedcba0987654321',
-      created_at: '2025-01-16T14:20:00Z',
-      last_used_at: '2025-01-18T09:15:00Z',
-      permissions: ['read'],
-      is_active: true
-    },
-    {
-      id: 3,
-      name: 'Analytics Service',
-      key: 'cb_live_abcd1234efgh5678',
-      created_at: '2025-01-17T09:45:00Z',
-      permissions: ['read'],
-      is_active: false
-    }
-  ];
+  let apiKeys: APIKey[] = [];
 
   let corsConfig: CORSConfig = {
     allowed_origins: ['https://place.holder'],
