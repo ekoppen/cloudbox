@@ -11,6 +11,7 @@ import (
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
 	"github.com/cloudbox/backend/internal/services"
+	"github.com/cloudbox/backend/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -130,9 +131,9 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 
 // GetProject returns a specific project
 func (h *ProjectHandler) GetProject(c *gin.Context) {
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
@@ -154,9 +155,9 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 // UpdateProject updates a project
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
@@ -191,9 +192,9 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	userRole := c.GetString("user_role")
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
@@ -239,9 +240,9 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 
 // ListAPIKeys returns all API keys for a project
 func (h *ProjectHandler) ListAPIKeys(c *gin.Context) {
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
@@ -279,9 +280,9 @@ func (h *ProjectHandler) ListAPIKeys(c *gin.Context) {
 // CreateAPIKey creates a new API key for a project
 func (h *ProjectHandler) CreateAPIKey(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
@@ -345,9 +346,9 @@ func (h *ProjectHandler) CreateAPIKey(c *gin.Context) {
 // DeleteAPIKey deletes an API key
 func (h *ProjectHandler) DeleteAPIKey(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 	
@@ -383,9 +384,9 @@ func (h *ProjectHandler) DeleteAPIKey(c *gin.Context) {
 // GetCORSConfig returns CORS configuration for a project
 func (h *ProjectHandler) GetCORSConfig(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
@@ -408,9 +409,9 @@ func (h *ProjectHandler) GetCORSConfig(c *gin.Context) {
 // UpdateCORSConfig updates CORS configuration for a project
 func (h *ProjectHandler) UpdateCORSConfig(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	projectID, err := utils.ParseProjectID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		utils.ResponseInvalidProjectID(c)
 		return
 	}
 
