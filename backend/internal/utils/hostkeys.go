@@ -41,7 +41,7 @@ func NewHostKeyManager(db *gorm.DB) *HostKeyManager {
 func (hm *HostKeyManager) CreateHostKeyCallback(projectID uint, allowNewHosts bool) ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		// Extract port from remote address
-		host, portStr, err := net.SplitHostPort(remote.String())
+		_, portStr, err := net.SplitHostPort(remote.String())
 		if err != nil {
 			return fmt.Errorf("failed to parse remote address: %w", err)
 		}

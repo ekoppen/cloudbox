@@ -287,7 +287,7 @@ executeFunction();
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	
-	err := cmd.Run()
+	_ = cmd.Run()
 	
 	result := &ExecutionResult{
 		Logs: stdout.String() + stderr.String(),
@@ -400,7 +400,7 @@ if __name__ == '__main__':
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	
-	err := cmd.Run()
+	_ = cmd.Run()
 	
 	result := &ExecutionResult{
 		Logs: stdout.String() + stderr.String(),
@@ -539,7 +539,7 @@ func main() {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	
-	err := cmd.Run()
+	_ = cmd.Run()
 	
 	result := &ExecutionResult{
 		Logs: stdout.String() + stderr.String(),

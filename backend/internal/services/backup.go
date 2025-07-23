@@ -440,12 +440,12 @@ func (s *BackupService) updateProjectIDs(backupData *BackupData, newProjectID ui
 	
 	for i := range backupData.Documents {
 		backupData.Documents[i].ProjectID = newProjectID
-		backupData.Documents[i].ID = 0
+		backupData.Documents[i].ID = ""
 	}
 	
 	for i := range backupData.Files {
 		backupData.Files[i].ProjectID = newProjectID
-		backupData.Files[i].ID = 0
+		backupData.Files[i].ID = ""
 	}
 	
 	for i := range backupData.Functions {
@@ -489,7 +489,7 @@ func (s *BackupService) updateProjectIDs(backupData *BackupData, newProjectID ui
 	}
 	
 	for i := range backupData.AuditLogs {
-		backupData.AuditLogs[i].ProjectID = newProjectID
+		backupData.AuditLogs[i].ProjectID = &newProjectID
 		backupData.AuditLogs[i].ID = 0
 	}
 }
