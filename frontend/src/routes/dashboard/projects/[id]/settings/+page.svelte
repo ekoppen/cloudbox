@@ -170,6 +170,9 @@
       console.log('Delete URL:', deleteUrl);
       console.log('Auth token exists:', !!$auth.token);
       console.log('Auth token length:', $auth.token?.length || 0);
+      console.log('Auth store:', $auth);
+      console.log('User role:', $auth.user?.role);
+      console.log('User:', $auth.user);
       
       const response = await createApiRequest(deleteUrl, {
         method: 'DELETE',
