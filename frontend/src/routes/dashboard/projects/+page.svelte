@@ -52,6 +52,15 @@
 
       if (response.ok) {
         projects = await response.json();
+        console.log('Loaded projects:', projects);
+        console.log('First project:', projects[0]);
+        projects.forEach((project, index) => {
+          console.log(`Project ${index}:`, {
+            id: project.id,
+            name: project.name,
+            idType: typeof project.id
+          });
+        });
       } else {
         const data = await response.json();
         error = data.error || 'Fout bij laden van projecten';
