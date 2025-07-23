@@ -68,6 +68,22 @@ type Organization struct {
 	Color       string `json:"color" gorm:"default:'#3B82F6'"` // Hex color for UI
 	IsActive    bool   `json:"is_active" gorm:"default:true"`
 
+	// Contact information
+	Website     string `json:"website"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	ContactPerson string `json:"contact_person"`
+	
+	// Logo and branding
+	LogoURL     string `json:"logo_url"`
+	LogoFileID  *uint  `json:"logo_file_id,omitempty"` // Reference to uploaded file
+	
+	// Address information  
+	Address     string `json:"address"`
+	City        string `json:"city"`
+	Country     string `json:"country"`
+	PostalCode  string `json:"postal_code"`
+
 	// Owner
 	UserID uint `json:"user_id" gorm:"not null"`
 	User   User `json:"user,omitempty"`
@@ -699,4 +715,55 @@ type MessageRead struct {
 	
 	// Project relation
 	ProjectID uint `json:"project_id" gorm:"not null;index"`
+}
+
+// AuditLogAction represents the type of action performed
+type AuditLogAction string
+
+const (
+	AuditActionProjectCreate AuditLogAction = "project.create"
+	AuditActionProjectUpdate AuditLogAction = "project.update"
+	AuditActionProjectDelete AuditLogAction = "project.delete"
+	AuditActionUserCreate    AuditLogAction = "user.create"
+	AuditActionUserUpdate    AuditLogAction = "user.update"
+	AuditActionUserDelete    AuditLogAction = "user.delete"
+	AuditActionLogin         AuditLogAction = "auth.login"
+	AuditActionLogout        AuditLogAction = "auth.logout"
+	AuditActionAPIKeyCreate  AuditLogAction = "apikey.create"
+	AuditActionAPIKeyDelete  AuditLogAction = "apikey.delete"
+)
+
+// AuditLog represents an audit trail entry
+type AuditLog struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at" gorm:"index"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Action details
+	Action      AuditLogAction `json:"action" gorm:"not null;index"`
+	Resource    string         `json:"resource" gorm:"not null"` // e.g., "project", "user"
+	ResourceID  string         `json:"resource_id" gorm:"index"` // ID of the affected resource
+	Description string         `json:"description"`              // Human-readable description
+
+	// Actor (who performed the action)
+	ActorID   uint   `json:"actor_id" gorm:"not null;index"`
+	ActorName string `json:"actor_name" gorm:"not null"`
+	ActorRole string `json:"actor_role" gorm:"not null"`
+
+	// Context
+	IPAddress string `json:"ip_address"`
+	UserAgent string `json:"user_agent"`
+	Method    string `json:"method"` // HTTP method
+	Path      string `json:"path"`   // Request path
+
+	// Additional data (JSON)
+	Metadata string `json:"metadata,omitempty"` // JSON string for additional context
+
+	// Project context (if applicable)
+	ProjectID *uint `json:"project_id,omitempty" gorm:"index"`
+
+	// Success/failure
+	Success   bool   `json:"success" gorm:"default:true"`
+	ErrorMsg  string `json:"error_msg,omitempty"`
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
+	"github.com/cloudbox/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -17,13 +18,18 @@ import (
 
 // ProjectHandler handles project-related requests
 type ProjectHandler struct {
-	db  *gorm.DB
-	cfg *config.Config
+	db           *gorm.DB
+	cfg          *config.Config
+	auditService *services.AuditService
 }
 
 // NewProjectHandler creates a new project handler
 func NewProjectHandler(db *gorm.DB, cfg *config.Config) *ProjectHandler {
-	return &ProjectHandler{db: db, cfg: cfg}
+	return &ProjectHandler{
+		db:           db,
+		cfg:          cfg,
+		auditService: services.NewAuditService(db),
+	}
 }
 
 // CreateProjectRequest represents a project creation request
@@ -98,6 +104,8 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 
 	if err := h.db.Create(&project).Error; err != nil {
+		// Log failed creation
+		h.auditService.LogProjectCreation(c, 0, req.Name, false, fmt.Sprintf("Database error: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project"})
 		return
 	}
@@ -112,6 +120,9 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		MaxAge:           3600,
 	}
 	h.db.Create(&corsConfig)
+
+	// Log successful creation
+	h.auditService.LogProjectCreation(c, project.ID, project.Name, true, "")
 
 	c.JSON(http.StatusCreated, project)
 }
@@ -185,6 +196,15 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 		return
 	}
 
+	// First, get the project details for audit logging
+	var project models.Project
+	if err := h.db.Where("id = ?", uint(projectID)).First(&project).Error; err != nil {
+		// Log failed attempt
+		h.auditService.LogProjectDeletion(c, uint(projectID), "Unknown Project", false, "Project not found")
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
 	var result *gorm.DB
 	if userRole == "superadmin" {
 		// Superadmin can delete any project
@@ -195,14 +215,21 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 	}
 
 	if result.Error != nil {
+		// Log failed deletion
+		h.auditService.LogProjectDeletion(c, uint(projectID), project.Name, false, fmt.Sprintf("Database error: %v", result.Error))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project"})
 		return
 	}
 
 	if result.RowsAffected == 0 {
+		// Log failed deletion due to permissions
+		h.auditService.LogProjectDeletion(c, uint(projectID), project.Name, false, "Project not found or insufficient permissions")
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		return
 	}
+
+	// Log successful deletion
+	h.auditService.LogProjectDeletion(c, uint(projectID), project.Name, true, "")
 
 	c.JSON(http.StatusOK, gin.H{"message": "Project deleted successfully"})
 }

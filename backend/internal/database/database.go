@@ -53,5 +53,6 @@ func Migrate(db *gorm.DB) error {
 		&models.Function{},
 		&models.FunctionExecution{},
 		&models.FunctionDomain{},
+		&models.AuditLog{},
 	)
 }

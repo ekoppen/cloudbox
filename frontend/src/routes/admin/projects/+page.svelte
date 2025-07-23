@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, API_BASE_URL, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
   import Card from '$lib/components/ui/card.svelte';
@@ -8,9 +8,7 @@
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Icon from '$lib/components/ui/icon.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
 
   interface Organization {
     id: number;
