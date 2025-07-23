@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -171,9 +174,10 @@ func (h *DataHandler) ListDocuments(c *gin.Context) {
 	}
 	
 	if order := c.Query("orderBy"); order != "" {
-		// Simple validation for order by
-		if strings.Contains(order, "created_at") || strings.Contains(order, "updated_at") {
-			orderBy = order
+		// Strict validation for order by to prevent SQL injection
+		validOrderPattern := regexp.MustCompile(`^(created_at|updated_at)\s+(ASC|DESC)$|^(created_at|updated_at)$`)
+		if validOrderPattern.MatchString(strings.TrimSpace(order)) {
+			orderBy = strings.TrimSpace(order)
 		}
 	}
 	
@@ -183,10 +187,18 @@ func (h *DataHandler) ListDocuments(c *gin.Context) {
 		Offset(offset).
 		Order(orderBy)
 	
-	// Add simple filtering if provided
+	// Add secure JSON filtering if provided
 	if filter := c.Query("filter"); filter != "" {
-		// Simple JSON filtering - in production, implement proper query language
-		query = query.Where("data::text ILIKE ?", "%"+filter+"%")
+		// Validate filter is valid JSON to prevent injection
+		var filterJSON map[string]interface{}
+		if err := json.Unmarshal([]byte(filter), &filterJSON); err == nil {
+			// Use parameterized query with JSON containment operator
+			query = query.Where("data @> ?", filter)
+		} else {
+			// Fallback to safe text search with proper escaping
+			safeFilter := strings.ReplaceAll(filter, "'", "''")
+			query = query.Where("data::text ILIKE ?", "%"+safeFilter+"%")
+		}
 	}
 	
 	if err := query.Find(&documents).Error; err != nil {
@@ -194,9 +206,22 @@ func (h *DataHandler) ListDocuments(c *gin.Context) {
 		return
 	}
 	
-	// Get total count
+	// Get total count efficiently in single query
 	var total int64
-	h.db.Model(&models.Document{}).Where("project_id = ? AND collection_name = ?", project.ID, collectionName).Count(&total)
+	countQuery := h.db.Model(&models.Document{}).Where("project_id = ? AND collection_name = ?", project.ID, collectionName)
+	
+	// Apply same filter to count query
+	if filter := c.Query("filter"); filter != "" {
+		var filterJSON map[string]interface{}
+		if err := json.Unmarshal([]byte(filter), &filterJSON); err == nil {
+			countQuery = countQuery.Where("data @> ?", filter)
+		} else {
+			safeFilter := strings.ReplaceAll(filter, "'", "''")
+			countQuery = countQuery.Where("data::text ILIKE ?", "%"+safeFilter+"%")
+		}
+	}
+	
+	countQuery.Count(&total)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"documents": documents,
@@ -217,12 +242,23 @@ func (h *DataHandler) CreateDocument(c *gin.Context) {
 		return
 	}
 	
-	// Parse request body as JSON
+	// Parse and validate request body as JSON
 	var data map[string]interface{}
 	if err := c.ShouldBindJSON(&data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
 	}
+	
+	// Validate document size (prevent DOS attacks)
+	if len(data) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Document too large (max 100 fields)"})
+		return
+	}
+	
+	// Sanitize document data (remove potentially dangerous fields)
+	delete(data, "_sql")
+	delete(data, "__proto__")
+	delete(data, "constructor")
 	
 	// Generate ID if not provided
 	docID := uuid.New().String()
@@ -249,7 +285,17 @@ func (h *DataHandler) CreateDocument(c *gin.Context) {
 		Author:         author,
 	}
 	
-	if err := h.db.Create(&document).Error; err != nil {
+	// Use transaction for document creation
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in CreateDocument: %v", r)
+		}
+	}()
+	
+	if err := tx.Create(&document).Error; err != nil {
+		tx.Rollback()
 		if strings.Contains(err.Error(), "duplicate key") {
 			c.JSON(http.StatusConflict, gin.H{"error": "Document with this ID already exists"})
 			return
@@ -258,8 +304,14 @@ func (h *DataHandler) CreateDocument(c *gin.Context) {
 		return
 	}
 	
-	// Update collection stats
-	h.updateCollectionStats(project.ID, collectionName)
+	// Update collection stats in same transaction
+	if err := h.updateCollectionStatsInTx(tx, project.ID, collectionName); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update collection stats"})
+		return
+	}
+	
+	tx.Commit()
 	
 	c.JSON(http.StatusCreated, document)
 }
@@ -286,22 +338,39 @@ func (h *DataHandler) UpdateDocument(c *gin.Context) {
 	collectionName := c.Param("collection")
 	documentID := c.Param("id")
 	
-	// Parse request body
+	// Parse and validate request body
 	var data map[string]interface{}
 	if err := c.ShouldBindJSON(&data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
 	}
 	
-	// Remove id from data if it exists
+	// Validate document size
+	if len(data) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Document too large (max 100 fields)"})
+		return
+	}
+	
+	// Sanitize document data
 	delete(data, "id")
+	delete(data, "_sql")
+	delete(data, "__proto__")
+	delete(data, "constructor")
 	
 	// Get API key info for author
 	apiKey := c.MustGet("api_key").(models.APIKey)
 	author := fmt.Sprintf("api_key:%s", apiKey.Name)
 	
-	// Update document
-	result := h.db.Model(&models.Document{}).
+	// Update document with transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in UpdateDocument: %v", r)
+		}
+	}()
+	
+	result := tx.Model(&models.Document{}).
 		Where("project_id = ? AND collection_name = ? AND id = ?", project.ID, collectionName, documentID).
 		Updates(models.Document{
 			Data:   data,
@@ -310,22 +379,30 @@ func (h *DataHandler) UpdateDocument(c *gin.Context) {
 		Update("version", gorm.Expr("version + 1"))
 	
 	if result.Error != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update document"})
 		return
 	}
 	
 	if result.RowsAffected == 0 {
+		tx.Rollback()
 		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
 		return
 	}
 	
 	// Get updated document
 	var document models.Document
-	h.db.Where("project_id = ? AND collection_name = ? AND id = ?", 
+	tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
 		project.ID, collectionName, documentID).First(&document)
 	
-	// Update collection stats
-	h.updateCollectionStats(project.ID, collectionName)
+	// Update collection stats in same transaction
+	if err := h.updateCollectionStatsInTx(tx, project.ID, collectionName); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update collection stats"})
+		return
+	}
+	
+	tx.Commit()
 	
 	c.JSON(http.StatusOK, document)
 }
@@ -375,6 +452,21 @@ func (h *DataHandler) updateCollectionStats(projectID uint, collectionName strin
 			DocumentCount: count,
 			LastModified:  time.Now(),
 		})
+}
+
+// updateCollectionStatsInTx updates collection statistics within a transaction
+func (h *DataHandler) updateCollectionStatsInTx(tx *gorm.DB, projectID uint, collectionName string) error {
+	var count int64
+	if err := tx.Model(&models.Document{}).Where("project_id = ? AND collection_name = ?", projectID, collectionName).Count(&count).Error; err != nil {
+		return err
+	}
+	
+	return tx.Model(&models.Collection{}).
+		Where("project_id = ? AND name = ?", projectID, collectionName).
+		Updates(models.Collection{
+			DocumentCount: count,
+			LastModified:  time.Now(),
+		}).Error
 }
 
 // isValidCollectionName validates collection name

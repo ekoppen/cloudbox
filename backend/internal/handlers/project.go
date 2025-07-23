@@ -13,6 +13,7 @@ import (
 	"github.com/cloudbox/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -257,7 +258,22 @@ func (h *ProjectHandler) ListAPIKeys(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, apiKeys)
+	// Remove sensitive data from response
+	var safeKeys []gin.H
+	for _, key := range apiKeys {
+		safeKeys = append(safeKeys, gin.H{
+			"id":           key.ID,
+			"name":         key.Name,
+			"permissions":  key.Permissions,
+			"is_active":    key.IsActive,
+			"last_used_at": key.LastUsedAt,
+			"expires_at":   key.ExpiresAt,
+			"created_at":   key.CreatedAt,
+			"updated_at":   key.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, safeKeys)
 }
 
 // CreateAPIKey creates a new API key for a project
@@ -286,16 +302,26 @@ func (h *ProjectHandler) CreateAPIKey(c *gin.Context) {
 		return
 	}
 
-	// Generate API key
+	// Generate API key (64 characters for better security)
 	keyBytes := make([]byte, 32)
-	rand.Read(keyBytes)
+	if _, err := rand.Read(keyBytes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate API key"})
+		return
+	}
 	apiKey := hex.EncodeToString(keyBytes)
 
-	// Create API key record
+	// Hash the API key for secure storage
+	hashedKey, err := bcrypt.GenerateFromPassword([]byte(apiKey), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash API key"})
+		return
+	}
+
+	// Create API key record with hashed key (don't store plain key)
 	key := models.APIKey{
 		Name:        req.Name,
-		Key:         apiKey,
-		KeyHash:     apiKey, // In production, hash this
+		Key:         "",           // Don't store plain key in database
+		KeyHash:     string(hashedKey), // Store hashed version only
 		ProjectID:   uint(projectID),
 		Permissions: pq.StringArray(req.Permissions),
 		IsActive:    true,
@@ -306,7 +332,14 @@ func (h *ProjectHandler) CreateAPIKey(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, key)
+	c.JSON(http.StatusCreated, gin.H{
+		"id":          key.ID,
+		"name":        key.Name,
+		"key":         apiKey, // Only shown once during creation
+		"permissions": key.Permissions,
+		"created_at":  key.CreatedAt,
+		"warning":     "Save this key now - you won't be able to see it again!",
+	})
 }
 
 // DeleteAPIKey deletes an API key

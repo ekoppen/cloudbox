@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudbox/backend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -97,12 +99,31 @@ func ProjectAuth(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		err = db.Where("project_id = ? AND key = ? AND is_active = true", project.ID, apiKey).First(&key).Error
+		// Find API key by project - we need to check hash since keys are not stored in plain text
+		var apiKeys []models.APIKey
+		err = db.Where("project_id = ? AND is_active = true", project.ID).Find(&apiKeys).Error
 		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			c.Abort()
+			return
+		}
+
+		// Check each API key hash
+		var validKey *models.APIKey
+		for _, k := range apiKeys {
+			if err := bcrypt.CompareHashAndPassword([]byte(k.KeyHash), []byte(apiKey)); err == nil {
+				validKey = &k
+				break
+			}
+		}
+
+		if validKey == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
 			c.Abort()
 			return
 		}
+
+		key = *validKey
 
 		// Check if key is expired
 		if key.ExpiresAt != nil && key.ExpiresAt.Before(time.Now()) {
@@ -111,8 +132,14 @@ func ProjectAuth(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Update last used timestamp
-		db.Model(&key).Update("last_used_at", time.Now())
+		// Update last used timestamp in transaction for consistency
+		tx := db.Begin()
+		if err := tx.Model(&key).Update("last_used_at", time.Now()).Error; err != nil {
+			log.Printf("Failed to update API key last_used_at: %v", err)
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
 
 		// Store project and key info in context
 		c.Set("project", project)

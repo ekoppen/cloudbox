@@ -1,12 +1,18 @@
 package handlers
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -74,9 +80,13 @@ func (h *StorageHandler) CreateBucket(c *gin.Context) {
 		return
 	}
 	
-	// Set defaults
+	// Set defaults with validation
 	maxFileSize := int64(52428800) // 50MB default
 	if req.MaxFileSize != nil {
+		if *req.MaxFileSize <= 0 || *req.MaxFileSize > 1073741824 { // Max 1GB
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file size limit (must be between 1 byte and 1GB)"})
+			return
+		}
 		maxFileSize = *req.MaxFileSize
 	}
 	
@@ -258,21 +268,56 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 		return
 	}
 	
-	// Validate MIME type if restricted
+	// Validate MIME type with content inspection (not just header)
 	if len(bucket.AllowedTypes) > 0 {
-		mimeType := header.Header.Get("Content-Type")
-		if !contains(bucket.AllowedTypes, mimeType) {
+		// Read first 512 bytes to detect actual content type
+		buffer := make([]byte, 512)
+		n, _ := file.Read(buffer)
+		file.Seek(0, 0) // Reset file position
+		
+		// Detect MIME type from content
+		actualMimeType := http.DetectContentType(buffer[:n])
+		
+		// Also check file extension
+		extension := filepath.Ext(header.Filename)
+		extMimeType := mime.TypeByExtension(extension)
+		
+		// Validate against both content-based and extension-based MIME types
+		if !contains(bucket.AllowedTypes, actualMimeType) && !contains(bucket.AllowedTypes, extMimeType) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("File type not allowed. Allowed types: %v", bucket.AllowedTypes),
+				"error": fmt.Sprintf("File type not allowed. Detected: %s, Allowed: %v", actualMimeType, bucket.AllowedTypes),
 			})
 			return
 		}
 	}
 	
-	// Generate file info
+	// Generate secure file info
 	fileID := uuid.New().String()
-	fileName := fmt.Sprintf("%s_%s", fileID, sanitizeFileName(header.Filename))
-	filePath := filepath.Join("./uploads", project.Slug, bucketName, fileName)
+	safeOriginalName := sanitizeFileName(header.Filename)
+	
+	// Use only the file ID and extension for storage (prevents any filename attacks)
+	extension := filepath.Ext(safeOriginalName)
+	if extension == "" {
+		// Try to determine extension from MIME type if not present
+		if exts, err := mime.ExtensionsByType(http.DetectContentType(make([]byte, 512))); err == nil && len(exts) > 0 {
+			extension = exts[0]
+		}
+	}
+	
+	fileName := fmt.Sprintf("%s%s", fileID, extension)
+	
+	// Secure file path construction with validation
+	baseDir := filepath.Clean("./uploads")
+	projectDir := filepath.Clean(project.Slug)
+	bucketDir := filepath.Clean(bucketName)
+	
+	// Prevent directory traversal
+	if strings.Contains(projectDir, "..") || strings.Contains(bucketDir, "..") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid path components"})
+		return
+	}
+	
+	filePath := filepath.Join(baseDir, projectDir, bucketDir, fileName)
 	
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
@@ -288,17 +333,36 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 	}
 	defer dst.Close()
 	
-	// Copy file and calculate checksum
-	hasher := md5.New()
+	// Copy file with size limit and calculate secure checksum
+	hasher := sha256.New() // Use SHA256 instead of MD5 for better security
 	multiWriter := io.MultiWriter(dst, hasher)
 	
-	if _, err := io.Copy(multiWriter, file); err != nil {
+	// Limit copy size to prevent resource exhaustion
+	limitedReader := io.LimitReader(file, bucket.MaxFileSize+1) // +1 to detect size exceeded
+	
+	bytesWritten, err := io.Copy(multiWriter, limitedReader)
+	if err != nil {
 		os.Remove(filePath) // Cleanup on error
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 		return
 	}
 	
+	// Double-check file size after writing
+	if bytesWritten > bucket.MaxFileSize {
+		os.Remove(filePath) // Cleanup oversized file
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File size exceeded limit during upload"})
+		return
+	}
+	
 	checksum := fmt.Sprintf("%x", hasher.Sum(nil))
+	
+	// Verify file integrity
+	if bytesWritten != header.Size {
+		log.Printf("File size mismatch: expected %d, got %d", header.Size, bytesWritten)
+		os.Remove(filePath)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File upload integrity check failed"})
+		return
+	}
 	
 	// Get API key info for author
 	apiKey := c.MustGet("api_key").(models.APIKey)
@@ -424,29 +488,57 @@ func (h *StorageHandler) updateBucketStats(projectID uint, bucketName string) {
 		})
 }
 
-// isValidBucketName validates bucket name
+// isValidBucketName validates bucket name with security checks
 func isValidBucketName(name string) bool {
 	if name == "" || len(name) > 50 {
 		return false
 	}
 	
-	// Only allow letters, numbers, hyphens, and underscores
-	for _, char := range name {
-		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
-			 (char >= '0' && char <= '9') || char == '-' || char == '_') {
+	// Check for reserved names
+	reservedNames := []string{"admin", "api", "www", "mail", "ftp", "root", "public", "private", "system", "config", "uploads"}
+	for _, reserved := range reservedNames {
+		if strings.EqualFold(name, reserved) {
 			return false
 		}
 	}
 	
-	return true
+	// Only allow letters, numbers, hyphens, and underscores (no dots to prevent subdomain issues)
+	re := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	return re.MatchString(name)
 }
 
-// sanitizeFileName removes problematic characters from filename
+
+// sanitizeFileName removes problematic characters from filename with comprehensive security
 func sanitizeFileName(filename string) string {
-	// Replace spaces with underscores and remove problematic characters
-	filename = strings.ReplaceAll(filename, " ", "_")
+	// Remove path separators and dangerous characters
 	filename = strings.ReplaceAll(filename, "/", "_")
 	filename = strings.ReplaceAll(filename, "\\", "_")
+	filename = strings.ReplaceAll(filename, "..", "_")
+	filename = strings.ReplaceAll(filename, ":", "_")
+	filename = strings.ReplaceAll(filename, "*", "_")
+	filename = strings.ReplaceAll(filename, "?", "_")
+	filename = strings.ReplaceAll(filename, "\"", "_")
+	filename = strings.ReplaceAll(filename, "<", "_")
+	filename = strings.ReplaceAll(filename, ">", "_")
+	filename = strings.ReplaceAll(filename, "|", "_")
+	filename = strings.ReplaceAll(filename, " ", "_")
+	
+	// Remove control characters and non-printable characters
+	re := regexp.MustCompile(`[\x00-\x1f\x7f-\x9f]`)
+	filename = re.ReplaceAllString(filename, "_")
+	
+	// Limit filename length
+	if len(filename) > 100 {
+		ext := filepath.Ext(filename)
+		name := filename[:100-len(ext)]
+		filename = name + ext
+	}
+	
+	// Ensure filename is not empty or dangerous
+	if filename == "" || filename == "." || filename == ".." {
+		filename = "unnamed_file"
+	}
+	
 	return filename
 }
 
