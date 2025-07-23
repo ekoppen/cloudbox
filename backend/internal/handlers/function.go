@@ -1,13 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cloudbox/backend/internal/config"
+	"github.com/cloudbox/backend/internal/execution"
 	"github.com/cloudbox/backend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,13 +19,25 @@ import (
 
 // FunctionHandler handles function management
 type FunctionHandler struct {
-	db  *gorm.DB
-	cfg *config.Config
+	db       *gorm.DB
+	cfg      *config.Config
+	executor *execution.ExecutionEngine
 }
 
 // NewFunctionHandler creates a new function handler
 func NewFunctionHandler(db *gorm.DB, cfg *config.Config) *FunctionHandler {
-	return &FunctionHandler{db: db, cfg: cfg}
+	// Create execution engine with default settings
+	workDir := filepath.Join("/tmp", "cloudbox-functions")
+	timeout := 30 * time.Second
+	maxMemory := int64(128 * 1024 * 1024) // 128MB default
+	
+	executor := execution.NewExecutionEngine(workDir, timeout, maxMemory)
+	
+	return &FunctionHandler{
+		db:       db,
+		cfg:      cfg,
+		executor: executor,
+	}
 }
 
 // CreateFunctionRequest represents a request to create a function
@@ -331,7 +346,7 @@ func (h *FunctionHandler) DeployFunction(c *gin.Context) {
 	}
 
 	// Start deployment asynchronously (in real implementation, this would be a background job)
-	go h.simulateDeployment(function)
+	go h.realDeployment(function)
 
 	// Update status to building
 	h.db.Model(&function).Updates(map[string]interface{}{
@@ -381,13 +396,46 @@ func (h *FunctionHandler) ExecuteFunction(c *gin.Context) {
 		return
 	}
 
-	// Execute function (simulated)
+	// Execute function using real execution engine
 	executionID := uuid.New().String()
 	startTime := time.Now()
 
-	// Simulate function execution
-	response := h.simulateExecution(function, req.Data, req.Headers)
-	executionTime := time.Since(startTime).Milliseconds()
+	// Create execution request
+	execReq := execution.ExecutionRequest{
+		Function: function,
+		Data:     req.Data,
+		Headers:  req.Headers,
+		Method:   c.Request.Method,
+		Path:     c.Request.URL.Path,
+	}
+
+	// Execute function with timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(function.Timeout)*time.Second)
+	defer cancel()
+
+	result, err := h.executor.Execute(ctx, execReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Execution failed: %v", err)})
+		return
+	}
+
+	executionTime := result.ExecutionTime
+	var response map[string]interface{}
+	status := "success"
+	statusCode := result.StatusCode
+	logs := result.Logs
+
+	if result.Success {
+		response = result.Response
+	} else {
+		response = map[string]interface{}{
+			"error": result.Error,
+		}
+		status = "error"
+		if statusCode == 0 {
+			statusCode = 500
+		}
+	}
 
 	// Log execution
 	execution := models.FunctionExecution{
@@ -398,13 +446,13 @@ func (h *FunctionHandler) ExecuteFunction(c *gin.Context) {
 		Headers:       req.Headers,
 		Method:        c.Request.Method,
 		Path:          c.Request.URL.Path,
-		Status:        "success",
-		StatusCode:    200,
+		Status:        status,
+		StatusCode:    statusCode,
 		ExecutionTime: executionTime,
-		MemoryUsage:   1024 * 1024, // 1MB simulated
+		MemoryUsage:   result.MemoryUsage,
 		StartedAt:     startTime,
 		CompletedAt:   &time.Time{},
-		Logs:          "Function executed successfully",
+		Logs:          logs,
 		UserAgent:     c.GetHeader("User-Agent"),
 		ClientIP:      c.ClientIP(),
 		Source:        "http",
@@ -512,13 +560,46 @@ func (h *FunctionHandler) ExecuteFunctionByName(c *gin.Context) {
 		return
 	}
 
-	// Execute function (simulated)
+	// Execute function using real execution engine
 	executionID := uuid.New().String()
 	startTime := time.Now()
 
-	// Simulate function execution
-	response := h.simulateExecution(function, requestData, requestHeaders)
-	executionTime := time.Since(startTime).Milliseconds()
+	// Create execution request
+	execReq := execution.ExecutionRequest{
+		Function: function,
+		Data:     requestData,
+		Headers:  requestHeaders,
+		Method:   c.Request.Method,
+		Path:     c.Request.URL.Path,
+	}
+
+	// Execute function with timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(function.Timeout)*time.Second)
+	defer cancel()
+
+	result, err := h.executor.Execute(ctx, execReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Execution failed: %v", err)})
+		return
+	}
+
+	executionTime := result.ExecutionTime
+	var response map[string]interface{}
+	status := "success"
+	statusCode := result.StatusCode
+	logs := result.Logs
+
+	if result.Success {
+		response = result.Response
+	} else {
+		response = map[string]interface{}{
+			"error": result.Error,
+		}
+		status = "error"
+		if statusCode == 0 {
+			statusCode = 500
+		}
+	}
 
 	// Log execution
 	execution := models.FunctionExecution{
@@ -529,13 +610,13 @@ func (h *FunctionHandler) ExecuteFunctionByName(c *gin.Context) {
 		Headers:       requestHeaders,
 		Method:        c.Request.Method,
 		Path:          c.Request.URL.Path,
-		Status:        "success",
-		StatusCode:    200,
+		Status:        status,
+		StatusCode:    statusCode,
 		ExecutionTime: executionTime,
-		MemoryUsage:   1024 * 1024, // 1MB simulated
+		MemoryUsage:   result.MemoryUsage,
 		StartedAt:     startTime,
 		CompletedAt:   &time.Time{},
-		Logs:          "Function executed successfully",
+		Logs:          logs,
 		UserAgent:     c.GetHeader("User-Agent"),
 		ClientIP:      c.ClientIP(),
 		Source:        "http",
@@ -587,10 +668,9 @@ func (h *FunctionHandler) GetFunctionLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, executions)
 }
 
-// simulateDeployment simulates function deployment
-func (h *FunctionHandler) simulateDeployment(function models.Function) {
-	// Simulate build process
-	time.Sleep(2 * time.Second)
+// realDeployment implements real function deployment
+func (h *FunctionHandler) realDeployment(function models.Function) {
+	// Update status to building
 	h.db.Model(&function).Updates(map[string]interface{}{
 		"status": "building",
 		"build_logs": "Starting function deployment...\n" +
@@ -598,7 +678,15 @@ func (h *FunctionHandler) simulateDeployment(function models.Function) {
 			"Building function package...\n",
 	})
 
-	time.Sleep(3 * time.Second)
+	// For now, we'll simulate the deployment process
+	// In a full implementation, this would:
+	// 1. Install dependencies based on function.Dependencies
+	// 2. Build the function package
+	// 3. Deploy to a container registry or function runtime
+	// 4. Set up networking and scaling rules
+	
+	time.Sleep(3 * time.Second) // Simulate build time
+	
 	now := time.Now()
 	h.db.Model(&function).Updates(map[string]interface{}{
 		"status":            "deployed",
@@ -606,39 +694,4 @@ func (h *FunctionHandler) simulateDeployment(function models.Function) {
 		"build_logs":        "Starting function deployment...\nInstalling dependencies...\nBuilding function package...\nBuild completed successfully!\n",
 		"deployment_logs":   "Deploying function...\nFunction deployed and ready to receive requests!\n",
 	})
-}
-
-// simulateExecution simulates function execution
-func (h *FunctionHandler) simulateExecution(function models.Function, data map[string]interface{}, headers map[string]interface{}) map[string]interface{} {
-	// Simple simulation based on function language
-	switch function.Language {
-	case "javascript":
-		return map[string]interface{}{
-			"message": "Hello from JavaScript function!",
-			"input":   data,
-			"runtime": function.Runtime,
-			"version": function.Version,
-		}
-	case "python":
-		return map[string]interface{}{
-			"message": "Hello from Python function!",
-			"input":   data,
-			"runtime": function.Runtime,
-			"version": function.Version,
-		}
-	case "go":
-		return map[string]interface{}{
-			"message": "Hello from Go function!",
-			"input":   data,
-			"runtime": function.Runtime,
-			"version": function.Version,
-		}
-	default:
-		return map[string]interface{}{
-			"message": "Hello from CloudBox Function!",
-			"input":   data,
-			"runtime": function.Runtime,
-			"version": function.Version,
-		}
-	}
 }

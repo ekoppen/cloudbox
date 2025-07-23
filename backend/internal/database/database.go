@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cloudbox/backend/internal/models"
+	"github.com/cloudbox/backend/internal/utils"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -54,5 +55,6 @@ func Migrate(db *gorm.DB) error {
 		&models.FunctionExecution{},
 		&models.FunctionDomain{},
 		&models.AuditLog{},
+		&utils.HostKeyEntry{}, // Add host key management
 	)
 }

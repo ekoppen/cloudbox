@@ -16,6 +16,7 @@ type Config struct {
 	JWTSecret   string
 	RedisURL    string
 	BaseURL     string
+	MasterKey   string // Master key for encrypting sensitive data
 	
 	// CORS settings
 	AllowedOrigins []string
@@ -30,6 +31,9 @@ type Config struct {
 	MaxFileSize   int64
 	UploadPath    string
 	AllowedTypes  []string
+	
+	// Backup settings
+	BackupDir     string
 }
 
 // Load reads configuration from environment variables and config files
@@ -42,6 +46,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("JWT_SECRET", "your-super-secret-jwt-key")
 	viper.SetDefault("REDIS_URL", "redis://localhost:6379")
 	viper.SetDefault("BASE_URL", "http://localhost:8080")
+	viper.SetDefault("MASTER_KEY", "") // Must be set in production
 	
 	// CORS defaults
 	viper.SetDefault("ALLOWED_ORIGINS", []string{"*"})
@@ -56,6 +61,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("MAX_FILE_SIZE", 10<<20) // 10MB
 	viper.SetDefault("UPLOAD_PATH", "./uploads")
 	viper.SetDefault("ALLOWED_TYPES", []string{"image/jpeg", "image/png", "image/gif", "text/html", "text/css", "application/javascript"})
+	
+	// Backup defaults
+	viper.SetDefault("BACKUP_DIR", "/var/lib/cloudbox/backups")
 
 	// Bind environment variables
 	viper.AutomaticEnv()
@@ -69,6 +77,7 @@ func Load() (*Config, error) {
 		JWTSecret:   getEnvOrDefault("JWT_SECRET", "your-super-secret-jwt-key"),
 		RedisURL:    getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:     getEnvOrDefault("BASE_URL", "http://localhost:8080"),
+		MasterKey:   getEnvOrDefault("MASTER_KEY", ""),
 		
 		AllowedOrigins: viper.GetStringSlice("ALLOWED_ORIGINS"),
 		AllowedMethods: viper.GetStringSlice("ALLOWED_METHODS"),
@@ -80,6 +89,8 @@ func Load() (*Config, error) {
 		MaxFileSize:  maxFileSize,
 		UploadPath:   getEnvOrDefault("UPLOAD_PATH", "./uploads"),
 		AllowedTypes: viper.GetStringSlice("ALLOWED_TYPES"),
+		
+		BackupDir:    getEnvOrDefault("BACKUP_DIR", "/var/lib/cloudbox/backups"),
 	}
 
 	return config, nil

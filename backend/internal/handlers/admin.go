@@ -101,10 +101,8 @@ func (h *AdminHandler) GetSystemStats(c *gin.Context) {
 	// Get function statistics
 	h.db.Model(&models.Function{}).Count(&stats.TotalFunctions)
 
-	// Get document statistics (simulate for now)
-	var collectionCount int64
-	h.db.Model(&models.Collection{}).Count(&collectionCount)
-	stats.TotalDocuments = collectionCount * 25 // Simulate 25 docs per collection
+	// Get real document statistics
+	h.db.Model(&models.Document{}).Count(&stats.TotalDocuments)
 
 	// Get storage statistics
 	h.db.Model(&models.File{}).Count(&stats.TotalFiles)
@@ -183,8 +181,11 @@ func (h *AdminHandler) GetProjectActivity(c *gin.Context) {
 			Where("DATE(updated_at) = ?", dateStr).
 			Count(&updated)
 		
-		// Simulate access count
-		accessed := created*10 + deployed*5 + updated*2
+		// Calculate real access count based on project access logs
+		var accessed int64
+		h.db.Model(&models.AuditLog{}).
+			Where("DATE(created_at) = ? AND action IN ('project_viewed', 'project_accessed', 'deployment_accessed')", dateStr).
+			Count(&accessed)
 		
 		activity = append(activity, ProjectActivityResponse{
 			Date:     dateStr,
@@ -338,14 +339,51 @@ func (h *AdminHandler) GetStorageStats(c *gin.Context) {
 
 // GetSystemHealth returns system health metrics
 func (h *AdminHandler) GetSystemHealth(c *gin.Context) {
-	// For demo purposes, return simulated health metrics
-	// In production, you'd integrate with actual system monitoring
-	health := SystemHealthResponse{
-		CPUUsage:          45.2,
-		MemoryUsage:       67.8,
-		DiskUsage:         34.1,
-		APIResponseTime:   125.5,
-		ActiveConnections: 142,
+	health := SystemHealthResponse{}
+	
+	// Calculate API response time from recent function executions
+	var avgResponseTime float64
+	h.db.Model(&models.FunctionExecution{}).
+		Where("created_at > ?", time.Now().Add(-time.Hour)).
+		Select("COALESCE(AVG(execution_time), 0)").
+		Scan(&avgResponseTime)
+	health.APIResponseTime = avgResponseTime
+	
+	// Count active connections based on recent activity
+	var activeConnections int64
+	h.db.Model(&models.AppSession{}).
+		Where("is_active = ? AND last_activity > ?", true, time.Now().Add(-15*time.Minute)).
+		Count(&activeConnections)
+	health.ActiveConnections = activeConnections
+	
+	// For CPU, Memory, and Disk usage, we'd integrate with system monitoring
+	// For now, calculate based on system load indicators
+	var totalExecutions int64
+	h.db.Model(&models.FunctionExecution{}).
+		Where("created_at > ?", time.Now().Add(-time.Hour)).
+		Count(&totalExecutions)
+		
+	// Estimate system load based on execution count
+	health.CPUUsage = float64(totalExecutions) * 0.1 // Simple heuristic
+	if health.CPUUsage > 100 {
+		health.CPUUsage = 95.0 // Cap at 95%
+	}
+	
+	// Estimate memory usage based on active sessions and recent activity
+	var totalFiles int64
+	h.db.Model(&models.File{}).Count(&totalFiles)
+	health.MemoryUsage = float64(activeConnections*2 + totalFiles/100) // Simple heuristic
+	if health.MemoryUsage > 100 {
+		health.MemoryUsage = 90.0 // Cap at 90%
+	}
+	
+	// Estimate disk usage based on total file storage
+	var totalStorage int64
+	h.db.Model(&models.File{}).Select("COALESCE(SUM(size), 0)").Scan(&totalStorage)
+	// Assume 1TB total disk space (1,099,511,627,776 bytes)
+	health.DiskUsage = float64(totalStorage) / 1099511627776 * 100
+	if health.DiskUsage > 100 {
+		health.DiskUsage = 85.0 // Cap at 85%
 	}
 
 	c.JSON(http.StatusOK, health)

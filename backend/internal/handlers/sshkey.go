@@ -7,11 +7,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
+	"github.com/cloudbox/backend/internal/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
@@ -50,6 +52,11 @@ func (h *SSHKeyHandler) ListSSHKeys(c *gin.Context) {
 		return
 	}
 
+	// Remove private keys from response for security
+	for i := range sshKeys {
+		sshKeys[i].PrivateKey = "" // Never return private keys in list
+	}
+
 	c.JSON(http.StatusOK, sshKeys)
 }
 
@@ -82,12 +89,30 @@ func (h *SSHKeyHandler) CreateSSHKey(c *gin.Context) {
 		return
 	}
 
-	// Create SSH key record
+	// Encrypt private key before storing
+	masterPassword := h.cfg.MasterKey // Should be set in config
+	if masterPassword == "" {
+		log.Printf("Warning: No master key configured, generating temporary key")
+		var err error
+		masterPassword, err = utils.GenerateMasterKey()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate encryption key"})
+			return
+		}
+	}
+
+	encryptedPrivateKey, err := utils.EncryptPrivateKey(privateKey, masterPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt private key"})
+		return
+	}
+
+	// Create SSH key record with encrypted private key
 	sshKey := models.SSHKey{
 		Name:        req.Name,
 		Description: req.Description,
 		PublicKey:   publicKey,
-		PrivateKey:  privateKey, // TODO: Encrypt this
+		PrivateKey:  encryptedPrivateKey, // Now properly encrypted
 		Fingerprint: fingerprint,
 		KeyType:     req.KeyType,
 		KeySize:     req.KeySize,
@@ -100,6 +125,8 @@ func (h *SSHKeyHandler) CreateSSHKey(c *gin.Context) {
 		return
 	}
 
+	// Remove private key from response for security
+	sshKey.PrivateKey = "" // Don't return private key in API response
 	c.JSON(http.StatusCreated, sshKey)
 }
 
@@ -127,7 +154,29 @@ func (h *SSHKeyHandler) GetSSHKey(c *gin.Context) {
 		return
 	}
 
+	// Remove private key from response for security
+	sshKey.PrivateKey = "" // Never return private key in API response
 	c.JSON(http.StatusOK, sshKey)
+}
+
+// GetDecryptedPrivateKey returns the decrypted private key for internal use only
+// This function should NEVER be exposed as an API endpoint
+func (h *SSHKeyHandler) GetDecryptedPrivateKey(keyID uint) (string, error) {
+	var sshKey models.SSHKey
+	if err := h.db.Where(\"id = ?\", keyID).First(&sshKey).Error; err != nil {
+		return \"\", err
+	}
+
+	if h.cfg.MasterKey == \"\" {
+		return \"\", fmt.Errorf(\"master key not configured\")
+	}
+
+	decryptedKey, err := utils.DecryptPrivateKey(sshKey.PrivateKey, h.cfg.MasterKey)
+	if err != nil {
+		return \"\", fmt.Errorf(\"failed to decrypt private key: %w\", err)
+	}
+
+	return decryptedKey, nil
 }
 
 // DeleteSSHKey deletes an SSH key

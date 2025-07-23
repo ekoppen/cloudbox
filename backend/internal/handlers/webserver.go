@@ -8,6 +8,7 @@ import (
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
+	"github.com/cloudbox/backend/internal/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
@@ -380,21 +381,31 @@ func (h *WebServerHandler) TestConnection(c *gin.Context) {
 	})
 }
 
-// testSSHConnection tests SSH connection to a web server
+// testSSHConnection tests SSH connection to a web server with secure host key verification
 func (h *WebServerHandler) testSSHConnection(webServer models.WebServer) (bool, error) {
+	// Get decrypted private key using the SSH key handler
+	sshHandler := NewSSHKeyHandler(h.db, h.cfg)
+	privateKey, err := sshHandler.GetDecryptedPrivateKey(webServer.SSHKeyID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get decrypted private key: %w", err)
+	}
+
 	// Parse private key
-	signer, err := ssh.ParsePrivateKey([]byte(webServer.SSHKey.PrivateKey))
+	signer, err := ssh.ParsePrivateKey([]byte(privateKey))
 	if err != nil {
 		return false, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
-	// Configure SSH client
+	// Create host key manager for secure verification
+	hostKeyManager := utils.NewHostKeyManager(h.db)
+
+	// Configure SSH client with secure host key verification
 	config := &ssh.ClientConfig{
 		User: webServer.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Implement proper host key verification
+		HostKeyCallback: hostKeyManager.CreateHostKeyCallback(webServer.ProjectID, false), // Don't allow new hosts automatically
 		Timeout:         10 * time.Second,
 	}
 
