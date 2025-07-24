@@ -163,17 +163,17 @@ func (h *SSHKeyHandler) GetSSHKey(c *gin.Context) {
 // This function should NEVER be exposed as an API endpoint
 func (h *SSHKeyHandler) GetDecryptedPrivateKey(keyID uint) (string, error) {
 	var sshKey models.SSHKey
-	if err := h.db.Where(\"id = ?\", keyID).First(&sshKey).Error; err != nil {
-		return \"\", err
+	if err := h.db.Where("id = ?", keyID).First(&sshKey).Error; err != nil {
+		return "", err
 	}
 
-	if h.cfg.MasterKey == \"\" {
-		return \"\", fmt.Errorf(\"master key not configured\")
+	if h.cfg.MasterKey == "" {
+		return "", fmt.Errorf("master key not configured")
 	}
 
 	decryptedKey, err := utils.DecryptPrivateKey(sshKey.PrivateKey, h.cfg.MasterKey)
 	if err != nil {
-		return \"\", fmt.Errorf(\"failed to decrypt private key: %w\", err)
+		return "", fmt.Errorf("failed to decrypt private key: %w", err)
 	}
 
 	return decryptedKey, nil
