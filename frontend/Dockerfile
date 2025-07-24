@@ -23,24 +23,27 @@ RUN npm run build
 # Production stage
 FROM node:18-alpine AS runner
 
+# Install wget for health checks
+RUN apk add --no-cache wget
+
 # Create non-root user
 RUN adduser -D -s /bin/sh cloudbox
 
-# Set working directory
+# Set working directory and change ownership
 WORKDIR /app
+RUN chown cloudbox:cloudbox /app
 
-# Copy built application from builder stage
-COPY --from=builder /app/.svelte-kit/output ./
-COPY --from=builder /app/package*.json ./
+# Switch to non-root user for dependency installation
+USER cloudbox
+
+# Copy package files and install dependencies as non-root user
+COPY --from=builder --chown=cloudbox:cloudbox /app/package*.json ./
 
 # Install all dependencies (SvelteKit needs dev dependencies for runtime)
 RUN npm ci
 
-# Change ownership to non-root user
-RUN chown -R cloudbox:cloudbox /app
-
-# Switch to non-root user
-USER cloudbox
+# Copy built application from builder stage
+COPY --from=builder --chown=cloudbox:cloudbox /app/.svelte-kit/output ./
 
 # Expose port
 EXPOSE 3000
