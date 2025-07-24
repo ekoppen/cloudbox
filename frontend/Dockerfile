@@ -31,7 +31,7 @@ WORKDIR /app
 
 # Copy built application from builder stage
 COPY --from=builder /app/.svelte-kit/output ./
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package*.json ./
 
 # Install production dependencies
 RUN npm ci --omit dev
