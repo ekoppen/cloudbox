@@ -74,6 +74,19 @@ sed -i.tmp "s|FRONTEND_URL=.*|FRONTEND_URL=https://${DOMAIN}:3000|" "$ENV_FILE"
 # Update CORS_ORIGINS
 sed -i.tmp "s|CORS_ORIGINS=.*|CORS_ORIGINS=https://${DOMAIN}:3000|" "$ENV_FILE"
 
+# Update DATABASE_URL if it contains variable references
+if grep -q "DATABASE_URL=.*\${" "$ENV_FILE"; then
+    # Extract current database credentials from .env
+    DB_USER=$(grep "^DB_USER=" "$ENV_FILE" | cut -d'=' -f2)
+    DB_PASSWORD=$(grep "^DB_PASSWORD=" "$ENV_FILE" | cut -d'=' -f2)
+    DB_HOST=$(grep "^DB_HOST=" "$ENV_FILE" | cut -d'=' -f2)
+    DB_PORT=$(grep "^DB_PORT=" "$ENV_FILE" | cut -d'=' -f2)
+    DB_NAME=$(grep "^DB_NAME=" "$ENV_FILE" | cut -d'=' -f2)
+    
+    # Update DATABASE_URL with actual values
+    sed -i.tmp "s|DATABASE_URL=.*|DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable|" "$ENV_FILE"
+fi
+
 # Clean up temp file
 rm -f "${ENV_FILE}.tmp"
 
