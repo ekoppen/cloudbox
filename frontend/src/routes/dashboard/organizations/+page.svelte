@@ -287,6 +287,7 @@
                 type="button"
                 class="w-8 h-8 rounded-full border-2 transition-all {newOrgColor === color ? 'border-foreground scale-110' : 'border-transparent hover:scale-105'}"
                 style="background-color: {color}"
+                aria-label="Select color {color}"
                 on:click={() => newOrgColor = color}
               ></button>
             {/each}

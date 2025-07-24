@@ -10,11 +10,8 @@
   import Input from '$lib/components/ui/input.svelte';
   import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Label from '$lib/components/ui/label.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Select from '$lib/components/ui/select.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Textarea from '$lib/components/ui/textarea.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
 
   let projectId = $page.params.id;
   let functions = [];
