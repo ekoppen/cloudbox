@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"bufio"
-	"bytes"
-	"crypto/md5"
 	"crypto/sha256"
 	"fmt"
 	"io"

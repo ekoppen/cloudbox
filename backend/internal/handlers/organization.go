@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"reflect"
 	"strconv"
 
 	"github.com/cloudbox/backend/internal/config"
@@ -191,7 +190,7 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 	}
 
 	// Store original values for change tracking
-	original := organization
+	_ = organization
 
 	// Update fields and track changes
 	updates := make(map[string]interface{})
