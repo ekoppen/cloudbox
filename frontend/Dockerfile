@@ -33,8 +33,8 @@ WORKDIR /app
 COPY --from=builder /app/.svelte-kit/output ./
 COPY --from=builder /app/package*.json ./
 
-# Install production dependencies
-RUN npm ci --omit dev
+# Install all dependencies (SvelteKit needs dev dependencies for runtime)
+RUN npm ci
 
 # Change ownership to non-root user
 RUN chown -R cloudbox:cloudbox /app
