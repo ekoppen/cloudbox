@@ -345,15 +345,15 @@ init_database() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if $DOCKER_COMPOSE_CMD ps --format json | grep -q '"Health":"healthy".*postgres' && \
-           $DOCKER_COMPOSE_CMD ps --format json | grep -q '"Health":"healthy".*redis'; then
+        if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps --format json | grep -q '"Health":"healthy".*postgres' && \
+           $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps --format json | grep -q '"Health":"healthy".*redis'; then
             print_success "All services are healthy!"
             break
         fi
         
         if [ $attempt -eq 1 ] || [ $((attempt % 10)) -eq 0 ]; then
             print_info "Attempt $attempt/$max_attempts: Waiting for services to be healthy..."
-            $DOCKER_COMPOSE_CMD ps
+            $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps
         fi
         
         sleep 5
@@ -362,8 +362,8 @@ init_database() {
     
     if [ $attempt -gt $max_attempts ]; then
         print_warning "Services took longer than expected to start"
-        print_info "You can check service status with: $DOCKER_COMPOSE_CMD ps"
-        print_info "View logs with: $DOCKER_COMPOSE_CMD logs -f"
+        print_info "You can check service status with: $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps"
+        print_info "View logs with: $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml logs -f"
     fi
     
     # Give backend a moment to complete its startup
@@ -384,7 +384,7 @@ create_admin_user() {
     print_info "Checking Docker container health..."
     local container_wait=0
     while [ $container_wait -lt 30 ]; do
-        if $DOCKER_COMPOSE_CMD ps --filter "health=healthy" | grep -q "cloudbox-backend"; then
+        if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps --filter "health=healthy" | grep -q "cloudbox-backend"; then
             print_info "Backend container is healthy!"
             break
         fi
@@ -440,7 +440,7 @@ create_admin_user() {
         updated_at = NOW();
     "
     
-    if $DOCKER_COMPOSE_CMD exec -T postgres psql -U cloudbox -d cloudbox -c "$create_user_sql" >/dev/null 2>&1; then
+    if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml exec -T postgres psql -U cloudbox -d cloudbox -c "$create_user_sql" >/dev/null 2>&1; then
         print_success "Default admin user created successfully!"
         print_info "Login credentials:"
         print_info "  Email:    admin@cloudbox.local"
@@ -556,14 +556,14 @@ perform_install() {
     
     # Pull and build images
     print_info "Pulling Docker images..."
-    $DOCKER_COMPOSE_CMD pull
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml pull
     
     print_info "Building application images..."
-    $DOCKER_COMPOSE_CMD build
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml build
     
     # Start services
     print_info "Starting CloudBox services..."
-    $DOCKER_COMPOSE_CMD up -d
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml up -d
     
     # Initialize database
     init_database
@@ -581,24 +581,24 @@ perform_update() {
     
     # Stop services
     print_info "Stopping services..."
-    $DOCKER_COMPOSE_CMD down
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml down
     
     # Backup database
     print_info "Creating database backup..."
-    if $DOCKER_COMPOSE_CMD ps -q postgres > /dev/null 2>&1; then
-        $DOCKER_COMPOSE_CMD up -d postgres
+    if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps -q postgres > /dev/null 2>&1; then
+        $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml up -d postgres
         sleep 5
-        $DOCKER_COMPOSE_CMD exec -T postgres pg_dump -U cloudbox cloudbox > "backup_$(date +%Y%m%d_%H%M%S).sql"
+        $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml exec -T postgres pg_dump -U cloudbox cloudbox > "backup_$(date +%Y%m%d_%H%M%S).sql"
         print_success "Database backup created"
     fi
     
     # Pull latest images
     print_info "Pulling latest Docker images..."
-    $DOCKER_COMPOSE_CMD pull
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml pull
     
     # Rebuild images
     print_info "Rebuilding application images..."
-    $DOCKER_COMPOSE_CMD build --no-cache
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml build --no-cache
     
     # Update configurations if host is specified
     if [[ -n "$ALLOWED_HOST" ]]; then
@@ -607,7 +607,7 @@ perform_update() {
     
     # Start services
     print_info "Starting updated services..."
-    $DOCKER_COMPOSE_CMD up -d
+    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml up -d
     
     print_success "CloudBox update completed!"
     show_access_info
@@ -645,9 +645,9 @@ show_access_info() {
     echo "   📝 Remember to change these credentials after first login!"
     echo
     echo "📝 Useful commands:"
-    echo "   View logs:    $DOCKER_COMPOSE_CMD logs -f"
-    echo "   Stop:         $DOCKER_COMPOSE_CMD down"
-    echo "   Restart:      $DOCKER_COMPOSE_CMD restart"
+    echo "   View logs:    $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml logs -f"
+    echo "   Stop:         $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml down"
+    echo "   Restart:      $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml restart"
     echo "   Update:       ./install.sh --update"
     if [[ -n "$ALLOWED_HOST" ]]; then
         echo "   Reconfigure: ./install.sh --host $ALLOWED_HOST --update"
