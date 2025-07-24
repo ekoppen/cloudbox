@@ -8,7 +8,6 @@
   import Button from '$lib/components/ui/button.svelte';
   import Modal from '$lib/components/ui/modal.svelte';
   import Input from '$lib/components/ui/input.svelte';
-  import { API_BASE_URL, createApiRequest } from '$lib/config';
   import Label from '$lib/components/ui/label.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
