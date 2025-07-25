@@ -6,23 +6,28 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
+	"github.com/cloudbox/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 // GitHubHandler handles GitHub repository management
 type GitHubHandler struct {
-	db  *gorm.DB
-	cfg *config.Config
+	db            *gorm.DB
+	cfg           *config.Config
+	githubService *services.GitHubService
 }
 
 // NewGitHubHandler creates a new GitHub handler
 func NewGitHubHandler(db *gorm.DB, cfg *config.Config) *GitHubHandler {
-	return &GitHubHandler{db: db, cfg: cfg}
+	return &GitHubHandler{
+		db:            db,
+		cfg:           cfg,
+		githubService: services.NewGitHubService(db),
+	}
 }
 
 // CreateGitHubRepositoryRequest represents a request to add a GitHub repository
@@ -298,15 +303,23 @@ func (h *GitHubHandler) SyncRepository(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual GitHub API sync
-	// For now, just update the sync timestamp
-	now := time.Now()
-	if err := h.db.Model(&repository).Update("last_sync_at", now).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update sync timestamp"})
+	// Get access token from request header (optional for public repos)
+	accessToken := c.GetHeader("X-GitHub-Token")
+
+	// Sync with GitHub API
+	if err := h.githubService.SyncRepository(&repository, accessToken); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to sync with GitHub API",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	repository.LastSyncAt = &now
+	// Reload repository to get updated data
+	if err := h.db.First(&repository, repository.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load updated repository"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Repository synced successfully",
@@ -350,6 +363,145 @@ func (h *GitHubHandler) GetWebhookInfo(c *gin.Context) {
 			"pull_request",
 		},
 		"content_type": "application/json",
+	})
+}
+
+// ValidateRepository validates if a GitHub repository exists and is accessible
+func (h *GitHubHandler) ValidateRepository(c *gin.Context) {
+	var req struct {
+		FullName string `json:"full_name" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get access token from request header (optional for public repos)
+	accessToken := c.GetHeader("X-GitHub-Token")
+
+	// Validate repository with GitHub API
+	repoInfo, err := h.githubService.ValidateRepository(req.FullName, accessToken)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Repository validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"valid": true,
+		"repository": repoInfo,
+	})
+}
+
+// SearchRepositories searches for GitHub repositories
+func (h *GitHubHandler) SearchRepositories(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query parameter 'q' is required"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "10")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	// Get access token from request header (optional)
+	accessToken := c.GetHeader("X-GitHub-Token")
+
+	// Search repositories
+	repositories, err := h.githubService.SearchRepositories(query, accessToken, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to search repositories",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"repositories": repositories,
+		"count": len(repositories),
+	})
+}
+
+// GetRepositoryBranches returns all branches for a repository
+func (h *GitHubHandler) GetRepositoryBranches(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Find repository
+	var repository models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", uint(repoID), uint(projectID)).First(&repository).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "GitHub repository not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch GitHub repository"})
+		}
+		return
+	}
+
+	// Get access token from request header (optional for public repos)
+	accessToken := c.GetHeader("X-GitHub-Token")
+
+	// Get branches from GitHub API
+	branches, err := h.githubService.GetRepositoryBranches(&repository, accessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch branches",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"branches": branches,
+		"count": len(branches),
+	})
+}
+
+// GetUserRepositories returns repositories for the authenticated user
+func (h *GitHubHandler) GetUserRepositories(c *gin.Context) {
+	// Get access token from request header (required for this endpoint)
+	accessToken := c.GetHeader("X-GitHub-Token")
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "GitHub access token required"})
+		return
+	}
+
+	visibility := c.DefaultQuery("visibility", "all") // all, public, private
+	limitStr := c.DefaultQuery("limit", "30")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 || limit > 100 {
+		limit = 30
+	}
+
+	// Get user repositories
+	repositories, err := h.githubService.GetUserRepositories(accessToken, visibility, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch user repositories",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"repositories": repositories,
+		"count": len(repositories),
 	})
 }
 

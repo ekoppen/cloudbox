@@ -229,6 +229,14 @@ type GitHubRepository struct {
 	ProjectID uint    `json:"project_id" gorm:"not null"`
 	Project   Project `json:"project,omitempty"`
 
+	// GitHub specific fields
+	GitHubID        int64      `json:"github_id"`
+	DefaultBranch   string     `json:"default_branch"`
+	Language        string     `json:"language"`
+	Size            int        `json:"size"`
+	StargazersCount int        `json:"stargazers_count"`
+	ForksCount      int        `json:"forks_count"`
+	
 	// Status
 	IsActive       bool       `json:"is_active" gorm:"default:true"`
 	LastSyncAt     *time.Time `json:"last_sync_at"`

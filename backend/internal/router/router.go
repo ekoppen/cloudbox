@@ -57,6 +57,16 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			auth.PUT("/me", middleware.RequireAuth(cfg), authHandler.UpdateProfile)
 		}
 
+		// GitHub API routes (global, requires authentication)
+		github := api.Group("/github")
+		github.Use(middleware.RequireAuth(cfg))
+		github.Use(middleware.RequireAdminOrSuperAdmin())
+		{
+			github.POST("/validate", githubHandler.ValidateRepository)
+			github.GET("/search", githubHandler.SearchRepositories)
+			github.GET("/user/repositories", githubHandler.GetUserRepositories)
+		}
+
 		// Protected routes (requires authentication)
 		protected := api.Group("/")
 		protected.Use(middleware.RequireAuth(cfg))
@@ -111,6 +121,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.DELETE("/:id/github-repositories/:repo_id", githubHandler.DeleteGitHubRepository)
 				projects.POST("/:id/github-repositories/:repo_id/sync", githubHandler.SyncRepository)
 				projects.GET("/:id/github-repositories/:repo_id/webhook", githubHandler.GetWebhookInfo)
+				projects.GET("/:id/github-repositories/:repo_id/branches", githubHandler.GetRepositoryBranches)
 				
 				projects.GET("/:id/deployments", deploymentHandler.ListDeployments)
 				projects.POST("/:id/deployments", deploymentHandler.CreateDeployment)

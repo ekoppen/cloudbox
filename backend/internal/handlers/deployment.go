@@ -8,19 +8,25 @@ import (
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
+	"github.com/cloudbox/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 // DeploymentHandler handles deployment operations
 type DeploymentHandler struct {
-	db  *gorm.DB
-	cfg *config.Config
+	db                *gorm.DB
+	cfg               *config.Config
+	deploymentService *services.DeploymentService
 }
 
 // NewDeploymentHandler creates a new deployment handler
 func NewDeploymentHandler(db *gorm.DB, cfg *config.Config) *DeploymentHandler {
-	return &DeploymentHandler{db: db, cfg: cfg}
+	return &DeploymentHandler{
+		db:                db, 
+		cfg:               cfg,
+		deploymentService: services.NewDeploymentService(db),
+	}
 }
 
 // CreateDeploymentRequest represents a deployment creation request
@@ -375,9 +381,8 @@ func (h *DeploymentHandler) Deploy(c *gin.Context) {
 		return
 	}
 
-	// TODO: Start deployment process in background
-	// For now, simulate deployment process
-	go h.simulateDeployment(deployment, req.CommitHash, req.Branch)
+	// Start real deployment process in background
+	go h.executeRealDeployment(deployment, req.CommitHash, req.Branch)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Deployment started",
@@ -417,31 +422,21 @@ func (h *DeploymentHandler) GetLogs(c *gin.Context) {
 	})
 }
 
-// simulateDeployment simulates the deployment process
-func (h *DeploymentHandler) simulateDeployment(deployment models.Deployment, commitHash, branch string) {
-	// Simulate build process
-	time.Sleep(2 * time.Second)
-	h.db.Model(&deployment).Updates(map[string]interface{}{
-		"status":     "building",
-		"build_logs": "Starting build process...\nCloning repository...\nInstalling dependencies...\n",
-	})
-
-	time.Sleep(3 * time.Second)
-	h.db.Model(&deployment).Updates(map[string]interface{}{
-		"status":     "deploying",
-		"build_logs": "Starting build process...\nCloning repository...\nInstalling dependencies...\nBuild completed successfully!\n",
-		"deploy_logs": "Connecting to server...\nUploading files...\n",
-	})
-
-	time.Sleep(2 * time.Second)
-	now := time.Now()
-	h.db.Model(&deployment).Updates(map[string]interface{}{
-		"status":      "deployed",
-		"deployed_at": &now,
-		"deploy_logs": "Connecting to server...\nUploading files...\nStarting application...\nDeployment completed successfully!\n",
-		"build_time":  int64(3000),  // 3 seconds
-		"deploy_time": int64(2000),  // 2 seconds
-		"file_count":  int64(42),
-		"total_size":  int64(1024 * 1024), // 1 MB
-	})
+// executeRealDeployment performs a real deployment using the deployment service
+func (h *DeploymentHandler) executeRealDeployment(deployment models.Deployment, commitHash, branch string) {
+	// Execute real deployment
+	result := h.deploymentService.ExecuteDeployment(deployment, commitHash, branch)
+	
+	// If deployment failed and we don't have detailed logs, add generic error
+	if !result.Success && result.ErrorLogs == "" {
+		result.ErrorLogs = "Deployment failed with unknown error"
+	}
+	
+	// Log deployment result for debugging
+	if result.Success {
+		fmt.Printf("Deployment %d completed successfully in %dms (build: %dms, deploy: %dms)\n", 
+			deployment.ID, result.BuildTime+result.DeployTime, result.BuildTime, result.DeployTime)
+	} else {
+		fmt.Printf("Deployment %d failed: %s\n", deployment.ID, result.ErrorLogs)
+	}
 }
