@@ -227,6 +227,9 @@ JWT_SECRET=${JWT_SECRET}
 JWT_EXPIRES_IN=24h
 REFRESH_TOKEN_EXPIRES_IN=720h
 
+# Security Configuration
+MASTER_KEY=$(openssl rand -hex 32 2>/dev/null || echo "master-key-$(date +%s)")
+
 # Server Configuration
 SERVER_PORT=${BACKEND_PORT}
 FRONTEND_URL=http://localhost:${FRONTEND_PORT}
@@ -345,8 +348,8 @@ init_database() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps --format json | grep -q '"Health":"healthy".*postgres' && \
-           $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps --format json | grep -q '"Health":"healthy".*redis'; then
+        if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps | grep -q "postgres.*healthy" && \
+           $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps | grep -q "redis.*healthy"; then
             print_success "All services are healthy!"
             break
         fi
@@ -384,7 +387,7 @@ create_admin_user() {
     print_info "Checking Docker container health..."
     local container_wait=0
     while [ $container_wait -lt 30 ]; do
-        if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps --filter "health=healthy" | grep -q "cloudbox-backend"; then
+        if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps | grep -q "cloudbox-backend.*healthy"; then
             print_info "Backend container is healthy!"
             break
         fi
@@ -396,8 +399,8 @@ create_admin_user() {
     print_info "Testing backend HTTP endpoint..."
     while [ $attempt -le $max_attempts ]; do
         # Check both localhost and container network
-        if curl -f -s http://localhost:${BACKEND_PORT}/health >/dev/null 2>&1 || \
-           curl -f -s http://127.0.0.1:${BACKEND_PORT}/health >/dev/null 2>&1; then
+        if curl -f -s http://localhost:${BACKEND_PORT}/api/v1/projects >/dev/null 2>&1 || \
+           curl -f -s http://127.0.0.1:${BACKEND_PORT}/api/v1/projects >/dev/null 2>&1; then
             print_success "Backend HTTP endpoint is ready!"
             # Extra wait to ensure database connections are stable
             sleep 3

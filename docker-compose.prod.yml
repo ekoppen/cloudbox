@@ -53,6 +53,7 @@ services:
       - UPLOAD_DIR=${UPLOAD_DIR:-./uploads}
       - REDIS_URL=${REDIS_URL}
       - FRONTEND_URL=${FRONTEND_URL}
+      - MASTER_KEY=${MASTER_KEY}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
