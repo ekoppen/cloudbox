@@ -21,6 +21,7 @@ ALLOWED_HOST=""
 API_HOST=""
 INSTALL_MODE="install"
 ENV_FILE=".env"
+USE_SSL=false
 
 # Function to print colored output
 print_info() {
@@ -61,6 +62,7 @@ OPTIONS:
     -r, --redis-port       Redis port (default: 6379)
     -H, --host             Add allowed host (e.g., server hostname)
     --api-host             API host/domain (e.g., api.example.com)
+    --ssl                  Enable SSL/HTTPS for reverse proxy setups (nginx proxy manager)
     --env-file             Environment file path (default: .env)
 
 EXAMPLES:
@@ -75,6 +77,9 @@ EXAMPLES:
 
     # Install with subdomain for API
     ./install.sh --host cloudbox.example.com --api-host api.cloudbox.example.com
+
+    # Install with SSL/reverse proxy (nginx proxy manager)
+    ./install.sh --host cloudbox.example.com --ssl
 
     # Local development installation
     ./install.sh -p 3001 -b 8081
@@ -125,6 +130,10 @@ while [[ $# -gt 0 ]]; do
         --api-host)
             API_HOST="$2"
             shift 2
+            ;;
+        --ssl)
+            USE_SSL=true
+            shift
             ;;
         --env-file)
             ENV_FILE="$2"
@@ -228,14 +237,26 @@ generate_env_file() {
     fi
     
     # Determine API URL based on configuration
+    local protocol="http"
+    if [[ "$USE_SSL" == "true" ]]; then
+        protocol="https"
+        print_info "SSL enabled - using HTTPS protocol"
+    fi
+    
     if [[ -n "$API_HOST" ]]; then
-        PUBLIC_API_URL="http://${API_HOST}"
+        PUBLIC_API_URL="${protocol}://${API_HOST}"
         print_info "Using API subdomain: $API_HOST"
     elif [[ -n "$ALLOWED_HOST" ]]; then
-        PUBLIC_API_URL="http://${ALLOWED_HOST}:${BACKEND_PORT}"
-        print_info "Using main domain with backend port: $ALLOWED_HOST:$BACKEND_PORT"
+        if [[ "$USE_SSL" == "true" ]]; then
+            # With SSL/reverse proxy, don't include port in URL
+            PUBLIC_API_URL="${protocol}://${ALLOWED_HOST}/api"
+            print_info "Using SSL with reverse proxy API path: $ALLOWED_HOST/api"
+        else
+            PUBLIC_API_URL="${protocol}://${ALLOWED_HOST}:${BACKEND_PORT}"
+            print_info "Using main domain with backend port: $ALLOWED_HOST:$BACKEND_PORT"
+        fi
     else
-        PUBLIC_API_URL="http://localhost:${BACKEND_PORT}"
+        PUBLIC_API_URL="${protocol}://localhost:${BACKEND_PORT}"
         print_info "Using localhost configuration for development"
     fi
     
@@ -280,13 +301,25 @@ LOG_LEVEL=info
 EOF
 
     # Set CORS origins based on configuration
+    local frontend_protocol="http"
+    if [[ "$USE_SSL" == "true" ]]; then
+        frontend_protocol="https"
+    fi
+    
     if [[ -n "$ALLOWED_HOST" ]]; then
-        echo "CORS_ORIGINS=http://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
-        echo "FRONTEND_URL=http://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
-        print_info "CORS configured for hostname: $ALLOWED_HOST"
+        if [[ "$USE_SSL" == "true" ]]; then
+            # With SSL/reverse proxy, don't include port
+            echo "CORS_ORIGINS=${frontend_protocol}://${ALLOWED_HOST}" >> "${ENV_FILE}"
+            echo "FRONTEND_URL=${frontend_protocol}://${ALLOWED_HOST}" >> "${ENV_FILE}"
+            print_info "CORS configured for SSL hostname: $ALLOWED_HOST"
+        else
+            echo "CORS_ORIGINS=${frontend_protocol}://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
+            echo "FRONTEND_URL=${frontend_protocol}://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
+            print_info "CORS configured for hostname: $ALLOWED_HOST"
+        fi
     else
-        echo "CORS_ORIGINS=http://localhost:${FRONTEND_PORT}" >> "${ENV_FILE}"
-        echo "FRONTEND_URL=http://localhost:${FRONTEND_PORT}" >> "${ENV_FILE}"
+        echo "CORS_ORIGINS=${frontend_protocol}://localhost:${FRONTEND_PORT}" >> "${ENV_FILE}"
+        echo "FRONTEND_URL=${frontend_protocol}://localhost:${FRONTEND_PORT}" >> "${ENV_FILE}"
         print_info "CORS configured for localhost"
     fi
 
@@ -555,13 +588,24 @@ prompt_for_configuration() {
     # Summary
     print_info "📝 Installation Summary:"
     if [[ -n "$ALLOWED_HOST" ]]; then
-        echo "   Frontend URL: http://${ALLOWED_HOST}:$FRONTEND_PORT"
-        if [[ -n "$API_HOST" ]]; then
-            echo "   API URL:      http://${API_HOST}"
-        else
-            echo "   API URL:      http://${ALLOWED_HOST}:$BACKEND_PORT"
+        local display_protocol="http"
+        if [[ "$USE_SSL" == "true" ]]; then
+            display_protocol="https"
         fi
-        echo "   Admin URL:    http://${ALLOWED_HOST}:$FRONTEND_PORT/admin"
+        
+        if [[ "$USE_SSL" == "true" ]]; then
+            echo "   Frontend URL: ${display_protocol}://${ALLOWED_HOST}"
+            echo "   API URL:      ${display_protocol}://${ALLOWED_HOST}/api"
+            echo "   Admin URL:    ${display_protocol}://${ALLOWED_HOST}/admin"
+        else
+            echo "   Frontend URL: ${display_protocol}://${ALLOWED_HOST}:$FRONTEND_PORT"
+            if [[ -n "$API_HOST" ]]; then
+                echo "   API URL:      ${display_protocol}://${API_HOST}"
+            else
+                echo "   API URL:      ${display_protocol}://${ALLOWED_HOST}:$BACKEND_PORT"
+            fi
+            echo "   Admin URL:    ${display_protocol}://${ALLOWED_HOST}:$FRONTEND_PORT/admin"
+        fi
     else
         echo "   Frontend URL: http://localhost:$FRONTEND_PORT"
         echo "   API URL:      http://localhost:$BACKEND_PORT"
