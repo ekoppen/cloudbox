@@ -229,10 +229,10 @@ generate_env_file() {
     
     # Determine API URL based on configuration
     if [[ -n "$API_HOST" ]]; then
-        PUBLIC_API_URL="https://${API_HOST}"
+        PUBLIC_API_URL="http://${API_HOST}"
         print_info "Using API subdomain: $API_HOST"
     elif [[ -n "$ALLOWED_HOST" ]]; then
-        PUBLIC_API_URL="https://${ALLOWED_HOST}:${BACKEND_PORT}"
+        PUBLIC_API_URL="http://${ALLOWED_HOST}:${BACKEND_PORT}"
         print_info "Using main domain with backend port: $ALLOWED_HOST:$BACKEND_PORT"
     else
         PUBLIC_API_URL="http://localhost:${BACKEND_PORT}"
@@ -281,7 +281,7 @@ EOF
 
     # Set CORS origins based on configuration
     if [[ -n "$ALLOWED_HOST" ]]; then
-        echo "CORS_ORIGINS=http://${ALLOWED_HOST}:${FRONTEND_PORT},https://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
+        echo "CORS_ORIGINS=http://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
         echo "FRONTEND_URL=http://${ALLOWED_HOST}:${FRONTEND_PORT}" >> "${ENV_FILE}"
         print_info "CORS configured for hostname: $ALLOWED_HOST"
     else
@@ -555,13 +555,13 @@ prompt_for_configuration() {
     # Summary
     print_info "📝 Installation Summary:"
     if [[ -n "$ALLOWED_HOST" ]]; then
-        echo "   Frontend URL: https://${ALLOWED_HOST}:$FRONTEND_PORT"
+        echo "   Frontend URL: http://${ALLOWED_HOST}:$FRONTEND_PORT"
         if [[ -n "$API_HOST" ]]; then
-            echo "   API URL:      https://${API_HOST}"
+            echo "   API URL:      http://${API_HOST}"
         else
-            echo "   API URL:      https://${ALLOWED_HOST}:$BACKEND_PORT"
+            echo "   API URL:      http://${ALLOWED_HOST}:$BACKEND_PORT"
         fi
-        echo "   Admin URL:    https://${ALLOWED_HOST}:$FRONTEND_PORT/admin"
+        echo "   Admin URL:    http://${ALLOWED_HOST}:$FRONTEND_PORT/admin"
     else
         echo "   Frontend URL: http://localhost:$FRONTEND_PORT"
         echo "   API URL:      http://localhost:$BACKEND_PORT"
