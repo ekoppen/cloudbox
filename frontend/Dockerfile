@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -21,7 +21,7 @@ ENV PUBLIC_API_URL=$PUBLIC_API_URL
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 # Install wget for health checks
 RUN apk add --no-cache wget
@@ -43,7 +43,12 @@ COPY --from=builder --chown=cloudbox:cloudbox /app/package*.json ./
 RUN npm ci
 
 # Copy built application from builder stage
-COPY --from=builder --chown=cloudbox:cloudbox /app/.svelte-kit/output ./
+COPY --from=builder --chown=cloudbox:cloudbox /app/build ./
+
+# Set production environment variables
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
 
 # Expose port
 EXPOSE 3000
@@ -53,4 +58,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 # Run the SvelteKit application
-CMD ["node", "server/index.js"]
+CMD ["node", "index.js"]
