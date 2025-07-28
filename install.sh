@@ -190,8 +190,42 @@ check_prerequisites() {
 generate_env_file() {
     print_info "Generating environment file: ${ENV_FILE}"
     
-    # Generate random JWT secret
-    JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "your-super-secret-jwt-key-$(date +%s)")
+    # Check if env file exists and preserve certain values
+    EXISTING_DB_PASSWORD=""
+    EXISTING_JWT_SECRET=""
+    EXISTING_MASTER_KEY=""
+    
+    if [[ -f "${ENV_FILE}" ]]; then
+        print_info "Existing environment file found, preserving database credentials..."
+        EXISTING_DB_PASSWORD=$(grep "^DB_PASSWORD=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2-)
+        EXISTING_JWT_SECRET=$(grep "^JWT_SECRET=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2-)
+        EXISTING_MASTER_KEY=$(grep "^MASTER_KEY=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2-)
+    fi
+    
+    # Use existing credentials or generate new ones
+    if [[ -n "$EXISTING_DB_PASSWORD" ]]; then
+        DB_PASSWORD="$EXISTING_DB_PASSWORD"
+        print_info "Preserving existing database password"
+    else
+        DB_PASSWORD="cloudbox_secure_password_$(date +%s | tail -c 6)"
+        print_info "Generating new database password"
+    fi
+    
+    if [[ -n "$EXISTING_JWT_SECRET" ]]; then
+        JWT_SECRET="$EXISTING_JWT_SECRET"
+        print_info "Preserving existing JWT secret"
+    else
+        JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "your-super-secret-jwt-key-$(date +%s)")
+        print_info "Generating new JWT secret"
+    fi
+    
+    if [[ -n "$EXISTING_MASTER_KEY" ]]; then
+        MASTER_KEY="$EXISTING_MASTER_KEY"
+        print_info "Preserving existing master key"
+    else
+        MASTER_KEY=$(openssl rand -hex 32 2>/dev/null || echo "master-key-$(date +%s)")
+        print_info "Generating new master key"
+    fi
     
     # Determine API URL based on configuration
     if [[ -n "$API_HOST" ]]; then
@@ -213,7 +247,7 @@ generate_env_file() {
 DB_HOST=postgres
 DB_PORT=${DB_PORT}
 DB_USER=cloudbox
-DB_PASSWORD=cloudbox_secure_password_$(date +%s | tail -c 6)
+DB_PASSWORD=${DB_PASSWORD}
 DB_NAME=cloudbox
 DATABASE_URL=postgresql://\${DB_USER}:\${DB_PASSWORD}@\${DB_HOST}:\${DB_PORT}/\${DB_NAME}?sslmode=disable
 
@@ -228,7 +262,7 @@ JWT_EXPIRES_IN=24h
 REFRESH_TOKEN_EXPIRES_IN=720h
 
 # Security Configuration
-MASTER_KEY=$(openssl rand -hex 32 2>/dev/null || echo "master-key-$(date +%s)")
+MASTER_KEY=${MASTER_KEY}
 
 # Server Configuration
 SERVER_PORT=${BACKEND_PORT}
@@ -551,11 +585,16 @@ perform_install() {
     if [[ -f "$ENV_FILE" ]] && [[ "$INSTALL_MODE" == "install" ]]; then
         print_warning "CloudBox appears to be already installed."
         print_info "Use --update flag to update existing installation."
-        read -p "Continue with installation anyway? (y/N): " -n 1 -r
+        print_info "To fix database password issues, you may need to reset volumes."
         echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_info "Installation cancelled."
-            exit 0
+        read -p "Reset database volumes and start fresh? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Stopping services and removing volumes..."
+            $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml down -v 2>/dev/null || true
+            print_success "Volumes reset. Installation will continue with fresh database."
+        else
+            print_info "Continuing with existing database volumes..."
         fi
     fi
     
