@@ -116,7 +116,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	corsConfig := models.CORSConfig{
 		ProjectID:        project.ID,
 		AllowedOrigins:   pq.StringArray{"*"},
-		AllowedMethods:   pq.StringArray{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   pq.StringArray{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   pq.StringArray{"*"},
 		AllowCredentials: false,
 		MaxAge:           3600,
@@ -262,9 +262,20 @@ func (h *ProjectHandler) ListAPIKeys(c *gin.Context) {
 	// Remove sensitive data from response
 	var safeKeys []gin.H
 	for _, key := range apiKeys {
+		// Mask the key for display (show first 8 and last 4 characters)
+		maskedKey := ""
+		if len(key.Key) > 12 {
+			maskedKey = key.Key[:8] + "..." + key.Key[len(key.Key)-4:]
+		} else if len(key.Key) > 0 {
+			maskedKey = key.Key[:4] + "..." // For shorter keys
+		} else {
+			maskedKey = "••••••••" // For keys where we don't have the plain text
+		}
+		
 		safeKeys = append(safeKeys, gin.H{
 			"id":           key.ID,
 			"name":         key.Name,
+			"key":          maskedKey, // Masked version for display
 			"permissions":  key.Permissions,
 			"is_active":    key.IsActive,
 			"last_used_at": key.LastUsedAt,
@@ -318,11 +329,12 @@ func (h *ProjectHandler) CreateAPIKey(c *gin.Context) {
 		return
 	}
 
-	// Create API key record with hashed key (don't store plain key)
+	// Create API key record with both plain key and hashed key
+	// Plain key is needed for UI display, but we only store the hash for security
 	key := models.APIKey{
 		Name:        req.Name,
-		Key:         "",           // Don't store plain key in database
-		KeyHash:     string(hashedKey), // Store hashed version only
+		Key:         apiKey,        // Store plain key for initial display
+		KeyHash:     string(hashedKey), // Store hashed version for authentication
 		ProjectID:   uint(projectID),
 		Permissions: pq.StringArray(req.Permissions),
 		IsActive:    true,

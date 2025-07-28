@@ -2,6 +2,8 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
+  import { toast } from '$lib/stores/toast';
+  import { API_BASE_URL } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -30,74 +32,19 @@
     variables: string[];
   }
 
-  let messages: Message[] = [
-    {
-      id: '1',
-      subject: 'Welkom bij CloudBox!',
-      type: 'email',
-      status: 'sent',
-      recipients: 127,
-      sent_at: '2025-01-19T10:30:00Z',
-      created_at: '2025-01-19T10:25:00Z',
-      content: 'Welkom bij onze service! We zijn blij dat je er bent.'
-    },
-    {
-      id: '2',
-      subject: 'Wachtwoord reset',
-      type: 'email',
-      status: 'sent',
-      recipients: 23,
-      sent_at: '2025-01-19T14:20:00Z',
-      created_at: '2025-01-19T14:18:00Z',
-      content: 'Klik op de link om je wachtwoord te resetten.'
-    },
-    {
-      id: '3',
-      subject: 'Nieuwe functie beschikbaar',
-      type: 'push',
-      status: 'pending',
-      recipients: 89,
-      created_at: '2025-01-19T15:00:00Z',
-      content: 'Ontdek onze nieuwe functie in de app!'
-    }
-  ];
-
-  let templates: MessageTemplate[] = [
-    {
-      id: '1',
-      name: 'Welkom Email',
-      type: 'email',
-      subject: 'Welkom bij {{app_name}}!',
-      content: 'Hallo {{user_name}},\n\nWelkom bij {{app_name}}! We zijn blij dat je er bent.',
-      variables: ['app_name', 'user_name']
-    },
-    {
-      id: '2',
-      name: 'Wachtwoord Reset',
-      type: 'email',
-      subject: 'Reset je wachtwoord',
-      content: 'Hallo {{user_name}},\n\nKlik op deze link om je wachtwoord te resetten: {{reset_link}}',
-      variables: ['user_name', 'reset_link']
-    },
-    {
-      id: '3',
-      name: 'Push Notificatie',
-      type: 'push',
-      subject: 'Nieuwe update!',
-      content: 'Er is een nieuwe update beschikbaar in {{app_name}}',
-      variables: ['app_name']
-    }
-  ];
-
+  let messages: Message[] = [];
+  let templates: MessageTemplate[] = [];
   let messagingStats = {
-    total_sent: 1247,
-    total_delivered: 1189,
-    total_opened: 567,
-    total_clicked: 234,
-    bounce_rate: 4.7,
-    open_rate: 47.7,
-    click_rate: 19.7
+    total_sent: 0,
+    total_delivered: 0,
+    total_opened: 0,
+    total_clicked: 0,
+    bounce_rate: 0,
+    open_rate: 0,
+    click_rate: 0
   };
+  let loading = true;
+  let backendAvailable = true;
 
   let activeTab = 'messages';
   let showCreateMessage = false;
@@ -117,6 +64,102 @@
   };
 
   $: projectId = $page.params.id;
+
+  onMount(() => {
+    loadMessages();
+    loadTemplates();
+    loadMessagingStats();
+  });
+
+  async function loadMessages() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        messages = await response.json();
+      } else {
+        console.error('Failed to load messages:', response.status);
+        if (response.status === 404) {
+          backendAvailable = false;
+        } else {
+          toast.error('Fout bij het laden van berichten');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      if (error.message.includes('Failed to fetch')) {
+        backendAvailable = false;
+      } else {
+        toast.error('Netwerkfout bij het laden van berichten');
+      }
+    }
+  }
+
+  async function loadTemplates() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/templates`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        templates = await response.json();
+      } else {
+        console.error('Failed to load templates:', response.status);
+        if (response.status === 404) {
+          backendAvailable = false;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading templates:', error);
+      if (error.message.includes('Failed to fetch')) {
+        backendAvailable = false;
+      }
+    }
+  }
+
+  async function loadMessagingStats() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/stats`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        messagingStats = {
+          total_sent: data.total_sent || 0,
+          total_delivered: data.total_delivered || 0,
+          total_opened: data.total_opened || 0,
+          total_clicked: data.total_clicked || 0,
+          bounce_rate: data.bounce_rate || 0,
+          open_rate: data.open_rate || 0,
+          click_rate: data.click_rate || 0,
+        };
+      } else {
+        console.error('Failed to load messaging stats:', response.status);
+        if (response.status === 404) {
+          backendAvailable = false;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading messaging stats:', error);
+      if (error.message.includes('Failed to fetch')) {
+        backendAvailable = false;
+      }
+    } finally {
+      loading = false;
+    }
+  }
 
   function getStatusColor(status: string): string {
     switch (status) {
@@ -147,77 +190,166 @@
     });
   }
 
-  function duplicateMessage(messageId: string) {
+  async function duplicateMessage(messageId: string) {
     const message = messages.find(m => m.id === messageId);
-    if (message) {
-      const duplicate: Message = {
-        ...message,
-        id: Date.now().toString(),
-        subject: `${message.subject} (kopie)`,
-        status: 'draft',
-        sent_at: undefined,
-        created_at: new Date().toISOString()
-      };
-      messages = [duplicate, ...messages];
+    if (!message) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject: `${message.subject} (kopie)`,
+          type: message.type,
+          content: message.content,
+          status: 'draft'
+        }),
+      });
+
+      if (response.ok) {
+        const duplicate = await response.json();
+        messages = [duplicate, ...messages];
+        toast.success('Bericht gekopieerd');
+      } else {
+        toast.error('Fout bij het kopiëren van bericht');
+      }
+    } catch (error) {
+      console.error('Error duplicating message:', error);
+      toast.error('Netwerkfout bij het kopiëren van bericht');
     }
   }
 
-  function deleteMessage(messageId: string) {
-    if (confirm('Weet je zeker dat je dit bericht wilt verwijderen?')) {
-      messages = messages.filter(m => m.id !== messageId);
+  async function deleteMessage(messageId: string) {
+    if (!confirm('Weet je zeker dat je dit bericht wilt verwijderen?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        messages = messages.filter(m => m.id !== messageId);
+        toast.success('Bericht verwijderd');
+      } else {
+        toast.error('Fout bij het verwijderen van bericht');
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Netwerkfout bij het verwijderen van bericht');
     }
   }
 
-  function deleteTemplate(templateId: string) {
-    if (confirm('Weet je zeker dat je deze template wilt verwijderen?')) {
-      templates = templates.filter(t => t.id !== templateId);
+  async function deleteTemplate(templateId: string) {
+    if (!confirm('Weet je zeker dat je deze template wilt verwijderen?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/templates/${templateId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        templates = templates.filter(t => t.id !== templateId);
+        toast.success('Template verwijderd');
+      } else {
+        toast.error('Fout bij het verwijderen van template');
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error('Netwerkfout bij het verwijderen van template');
     }
   }
 
   async function createMessage() {
     if (!newMessage.subject || !newMessage.content) return;
 
-    const message: Message = {
-      id: Date.now().toString(),
-      subject: newMessage.subject,
-      type: newMessage.type,
-      status: newMessage.schedule_at ? 'pending' : 'draft',
-      recipients: newMessage.recipients === 'all' ? 127 : 50,
-      content: newMessage.content,
-      created_at: new Date().toISOString()
-    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject: newMessage.subject,
+          type: newMessage.type,
+          content: newMessage.content,
+          recipients: newMessage.recipients,
+          schedule_at: newMessage.schedule_at || undefined,
+          status: newMessage.schedule_at ? 'pending' : 'draft'
+        }),
+      });
 
-    messages = [message, ...messages];
-    showCreateMessage = false;
-    newMessage = {
-      subject: '',
-      type: 'email',
-      content: '',
-      recipients: 'all',
-      schedule_at: ''
-    };
+      if (response.ok) {
+        const message = await response.json();
+        messages = [message, ...messages];
+        showCreateMessage = false;
+        newMessage = {
+          subject: '',
+          type: 'email',
+          content: '',
+          recipients: 'all',
+          schedule_at: ''
+        };
+        toast.success('Bericht aangemaakt');
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Fout bij het aanmaken van bericht');
+      }
+    } catch (error) {
+      console.error('Error creating message:', error);
+      toast.error('Netwerkfout bij het aanmaken van bericht');
+    }
   }
 
   async function createTemplate() {
     if (!newTemplate.name || !newTemplate.content) return;
 
-    const template: MessageTemplate = {
-      id: Date.now().toString(),
-      name: newTemplate.name,
-      type: newTemplate.type,
-      subject: newTemplate.subject,
-      content: newTemplate.content,
-      variables: extractVariables(newTemplate.content + ' ' + newTemplate.subject)
-    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/templates`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newTemplate.name,
+          type: newTemplate.type,
+          subject: newTemplate.subject,
+          content: newTemplate.content,
+          variables: extractVariables(newTemplate.content + ' ' + newTemplate.subject)
+        }),
+      });
 
-    templates = [template, ...templates];
-    showCreateTemplate = false;
-    newTemplate = {
-      name: '',
-      type: 'email',
-      subject: '',
-      content: ''
-    };
+      if (response.ok) {
+        const template = await response.json();
+        templates = [template, ...templates];
+        showCreateTemplate = false;
+        newTemplate = {
+          name: '',
+          type: 'email',
+          subject: '',
+          content: ''
+        };
+        toast.success('Template aangemaakt');
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Fout bij het aanmaken van template');
+      }
+    } catch (error) {
+      console.error('Error creating template:', error);
+      toast.error('Netwerkfout bij het aanmaken van template');
+    }
   }
 
   function extractVariables(text: string): string[] {
@@ -226,15 +358,33 @@
     return [...new Set(matches.map(match => match.slice(2, -2).trim()))];
   }
 
-  function sendMessage(messageId: string) {
-    if (confirm('Weet je zeker dat je dit bericht wilt versturen?')) {
-      messages = messages.map(m => 
-        m.id === messageId ? { 
-          ...m, 
-          status: 'sent',
-          sent_at: new Date().toISOString()
-        } : m
-      );
+  async function sendMessage(messageId: string) {
+    if (!confirm('Weet je zeker dat je dit bericht wilt versturen?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages/${messageId}/send`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        messages = messages.map(m => 
+          m.id === messageId ? { 
+            ...m, 
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          } : m
+        );
+        toast.success('Bericht verstuurd');
+      } else {
+        toast.error('Fout bij het versturen van bericht');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Netwerkfout bij het versturen van bericht');
     }
   }
 
@@ -255,6 +405,21 @@
 </svelte:head>
 
 <div class="space-y-6">
+  <!-- Backend Status Notice -->
+  {#if !backendAvailable}
+    <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
+      <div class="flex items-center space-x-3">
+        <Icon name="warning" size={20} className="text-yellow-600 dark:text-yellow-400" />
+        <div>
+          <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Backend Server Niet Beschikbaar</h3>
+          <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+            De backend server draait niet of de API endpoints zijn nog niet geïmplementeerd. Start de backend server om alle functionaliteit te gebruiken.
+          </p>
+        </div>
+      </div>
+    </Card>
+  {/if}
+
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div class="flex items-center space-x-4">

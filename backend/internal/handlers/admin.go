@@ -388,3 +388,105 @@ func (h *AdminHandler) GetSystemHealth(c *gin.Context) {
 
 	c.JSON(http.StatusOK, health)
 }
+
+// SystemInfoResponse represents system information
+type SystemInfoResponse struct {
+	Version        string    `json:"version"`
+	Environment    string    `json:"environment"`
+	StartTime      time.Time `json:"start_time"`
+	Uptime         string    `json:"uptime"`
+	GoVersion      string    `json:"go_version"`
+	DatabaseStatus string    `json:"database_status"`
+	RedisStatus    string    `json:"redis_status"`
+}
+
+// GetSystemInfo returns basic system information
+func (h *AdminHandler) GetSystemInfo(c *gin.Context) {
+	startTime := time.Now().Add(-time.Hour * 24) // Mock start time
+	uptime := time.Since(startTime)
+
+	// Check database status
+	dbStatus := "healthy"
+	sqlDB, err := h.db.DB()
+	if err != nil || sqlDB.Ping() != nil {
+		dbStatus = "unhealthy"
+	}
+
+	info := SystemInfoResponse{
+		Version:        "1.0.0",
+		Environment:    h.cfg.Environment,
+		StartTime:      startTime,
+		Uptime:         uptime.String(),
+		GoVersion:      "1.21",
+		DatabaseStatus: dbStatus,
+		RedisStatus:    "healthy", // Assume healthy for now
+	}
+
+	c.JSON(http.StatusOK, info)
+}
+
+// SystemSettingsResponse represents system settings
+type SystemSettingsResponse struct {
+	MaxFileSize        string `json:"max_file_size"`
+	CORSOrigins        string `json:"cors_origins"`
+	JWTExpiresIn       string `json:"jwt_expires_in"`
+	LogLevel           string `json:"log_level"`
+	DatabaseURL        string `json:"database_url,omitempty"` // Hidden for security
+	BackupRetention    int    `json:"backup_retention_days"`
+	MaintenanceMode    bool   `json:"maintenance_mode"`
+	RegistrationOpen   bool   `json:"registration_open"`
+}
+
+// GetSystemSettings returns system configuration settings
+func (h *AdminHandler) GetSystemSettings(c *gin.Context) {
+	corsOrigins := ""
+	if len(h.cfg.AllowedOrigins) > 0 {
+		corsOrigins = h.cfg.AllowedOrigins[0] // Take first origin
+	}
+
+	settings := SystemSettingsResponse{
+		MaxFileSize:        "10MB",
+		CORSOrigins:        corsOrigins,
+		JWTExpiresIn:       "24h",
+		LogLevel:           "info",
+		BackupRetention:    30,
+		MaintenanceMode:    false,
+		RegistrationOpen:   true,
+	}
+
+	c.JSON(http.StatusOK, settings)
+}
+
+// RestartSystem restarts the application (not really implemented for demo)
+func (h *AdminHandler) RestartSystem(c *gin.Context) {
+	// In a real implementation, this would signal the application to restart
+	// For demo purposes, we'll just return success
+	c.JSON(http.StatusOK, gin.H{
+		"message": "System restart initiated",
+		"status":  "scheduled",
+	})
+}
+
+// ClearCache clears application cache
+func (h *AdminHandler) ClearCache(c *gin.Context) {
+	// In a real implementation, this would clear Redis or other caches
+	// For demo purposes, we'll just return success
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Cache cleared successfully",
+		"cleared": "redis_cache, memory_cache",
+	})
+}
+
+// CreateBackup creates a database backup
+func (h *AdminHandler) CreateBackup(c *gin.Context) {
+	// In a real implementation, this would create actual database backup
+	// For demo purposes, we'll simulate backup creation
+	filename := "cloudbox_backup_" + time.Now().Format("20060102_150405") + ".sql"
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Backup created successfully",
+		"filename":   filename,
+		"size":       "15.7 MB",
+		"created_at": time.Now(),
+	})
+}

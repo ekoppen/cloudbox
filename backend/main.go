@@ -28,6 +28,11 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// Create default superadmin user if none exists
+	if err := database.CreateDefaultSuperAdmin(db); err != nil {
+		log.Fatalf("Failed to create default superadmin: %v", err)
+	}
+
 	// Set Gin mode
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)

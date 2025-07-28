@@ -16,7 +16,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORS(cfg))
-	r.Use(middleware.RateLimit(cfg))
+	// r.Use(middleware.RateLimit(cfg)) // Temporarily disabled for development
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(db, cfg)
@@ -33,6 +33,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	githubHandler := handlers.NewGitHubHandler(db, cfg)
 	functionHandler := handlers.NewFunctionHandler(db, cfg)
 	adminHandler := handlers.NewAdminHandler(db, cfg)
+	portfolioHandler := handlers.NewPortfolioHandler(db, cfg)
+	templateHandler := handlers.NewTemplateHandler(db, cfg)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -105,6 +107,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.GET("/:id/ssh-keys", sshKeyHandler.ListSSHKeys)
 				projects.POST("/:id/ssh-keys", sshKeyHandler.CreateSSHKey)
 				projects.GET("/:id/ssh-keys/:key_id", sshKeyHandler.GetSSHKey)
+				projects.PUT("/:id/ssh-keys/:key_id", sshKeyHandler.UpdateSSHKey)
 				projects.DELETE("/:id/ssh-keys/:key_id", sshKeyHandler.DeleteSSHKey)
 				
 				projects.GET("/:id/web-servers", webServerHandler.ListWebServers)
@@ -113,6 +116,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.PUT("/:id/web-servers/:server_id", webServerHandler.UpdateWebServer)
 				projects.DELETE("/:id/web-servers/:server_id", webServerHandler.DeleteWebServer)
 				projects.POST("/:id/web-servers/:server_id/test", webServerHandler.TestConnection)
+				projects.POST("/:id/web-servers/:server_id/distribute-key", webServerHandler.DistributePublicKey)
 				
 				projects.GET("/:id/github-repositories", githubHandler.ListGitHubRepositories)
 				projects.POST("/:id/github-repositories", githubHandler.CreateGitHubRepository)
@@ -122,6 +126,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/github-repositories/:repo_id/sync", githubHandler.SyncRepository)
 				projects.GET("/:id/github-repositories/:repo_id/webhook", githubHandler.GetWebhookInfo)
 				projects.GET("/:id/github-repositories/:repo_id/branches", githubHandler.GetRepositoryBranches)
+				projects.POST("/:id/github-repositories/analyze", githubHandler.AnalyzeRepository)
 				
 				projects.GET("/:id/deployments", deploymentHandler.ListDeployments)
 				projects.POST("/:id/deployments", deploymentHandler.CreateDeployment)
@@ -153,6 +158,13 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				admin.GET("/stats/deployment-stats", adminHandler.GetDeploymentStats)
 				admin.GET("/stats/storage-stats", adminHandler.GetStorageStats)
 				admin.GET("/stats/system-health", adminHandler.GetSystemHealth)
+				
+				// Admin system endpoints
+				admin.GET("/system/info", adminHandler.GetSystemInfo)
+				admin.GET("/system/settings", adminHandler.GetSystemSettings)
+				admin.POST("/system/restart", adminHandler.RestartSystem)
+				admin.POST("/system/clear-cache", adminHandler.ClearCache)
+				admin.POST("/system/backup", adminHandler.CreateBackup)
 			}
 
 			// Super Admin only routes
@@ -161,6 +173,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			{
 				// Super admin can manage users
 				superAdmin.GET("/users", authHandler.ListUsers)
+				superAdmin.POST("/users", authHandler.CreateUser)
+				superAdmin.PUT("/users/:id", authHandler.UpdateUser)
 				superAdmin.PUT("/users/:id/role", authHandler.UpdateUserRole)
 				superAdmin.DELETE("/users/:id", authHandler.DeleteUser)
 				
@@ -191,8 +205,9 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	}
 
 	// Project API routes (project-specific namespaced APIs)
+	// Protected project routes (authentication required)
 	projectAPI := r.Group("/p/:project_slug/api")
-	projectAPI.Use(middleware.ProjectAuth(cfg, db))
+	projectAPI.Use(middleware.ProjectAuthOrJWT(cfg, db))
 	{
 		// Collections management
 		projectAPI.GET("/collections", dataHandler.ListCollections)
@@ -218,13 +233,20 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.GET("/storage/buckets", storageHandler.ListBuckets)
 		projectAPI.POST("/storage/buckets", storageHandler.CreateBucket)
 		projectAPI.GET("/storage/buckets/:bucket", storageHandler.GetBucket)
+		projectAPI.PUT("/storage/buckets/:bucket", storageHandler.UpdateBucket)
 		projectAPI.DELETE("/storage/buckets/:bucket", storageHandler.DeleteBucket)
 		
 		// File management
 		projectAPI.GET("/storage/:bucket/files", storageHandler.ListFiles)
 		projectAPI.POST("/storage/:bucket/files", storageHandler.UploadFile)
 		projectAPI.GET("/storage/:bucket/files/:file_id", storageHandler.GetFile)
+		projectAPI.PUT("/storage/:bucket/files/:file_id/move", storageHandler.MoveFile)
 		projectAPI.DELETE("/storage/:bucket/files/:file_id", storageHandler.DeleteFile)
+		
+		// Folder management
+		projectAPI.GET("/storage/:bucket/folders", storageHandler.ListFolders)
+		projectAPI.POST("/storage/:bucket/folders", storageHandler.CreateFolder)
+		projectAPI.DELETE("/storage/:bucket/folders", storageHandler.DeleteFolder)
 		
 		// User management
 		projectAPI.GET("/users", userHandler.ListUsers)
@@ -233,8 +255,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.PUT("/users/:user_id", userHandler.UpdateUser)
 		projectAPI.DELETE("/users/:user_id", userHandler.DeleteUser)
 		
-		// User authentication
-		projectAPI.POST("/users/login", userHandler.LoginUser)
+		// User authentication (authenticated endpoints only)
 		projectAPI.POST("/users/logout", userHandler.LogoutUser)
 		projectAPI.GET("/users/me", userHandler.GetCurrentUser)
 		projectAPI.PUT("/users/:user_id/password", userHandler.ChangePassword)
@@ -243,9 +264,32 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.GET("/users/:user_id/sessions", userHandler.ListSessions)
 		projectAPI.DELETE("/users/:user_id/sessions/:session_id", userHandler.RevokeSession)
 		
+		// Auth management for project admin interface
+		auth := projectAPI.Group("/auth")
+		{
+			// Auth settings
+			auth.GET("/settings", userHandler.GetAuthSettings)
+			auth.PUT("/settings", userHandler.UpdateAuthSettings)
+			
+			// Auth users management (for project admin interface)
+			auth.GET("/users", userHandler.ListUsers)
+			auth.POST("/users", userHandler.CreateUser)
+			auth.PATCH("/users/:user_id", userHandler.UpdateUser)
+			auth.DELETE("/users/:user_id", userHandler.DeleteUser)
+			
+			// Auth providers
+			auth.GET("/providers", userHandler.GetAuthProviders)
+			auth.PATCH("/providers/:provider_id", userHandler.UpdateAuthProvider)
+		}
+		
 		// Messaging API
 		projectAPI.GET("/messaging/channels", messagingHandler.ListChannels)
 		projectAPI.POST("/messaging/channels", messagingHandler.CreateChannel)
+		
+		// Additional messaging endpoints that frontend expects
+		projectAPI.GET("/messaging/messages", messagingHandler.ListAllMessages)
+		projectAPI.GET("/messaging/templates", messagingHandler.ListTemplates)
+		projectAPI.GET("/messaging/stats", messagingHandler.GetMessagingStats)
 		projectAPI.GET("/messaging/channels/:channel_id", messagingHandler.GetChannel)
 		projectAPI.PUT("/messaging/channels/:channel_id", messagingHandler.UpdateChannel)
 		projectAPI.DELETE("/messaging/channels/:channel_id", messagingHandler.DeleteChannel)
@@ -267,6 +311,56 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.GET("/functions/:function_name", functionHandler.ExecuteFunctionByName)
 		projectAPI.PUT("/functions/:function_name", functionHandler.ExecuteFunctionByName)
 		projectAPI.DELETE("/functions/:function_name", functionHandler.ExecuteFunctionByName)
+		
+		// Portfolio-specific API endpoints
+		portfolio := projectAPI.Group("/")
+		{
+			// Translations
+			portfolio.GET("/translations/languages", portfolioHandler.GetLanguages)
+			portfolio.PUT("/translations/languages", portfolioHandler.SetLanguages)
+			portfolio.POST("/translations/translate/:pageId", portfolioHandler.TranslatePage)
+			portfolio.GET("/translations/page/:pageId", portfolioHandler.GetPageTranslations)
+			portfolio.DELETE("/translations/:translationId", portfolioHandler.DeleteTranslation)
+			
+			// Analytics
+			portfolio.GET("/analytics", portfolioHandler.GetAnalytics)
+			
+			// Images
+			portfolio.GET("/images", portfolioHandler.GetImages)
+			portfolio.PUT("/images/:id", portfolioHandler.UpdateImage)
+			
+			// Albums
+			portfolio.GET("/albums", portfolioHandler.GetAlbums)
+			
+			// Pages
+			portfolio.GET("/pages", portfolioHandler.GetPages)
+			
+			// Settings
+			portfolio.GET("/settings", portfolioHandler.GetSettings)
+			portfolio.PUT("/settings", portfolioHandler.UpdateSettings)
+			
+			// Branding
+			portfolio.GET("/branding", portfolioHandler.GetBranding)
+			
+			// Portfolio Users
+			portfolio.GET("/portfolio/users", portfolioHandler.GetPortfolioUsers)
+		}
+		
+		// Project Templates - Setup and management
+		templates := projectAPI.Group("/templates")
+		{
+			templates.GET("", templateHandler.ListTemplates)
+			templates.GET("/:template", templateHandler.GetTemplate)
+			templates.POST("/:template/setup", templateHandler.SetupPhotoPortfolio)
+		}
+	}
+
+	// Public project routes (no authentication required) - registered AFTER protected routes
+	projectPublic := r.Group("/p/:project_slug/api")
+	projectPublic.Use(middleware.ProjectOnly(cfg, db)) // Only validate project exists
+	{
+		// User authentication (public endpoints)
+		projectPublic.POST("/users/login", userHandler.LoginUser)
 	}
 
 	// Static file serving for deployments

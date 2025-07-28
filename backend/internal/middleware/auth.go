@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,7 +94,14 @@ func ProjectAuth(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 		var project models.Project
 		var key models.APIKey
 
-		err := db.Where("slug = ?", projectSlug).First(&project).Error
+		// Try to parse as ID first (numeric), then by slug
+		var err error
+		if projectID, parseErr := strconv.ParseUint(projectSlug, 10, 32); parseErr == nil {
+			err = db.Where("id = ?", uint(projectID)).First(&project).Error
+		}
+		if err != nil {
+			err = db.Where("slug = ?", projectSlug).First(&project).Error
+		}
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 			c.Abort()
@@ -190,5 +199,191 @@ func RequireAdminOrSuperAdmin() gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// ProjectOnly middleware validates project exists without requiring authentication
+func ProjectOnly(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		projectSlug := c.Param("project_slug")
+		if projectSlug == "" {
+			log.Printf("ProjectOnly: No project_slug in URL path")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Project slug required"})
+			c.Abort()
+			return
+		}
+
+		log.Printf("ProjectOnly: Looking for project with slug: %s", projectSlug)
+
+		// Test database connection
+		var testCount int64
+		if err := db.Model(&models.Project{}).Count(&testCount).Error; err != nil {
+			log.Printf("ProjectOnly: Database connection error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection error"})
+			c.Abort()
+			return
+		}
+		log.Printf("ProjectOnly: Database has %d projects total", testCount)
+
+		// Find the project - try by ID first, then by slug
+		var project models.Project
+		var err error
+		
+		// Try to parse as ID first (numeric) - photoportfolio is not numeric so skip this
+		if projectID, parseErr := strconv.ParseUint(projectSlug, 10, 32); parseErr == nil {
+			log.Printf("ProjectOnly: Trying to find project by ID: %d", uint(projectID))
+			err = db.Where("id = ?", uint(projectID)).First(&project).Error
+			if err != nil {
+				log.Printf("ProjectOnly: Error finding by ID: %v", err)
+			} else {
+				log.Printf("ProjectOnly: Found by ID - ID: %d, Name: %s, Slug: %s", project.ID, project.Name, project.Slug)
+			}
+		} else {
+			log.Printf("ProjectOnly: '%s' is not numeric, will search by slug", projectSlug)
+		}
+		
+		// If not found by ID (or slug is not numeric), try by slug
+		if err != nil || project.ID == 0 {
+			log.Printf("ProjectOnly: Trying to find project by slug: %s", projectSlug)
+			err = db.Where("slug = ?", projectSlug).First(&project).Error
+			if err != nil {
+				log.Printf("ProjectOnly: Error finding by slug: %v", err)
+			} else {
+				log.Printf("ProjectOnly: Found by slug - ID: %d, Name: %s, Slug: %s", project.ID, project.Name, project.Slug)
+			}
+		}
+		
+		if err != nil {
+			log.Printf("ProjectOnly: Project not found for slug '%s', error: %v", projectSlug, err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+			c.Abort()
+			return
+		}
+
+		log.Printf("ProjectOnly: Found project ID: %d, Name: %s, Slug: %s", project.ID, project.Name, project.Slug)
+		
+		// Store project info in context
+		c.Set("project", project)
+		c.Set("project_id", project.ID)
+		c.Next()
+	}
+}
+
+// ProjectAuthOrJWT middleware accepts both JWT tokens and API keys for project access
+func ProjectAuthOrJWT(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		projectSlug := c.Param("project_slug")
+		if projectSlug == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Project slug required"})
+			c.Abort()
+			return
+		}
+
+		// Find the project first - try by ID first, then by slug
+		var project models.Project
+		var err error
+		
+		// Try to parse as ID first (numeric)
+		if projectID, parseErr := strconv.ParseUint(projectSlug, 10, 32); parseErr == nil {
+			err = db.Where("id = ?", uint(projectID)).First(&project).Error
+		} else {
+			err = fmt.Errorf("not numeric") // Ensure err is set so we try slug lookup
+		}
+		
+		// If not found by ID, try by slug
+		if err != nil {
+			err = db.Where("slug = ?", projectSlug).First(&project).Error
+		}
+		
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+			c.Abort()
+			return
+		}
+
+		// Try API key authentication first
+		apiKey := c.GetHeader("X-API-Key")
+		if apiKey != "" {
+			// Find API key by project - we need to check hash since keys are not stored in plain text
+			var apiKeys []models.APIKey
+			err = db.Where("project_id = ? AND is_active = true", project.ID).Find(&apiKeys).Error
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+				c.Abort()
+				return
+			}
+
+			// Check each API key hash
+			var validKey *models.APIKey
+			for _, k := range apiKeys {
+				if err := bcrypt.CompareHashAndPassword([]byte(k.KeyHash), []byte(apiKey)); err == nil {
+					validKey = &k
+					break
+				}
+			}
+
+			if validKey != nil {
+				key := *validKey
+				// Check if key is expired
+				if key.ExpiresAt != nil && key.ExpiresAt.Before(time.Now()) {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "API key expired"})
+					c.Abort()
+					return
+				}
+
+				// Update last used timestamp
+				tx := db.Begin()
+				if err := tx.Model(&key).Update("last_used_at", time.Now()).Error; err != nil {
+					log.Printf("Failed to update API key last_used_at: %v", err)
+					tx.Rollback()
+				} else {
+					tx.Commit()
+				}
+
+				// Store project and key info in context
+				c.Set("project", project)
+				c.Set("project_id", project.ID)
+				c.Set("api_key", key)
+				c.Next()
+				return
+			}
+		}
+
+		// If no valid API key, try JWT authentication
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString := parts[1]
+
+				// Parse and validate token
+				token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+					return []byte(cfg.JWTSecret), nil
+				})
+
+				if err == nil && token.Valid {
+					// Extract claims
+					claims, ok := token.Claims.(*Claims)
+					if ok {
+						// For JWT access, check if user has admin access to the project
+						userRole := claims.Role
+						if userRole == "admin" || userRole == "superadmin" {
+							// Store user and project info in context
+							c.Set("user_id", claims.UserID)
+							c.Set("user_email", claims.Email)
+							c.Set("user_role", claims.Role)
+							c.Set("project", project)
+							c.Set("project_id", project.ID)
+							c.Next()
+							return
+						}
+					}
+				}
+			}
+		}
+
+		// Neither authentication method worked
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "API key or valid authorization required"})
+		c.Abort()
 	}
 }

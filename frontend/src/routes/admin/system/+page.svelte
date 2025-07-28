@@ -28,8 +28,11 @@
     logLevel: 'info'
   };
 
+  let recentBackups = [];
+
   let loading = true;
   let saving = false;
+  let loadingBackups = false;
 
   const logLevels = [
     { value: 'debug', label: 'Debug' },
@@ -41,6 +44,7 @@
   onMount(() => {
     loadSystemInfo();
     loadSystemSettings();
+    loadRecentBackups();
   });
 
   async function loadSystemInfo() {
@@ -78,6 +82,25 @@
       }
     } catch (error) {
       console.error('Error loading system settings:', error);
+    }
+  }
+
+  async function loadRecentBackups() {
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.admin.system.backups, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        recentBackups = await response.json();
+      } else {
+        console.error('Failed to load recent backups:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading recent backups:', error);
     }
   }
 
@@ -166,6 +189,16 @@
       if (response.ok) {
         const result = await response.json();
         toast.success(`Backup voltooid: ${result.filename || 'backup.sql'}`);
+        
+        // Add new backup to the list
+        const newBackup = {
+          id: Date.now(),
+          filename: result.filename,
+          size: result.size || '0 MB',
+          created_at: new Date().toISOString(),
+          status: 'completed'
+        };
+        recentBackups = [newBackup, ...recentBackups.slice(0, 2)];
       } else {
         const data = await response.json();
         toast.error(data.error || 'Fout bij maken backup');
@@ -174,6 +207,71 @@
       console.error('Backup error:', error);
       toast.error('Netwerkfout bij maken backup');
     }
+  }
+
+  async function downloadBackup(backup) {
+    try {
+      toast.info(`Backup wordt gedownload: ${backup.filename}`);
+      
+      const response = await createApiRequest(`${API_ENDPOINTS.admin.system.backup}/${backup.id}/download`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = backup.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Backup gedownload');
+      } else {
+        toast.error('Fout bij downloaden backup');
+      }
+    } catch (error) {
+      console.error('Download backup error:', error);
+      toast.error('Fout bij downloaden backup');
+    }
+  }
+
+  async function restoreBackup(backup) {
+    const confirmed = confirm(`Weet je zeker dat je de backup "${backup.filename}" wilt herstellen? Dit zal alle huidige data overschrijven.`);
+    if (!confirmed) return;
+
+    try {
+      toast.info(`Backup wordt hersteld: ${backup.filename}`);
+      
+      const response = await createApiRequest(`${API_ENDPOINTS.admin.system.backup}/${backup.id}/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Backup succesvol hersteld');
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Fout bij herstellen backup');
+      }
+    } catch (error) {
+      console.error('Restore backup error:', error);
+      toast.error('Fout bij herstellen backup');
+    }
+  }
+
+  function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString('nl-NL', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 </script>
 
@@ -296,6 +394,75 @@
         </div>
       </Card>
     </div>
+
+    <!-- Recent Backups -->
+    <Card class="p-6">
+      <div class="flex items-center space-x-3 mb-6">
+        <Icon name="folder" size={20} className="text-green-600" />
+        <h2 class="text-xl font-semibold text-foreground">Recente Backups</h2>
+        <Badge variant="secondary">{recentBackups.length}</Badge>
+      </div>
+      
+      {#if recentBackups.length === 0}
+        <div class="text-center py-8">
+          <Icon name="folder" size={48} className="text-gray-400 mx-auto mb-4" />
+          <p class="text-muted-foreground">Nog geen backups beschikbaar</p>
+          <Button on:click={runBackup} class="mt-4">
+            <Icon name="database" size={16} class="mr-2" />
+            Eerste Backup Maken
+          </Button>
+        </div>
+      {:else}
+        <div class="space-y-4">
+          {#each recentBackups as backup}
+            <div class="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+              <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                  <Icon name="database" size={20} className="text-green-600" />
+                </div>
+                <div>
+                  <h3 class="font-medium text-foreground">{backup.filename}</h3>
+                  <div class="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <span>📁 {backup.size}</span>
+                    <span>🕒 {formatDate(backup.created_at)}</span>
+                    <Badge variant={backup.status === 'completed' ? 'default' : 'secondary'}>
+                      {backup.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex items-center space-x-2">
+                <Button
+                  on:click={() => downloadBackup(backup)}
+                  variant="outline"
+                  size="sm"
+                  title="Download backup"
+                >
+                  <Icon name="download" size={14} />
+                </Button>
+                
+                <Button
+                  on:click={() => restoreBackup(backup)}
+                  variant="outline"
+                  size="sm"
+                  title="Herstel backup"
+                  class="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                >
+                  <Icon name="refresh" size={14} />
+                </Button>
+              </div>
+            </div>
+          {/each}
+        </div>
+        
+        <div class="mt-6 pt-4 border-t border-border">
+          <p class="text-xs text-muted-foreground text-center">
+            De laatste 3 backups worden getoond. Oudere backups worden automatisch verwijderd.
+          </p>
+        </div>
+      {/if}
+    </Card>
 
     <!-- System Settings -->
     <Card class="p-6">

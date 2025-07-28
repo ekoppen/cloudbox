@@ -18,7 +18,19 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
 
-		c.Header("Access-Control-Allow-Methods", strings.Join(cfg.AllowedMethods, ", "))
+		// Ensure PATCH is always included
+		allowedMethods := cfg.AllowedMethods
+		hasPatch := false
+		for _, method := range allowedMethods {
+			if method == "PATCH" {
+				hasPatch = true
+				break
+			}
+		}
+		if !hasPatch {
+			allowedMethods = append(allowedMethods, "PATCH")
+		}
+		c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
 		c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400")

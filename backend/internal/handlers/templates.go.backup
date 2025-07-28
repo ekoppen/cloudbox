@@ -1,0 +1,637 @@
+package handlers
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/cloudbox/backend/internal/config"
+	"github.com/cloudbox/backend/internal/models"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+type TemplateHandler struct {
+	db  *gorm.DB
+	cfg *config.Config
+}
+
+func NewTemplateHandler(db *gorm.DB, cfg *config.Config) *TemplateHandler {
+	return &TemplateHandler{
+		db:  db,
+		cfg: cfg,
+	}
+}
+
+// PhotoPortfolio template structure
+type PhotoPortfolioTemplate struct {
+	Collections []CollectionTemplate `json:"collections"`
+	Settings    map[string]interface{} `json:"settings"`
+	DefaultData map[string][]interface{} `json:"defaultData"`
+}
+
+type CollectionTemplate struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Schema      map[string]interface{} `json:"schema"`
+	Indexes     []string               `json:"indexes,omitempty"`
+	Permissions map[string][]string    `json:"permissions,omitempty"`
+}
+
+// SetupPhotoPortfolio initializes a project with PhotoPortfolio collections and data
+func (h *TemplateHandler) SetupPhotoPortfolio(c *gin.Context) {
+	projectSlug := c.Param("project_slug")
+	
+	// Get project from context (set by middleware)
+	projectInterface, exists := c.Get("project")
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	project, ok := projectInterface.(models.Project)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid project data"})
+		return
+	}
+
+	// Define PhotoPortfolio template
+	template := PhotoPortfolioTemplate{
+		Collections: []CollectionTemplate{
+			{
+				Name:        "images",
+				Description: "Photo/image collection for portfolio",
+				Schema: map[string]interface{}{
+					"title":       map[string]string{"type": "string", "required": "false"},
+					"description": map[string]string{"type": "string", "required": "false"},
+					"path":        map[string]string{"type": "string", "required": "true"},
+					"filename":    map[string]string{"type": "string", "required": "true"},
+					"mimetype":    map[string]string{"type": "string", "required": "true"},
+					"size":        map[string]string{"type": "number", "required": "true"},
+					"tags":        map[string]string{"type": "array", "required": "false"},
+					"metadata":    map[string]string{"type": "object", "required": "false"},
+					"album_ids":   map[string]string{"type": "array", "required": "false"},
+					"featured":    map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"published":   map[string]string{"type": "boolean", "required": "false", "default": "true"},
+					"sort_order":  map[string]string{"type": "number", "required": "false", "default": "0"},
+				},
+				Indexes: []string{"tags", "album_ids", "featured", "published"},
+				Permissions: map[string][]string{
+					"read":   {"authenticated", "public"},
+					"write":  {"authenticated"},
+					"delete": {"authenticated"},
+				},
+			},
+			{
+				Name:        "albums",
+				Description: "Photo albums/collections",
+				Schema: map[string]interface{}{
+					"name":         map[string]string{"type": "string", "required": "true"},
+					"description":  map[string]string{"type": "string", "required": "false"},
+					"slug":         map[string]string{"type": "string", "required": "true"},
+					"cover_image_id": map[string]string{"type": "string", "required": "false"},
+					"image_ids":    map[string]string{"type": "array", "required": "false"},
+					"tags":         map[string]string{"type": "array", "required": "false"},
+					"published":    map[string]string{"type": "boolean", "required": "false", "default": "true"},
+					"featured":     map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"sort_order":   map[string]string{"type": "number", "required": "false", "default": "0"},
+					"settings":     map[string]string{"type": "object", "required": "false"},
+				},
+				Indexes: []string{"slug", "published", "featured", "tags"},
+				Permissions: map[string][]string{
+					"read":   {"authenticated", "public"},
+					"write":  {"authenticated"},
+					"delete": {"authenticated"},
+				},
+			},
+			{
+				Name:        "pages",
+				Description: "Website pages and content",
+				Schema: map[string]interface{}{
+					"title":      map[string]string{"type": "string", "required": "true"},
+					"slug":       map[string]string{"type": "string", "required": "true"},
+					"content":    map[string]string{"type": "object", "required": "false"},
+					"excerpt":    map[string]string{"type": "string", "required": "false"},
+					"featured_image_id": map[string]string{"type": "string", "required": "false"},
+					"seo":        map[string]string{"type": "object", "required": "false"},
+					"published":  map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"page_type":  map[string]string{"type": "string", "required": "false", "default": "page"},
+					"sort_order": map[string]string{"type": "number", "required": "false", "default": "0"},
+					"language":   map[string]string{"type": "string", "required": "false", "default": "en"},
+					"translations": map[string]string{"type": "array", "required": "false"},
+				},
+				Indexes: []string{"slug", "published", "page_type", "language"},
+				Permissions: map[string][]string{
+					"read":   {"authenticated", "public"},
+					"write":  {"authenticated"},
+					"delete": {"authenticated"},
+				},
+			},
+			{
+				Name:        "settings",
+				Description: "Site configuration and settings",
+				Schema: map[string]interface{}{
+					"key":         map[string]string{"type": "string", "required": "true"},
+					"value":       map[string]string{"type": "object", "required": "true"},
+					"category":    map[string]string{"type": "string", "required": "false", "default": "general"},
+					"description": map[string]string{"type": "string", "required": "false"},
+					"type":        map[string]string{"type": "string", "required": "false", "default": "object"},
+					"editable":    map[string]string{"type": "boolean", "required": "false", "default": "true"},
+				},
+				Indexes: []string{"key", "category"},
+				Permissions: map[string][]string{
+					"read":   {"authenticated", "public"},
+					"write":  {"authenticated"},
+					"delete": {"authenticated"},
+				},
+			},
+			{
+				Name:        "analytics",
+				Description: "Website analytics and visitor data",
+				Schema: map[string]interface{}{
+					"date":           map[string]string{"type": "string", "required": "true"},
+					"visitors":       map[string]string{"type": "number", "required": "true", "default": "0"},
+					"unique_visitors": map[string]string{"type": "number", "required": "true", "default": "0"},
+					"page_views":     map[string]string{"type": "number", "required": "true", "default": "0"},
+					"bounce_rate":    map[string]string{"type": "number", "required": "false", "default": "0"},
+					"avg_session":    map[string]string{"type": "number", "required": "false", "default": "0"},
+					"referrers":      map[string]string{"type": "object", "required": "false"},
+					"top_pages":      map[string]string{"type": "array", "required": "false"},
+				},
+				Indexes: []string{"date"},
+				Permissions: map[string][]string{
+					"read":   {"authenticated"},
+					"write":  {"authenticated"},
+					"delete": {"authenticated"},
+				},
+			},
+			{
+				Name:        "branding",
+				Description: "Site branding and visual identity",
+				Schema: map[string]interface{}{
+					"component":   map[string]string{"type": "string", "required": "true"},
+					"config":      map[string]string{"type": "object", "required": "true"},
+					"version":     map[string]string{"type": "string", "required": "false", "default": "1.0"},
+					"description": map[string]string{"type": "string", "required": "false"},
+					"active":      map[string]string{"type": "boolean", "required": "false", "default": "true"},
+				},
+				Indexes: []string{"component", "active"},
+				Permissions: map[string][]string{
+					"read":   {"authenticated", "public"},
+					"write":  {"authenticated"},
+					"delete": {"authenticated"},
+				},
+			},
+		},
+		Settings: map[string]interface{}{
+			"portfolio_initialized": true,
+			"template_version":       "1.0.0",
+			"initialized_at":         time.Now(),
+		},
+		DefaultData: map[string][]interface{}{
+			"settings": {
+				map[string]interface{}{
+					"key":      "site_name",
+					"value":    map[string]interface{}{"text": "My Portfolio"},
+					"category": "general",
+					"description": "Website title and name",
+				},
+				map[string]interface{}{
+					"key":      "site_description", 
+					"value":    map[string]interface{}{"text": "Professional photography portfolio"},
+					"category": "general",
+					"description": "Website description and tagline",
+				},
+				map[string]interface{}{
+					"key":      "theme_config",
+					"value":    map[string]interface{}{
+						"primaryColor": "#000000",
+						"secondaryColor": "#ffffff",
+						"accentColor": "#3b82f6",
+						"fontFamily": "Inter",
+					},
+					"category": "appearance",
+					"description": "Theme colors and fonts",
+				},
+				map[string]interface{}{
+					"key":      "languages",
+					"value":    map[string]interface{}{"list": []string{"en"}},
+					"category": "localization",
+					"description": "Supported languages",
+				},
+			},
+			"pages": {
+				map[string]interface{}{
+					"title":     "Home",
+					"slug":      "home",
+					"content":   map[string]interface{}{
+						"blocks": []interface{}{
+							map[string]interface{}{
+								"type": "hero",
+								"content": map[string]interface{}{
+									"title": "Welcome to My Portfolio",
+									"subtitle": "Professional Photography",
+								},
+							},
+						},
+					},
+					"published": true,
+					"page_type": "home",
+					"sort_order": 0,
+				},
+				map[string]interface{}{
+					"title":     "About",
+					"slug":      "about", 
+					"content":   map[string]interface{}{
+						"blocks": []interface{}{
+							map[string]interface{}{
+								"type": "text",
+								"content": map[string]interface{}{
+									"text": "About me content here...",
+								},
+							},
+						},
+					},
+					"published": true,
+					"page_type": "page",
+					"sort_order": 1,
+				},
+			},
+		},
+	}
+
+	// Create collections and insert default data
+	errors := []string{}
+	
+	for _, collection := range template.Collections {
+		// Create collection
+		err := h.createCollection(project.ID, collection)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Failed to create collection %s: %v", collection.Name, err))
+			continue
+		}
+		
+		// Insert default data if available
+		if defaultData, exists := template.DefaultData[collection.Name]; exists {
+			err = h.insertDefaultData(project.ID, collection.Name, defaultData)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to insert default data for %s: %v", collection.Name, err))
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		c.JSON(http.StatusPartialContent, gin.H{
+			"message": "PhotoPortfolio setup completed with some errors",
+			"errors":  errors,
+			"template": template,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "PhotoPortfolio setup completed successfully",
+		"project": projectSlug,
+		"template": template,
+		"collections_created": len(template.Collections),
+	})
+}
+
+// Helper function to create a collection
+func (h *TemplateHandler) createCollection(projectID uint, collection CollectionTemplate) error {
+	// This would integrate with your existing data handler to create collections
+	// For now, we'll simulate the creation
+	
+	// In a real implementation, you would:
+	// 1. Create the collection in the database
+	// 2. Set up the schema validation
+	// 3. Create indexes
+	// 4. Set permissions
+	
+	// Placeholder implementation
+	return nil
+}
+
+// Helper function to insert default data
+func (h *TemplateHandler) insertDefaultData(projectID uint, collectionName string, data []interface{}) error {
+	// This would integrate with your existing data handler to insert documents
+	// For now, we'll simulate the insertion
+	
+	// In a real implementation, you would:
+	// 1. Insert each document into the collection
+	// 2. Validate against schema
+	// 3. Handle relationships
+	
+	// Placeholder implementation
+	return nil
+}
+
+// GetTemplate returns the template configuration for any project type
+func (h *TemplateHandler) GetTemplate(c *gin.Context) {
+	templateType := c.Param("template")
+	
+	switch templateType {
+	case "photoportfolio":
+		template := h.getPhotoPortfolioTemplate()
+		c.JSON(http.StatusOK, template)
+	case "blog":
+		template := h.getBlogTemplate()
+		c.JSON(http.StatusOK, template)
+	case "ecommerce":
+		template := h.getEcommerceTemplate()
+		c.JSON(http.StatusOK, template)
+	case "saas":
+		template := h.getSaaSTemplate()
+		c.JSON(http.StatusOK, template)
+	case "crm":
+		template := h.getCRMTemplate()
+		c.JSON(http.StatusOK, template)
+	default:
+		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
+	}
+}
+
+// ListTemplates returns available project templates
+func (h *TemplateHandler) ListTemplates(c *gin.Context) {
+	templates := []map[string]interface{}{
+		{
+			"name":        "photoportfolio",
+			"displayName": "Photo Portfolio",
+			"description": "Complete photography portfolio with albums, galleries, and content management",
+			"version":     "1.0.0",
+			"collections": []string{"images", "albums", "pages", "settings", "analytics", "branding"},
+			"features":    []string{"Image Management", "Album Creation", "Content Pages", "Analytics", "SEO", "Multi-language"},
+		},
+		{
+			"name":        "blog",
+			"displayName": "Blog/CMS",
+			"description": "Content management system for blogs and articles",
+			"version":     "1.0.0",
+			"collections": []string{"posts", "categories", "tags", "comments", "settings"},
+			"features":    []string{"Post Management", "Categories", "Tags", "Comments", "SEO"},
+		},
+		{
+			"name":        "ecommerce",
+			"displayName": "E-commerce",
+			"description": "Online store with products, orders, and customer management", 
+			"version":     "1.0.0",
+			"collections": []string{"products", "orders", "customers", "categories", "settings"},
+			"features":    []string{"Product Catalog", "Order Management", "Customer Accounts", "Inventory"},
+		},
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"templates": templates,
+		"count":     len(templates),
+	})
+}
+
+// Template generators for different project types
+
+func (h *TemplateHandler) getPhotoPortfolioTemplate() PhotoPortfolioTemplate {
+	return PhotoPortfolioTemplate{
+		Collections: []CollectionTemplate{
+			{
+				Name:        "images",
+				Description: "Photo/image collection for portfolio",
+				Schema: map[string]interface{}{
+					"title":       map[string]string{"type": "string", "required": "false"},
+					"description": map[string]string{"type": "string", "required": "false"},
+					"path":        map[string]string{"type": "string", "required": "true"},
+					"filename":    map[string]string{"type": "string", "required": "true"},
+					"mimetype":    map[string]string{"type": "string", "required": "true"},
+					"size":        map[string]string{"type": "number", "required": "true"},
+					"tags":        map[string]string{"type": "array", "required": "false"},
+					"metadata":    map[string]string{"type": "object", "required": "false"},
+					"album_ids":   map[string]string{"type": "array", "required": "false"},
+					"featured":    map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"published":   map[string]string{"type": "boolean", "required": "false", "default": "true"},
+					"sort_order":  map[string]string{"type": "number", "required": "false", "default": "0"},
+				},
+				Indexes: []string{"tags", "album_ids", "featured", "published"},
+			},
+			// Add other PhotoPortfolio collections here...
+		},
+	}
+}
+
+func (h *TemplateHandler) getBlogTemplate() PhotoPortfolioTemplate {
+	return PhotoPortfolioTemplate{
+		Collections: []CollectionTemplate{
+			{
+				Name:        "posts",
+				Description: "Blog posts and articles",
+				Schema: map[string]interface{}{
+					"title":        map[string]string{"type": "string", "required": "true"},
+					"slug":         map[string]string{"type": "string", "required": "true"},
+					"content":      map[string]string{"type": "string", "required": "true"},
+					"excerpt":      map[string]string{"type": "string", "required": "false"},
+					"author_id":    map[string]string{"type": "string", "required": "true"},
+					"category_ids": map[string]string{"type": "array", "required": "false"},
+					"tags":         map[string]string{"type": "array", "required": "false"},
+					"featured_image": map[string]string{"type": "string", "required": "false"},
+					"published":    map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"published_at": map[string]string{"type": "datetime", "required": "false"},
+					"seo_title":    map[string]string{"type": "string", "required": "false"},
+					"seo_description": map[string]string{"type": "string", "required": "false"},
+					"view_count":   map[string]string{"type": "number", "required": "false", "default": "0"},
+				},
+				Indexes: []string{"slug", "published", "published_at", "author_id", "tags"},
+			},
+			{
+				Name:        "categories",
+				Description: "Blog post categories",
+				Schema: map[string]interface{}{
+					"name":        map[string]string{"type": "string", "required": "true"},
+					"slug":        map[string]string{"type": "string", "required": "true"},
+					"description": map[string]string{"type": "string", "required": "false"},
+					"color":       map[string]string{"type": "string", "required": "false"},
+					"post_count":  map[string]string{"type": "number", "required": "false", "default": "0"},
+				},
+				Indexes: []string{"slug"},
+			},
+			{
+				Name:        "comments",
+				Description: "Blog post comments",
+				Schema: map[string]interface{}{
+					"post_id":    map[string]string{"type": "string", "required": "true"},
+					"author_name": map[string]string{"type": "string", "required": "true"},
+					"author_email": map[string]string{"type": "string", "required": "true"},
+					"content":    map[string]string{"type": "string", "required": "true"},
+					"approved":   map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"parent_id":  map[string]string{"type": "string", "required": "false"},
+				},
+				Indexes: []string{"post_id", "approved"},
+			},
+		},
+	}
+}
+
+func (h *TemplateHandler) getEcommerceTemplate() PhotoPortfolioTemplate {
+	return PhotoPortfolioTemplate{
+		Collections: []CollectionTemplate{
+			{
+				Name:        "products",
+				Description: "Product catalog",
+				Schema: map[string]interface{}{
+					"name":         map[string]string{"type": "string", "required": "true"},
+					"slug":         map[string]string{"type": "string", "required": "true"},
+					"description":  map[string]string{"type": "string", "required": "false"},
+					"price":        map[string]string{"type": "number", "required": "true"},
+					"sale_price":   map[string]string{"type": "number", "required": "false"},
+					"sku":          map[string]string{"type": "string", "required": "true"},
+					"stock":        map[string]string{"type": "number", "required": "true", "default": "0"},
+					"category_ids": map[string]string{"type": "array", "required": "false"},
+					"images":       map[string]string{"type": "array", "required": "false"},
+					"variants":     map[string]string{"type": "array", "required": "false"},
+					"featured":     map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"active":       map[string]string{"type": "boolean", "required": "false", "default": "true"},
+					"weight":       map[string]string{"type": "number", "required": "false"},
+					"dimensions":   map[string]string{"type": "object", "required": "false"},
+				},
+				Indexes: []string{"slug", "sku", "active", "featured", "category_ids"},
+			},
+			{
+				Name:        "orders",
+				Description: "Customer orders",
+				Schema: map[string]interface{}{
+					"order_number": map[string]string{"type": "string", "required": "true"},
+					"customer_id":  map[string]string{"type": "string", "required": "true"},
+					"items":        map[string]string{"type": "array", "required": "true"},
+					"total":        map[string]string{"type": "number", "required": "true"},
+					"subtotal":     map[string]string{"type": "number", "required": "true"},
+					"tax":          map[string]string{"type": "number", "required": "false", "default": "0"},
+					"shipping":     map[string]string{"type": "number", "required": "false", "default": "0"},
+					"status":       map[string]string{"type": "string", "required": "true", "default": "pending"},
+					"payment_status": map[string]string{"type": "string", "required": "true", "default": "pending"},
+					"shipping_address": map[string]string{"type": "object", "required": "true"},
+					"billing_address":  map[string]string{"type": "object", "required": "true"},
+				},
+				Indexes: []string{"order_number", "customer_id", "status", "payment_status"},
+			},
+			{
+				Name:        "customers",
+				Description: "Customer accounts",
+				Schema: map[string]interface{}{
+					"email":      map[string]string{"type": "string", "required": "true"},
+					"first_name": map[string]string{"type": "string", "required": "true"},
+					"last_name":  map[string]string{"type": "string", "required": "true"},
+					"phone":      map[string]string{"type": "string", "required": "false"},
+					"addresses":  map[string]string{"type": "array", "required": "false"},
+					"orders_count": map[string]string{"type": "number", "required": "false", "default": "0"},
+					"total_spent":  map[string]string{"type": "number", "required": "false", "default": "0"},
+					"active":     map[string]string{"type": "boolean", "required": "false", "default": "true"},
+				},
+				Indexes: []string{"email"},
+			},
+		},
+	}
+}
+
+func (h *TemplateHandler) getSaaSTemplate() PhotoPortfolioTemplate {
+	return PhotoPortfolioTemplate{
+		Collections: []CollectionTemplate{
+			{
+				Name:        "subscriptions",
+				Description: "User subscriptions and billing",
+				Schema: map[string]interface{}{
+					"user_id":       map[string]string{"type": "string", "required": "true"},
+					"plan_id":       map[string]string{"type": "string", "required": "true"},
+					"status":        map[string]string{"type": "string", "required": "true", "default": "active"},
+					"current_period_start": map[string]string{"type": "datetime", "required": "true"},
+					"current_period_end":   map[string]string{"type": "datetime", "required": "true"},
+					"trial_end":     map[string]string{"type": "datetime", "required": "false"},
+					"payment_method_id": map[string]string{"type": "string", "required": "false"},
+					"amount":        map[string]string{"type": "number", "required": "true"},
+					"currency":      map[string]string{"type": "string", "required": "true", "default": "usd"},
+				},
+				Indexes: []string{"user_id", "plan_id", "status"},
+			},
+			{
+				Name:        "usage_metrics",
+				Description: "Feature usage tracking",
+				Schema: map[string]interface{}{
+					"user_id":    map[string]string{"type": "string", "required": "true"},
+					"feature":    map[string]string{"type": "string", "required": "true"},
+					"usage_count": map[string]string{"type": "number", "required": "true", "default": "0"},
+					"period":     map[string]string{"type": "string", "required": "true"},
+					"limit":      map[string]string{"type": "number", "required": "false"},
+					"reset_date": map[string]string{"type": "datetime", "required": "true"},
+				},
+				Indexes: []string{"user_id", "feature", "period"},
+			},
+			{
+				Name:        "teams",
+				Description: "Team/organization management",
+				Schema: map[string]interface{}{
+					"name":        map[string]string{"type": "string", "required": "true"},
+					"owner_id":    map[string]string{"type": "string", "required": "true"},
+					"member_ids":  map[string]string{"type": "array", "required": "false"},
+					"plan_id":     map[string]string{"type": "string", "required": "true"},
+					"settings":    map[string]string{"type": "object", "required": "false"},
+					"active":      map[string]string{"type": "boolean", "required": "false", "default": "true"},
+				},
+				Indexes: []string{"owner_id", "member_ids"},
+			},
+		},
+	}
+}
+
+func (h *TemplateHandler) getCRMTemplate() PhotoPortfolioTemplate {
+	return PhotoPortfolioTemplate{
+		Collections: []CollectionTemplate{
+			{
+				Name:        "contacts",
+				Description: "Customer and lead contacts",
+				Schema: map[string]interface{}{
+					"first_name":   map[string]string{"type": "string", "required": "true"},
+					"last_name":    map[string]string{"type": "string", "required": "true"},
+					"email":        map[string]string{"type": "string", "required": "true"},
+					"phone":        map[string]string{"type": "string", "required": "false"},
+					"company":      map[string]string{"type": "string", "required": "false"},
+					"position":     map[string]string{"type": "string", "required": "false"},
+					"status":       map[string]string{"type": "string", "required": "true", "default": "lead"},
+					"source":       map[string]string{"type": "string", "required": "false"},
+					"tags":         map[string]string{"type": "array", "required": "false"},
+					"notes":        map[string]string{"type": "string", "required": "false"},
+					"address":      map[string]string{"type": "object", "required": "false"},
+					"social_links": map[string]string{"type": "object", "required": "false"},
+					"assigned_to":  map[string]string{"type": "string", "required": "false"},
+				},
+				Indexes: []string{"email", "status", "assigned_to", "company"},
+			},
+			{
+				Name:        "deals",
+				Description: "Sales opportunities and deals",
+				Schema: map[string]interface{}{
+					"title":       map[string]string{"type": "string", "required": "true"},
+					"contact_id":  map[string]string{"type": "string", "required": "true"},
+					"value":       map[string]string{"type": "number", "required": "true"},
+					"currency":    map[string]string{"type": "string", "required": "true", "default": "usd"},
+					"stage":       map[string]string{"type": "string", "required": "true", "default": "prospecting"},
+					"probability": map[string]string{"type": "number", "required": "false", "default": "0"},
+					"expected_close": map[string]string{"type": "datetime", "required": "false"},
+					"assigned_to": map[string]string{"type": "string", "required": "false"},
+					"notes":       map[string]string{"type": "string", "required": "false"},
+					"won":         map[string]string{"type": "boolean", "required": "false", "default": "false"},
+				},
+				Indexes: []string{"contact_id", "stage", "assigned_to", "expected_close"},
+			},
+			{
+				Name:        "activities",
+				Description: "Interaction history and activities",
+				Schema: map[string]interface{}{
+					"contact_id":   map[string]string{"type": "string", "required": "true"},
+					"deal_id":      map[string]string{"type": "string", "required": "false"},
+					"type":         map[string]string{"type": "string", "required": "true"},
+					"subject":      map[string]string{"type": "string", "required": "true"},
+					"description":  map[string]string{"type": "string", "required": "false"},
+					"completed":    map[string]string{"type": "boolean", "required": "false", "default": "false"},
+					"due_date":     map[string]string{"type": "datetime", "required": "false"},
+					"assigned_to":  map[string]string{"type": "string", "required": "false"},
+				},
+				Indexes: []string{"contact_id", "deal_id", "type", "due_date", "assigned_to"},
+			},
+		},
+	}
+}

@@ -9,18 +9,40 @@
   import Modal from '$lib/components/ui/modal.svelte';
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
-  import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
+  import Icon from '$lib/components/ui/icon.svelte';
 
   let projectId = $page.params.id;
   let webServers = [];
   let sshKeys = [];
   let loading = true;
   let showCreateModal = false;
+  let showEditModal = false;
+  let showDistributeKeyModal = false;
+  let editingServer = null;
+  let distributingServer = null;
   let testingConnection = {};
+  let distributingKey = {};
 
   // Form data voor nieuwe webserver
   let serverForm = {
+    name: '',
+    hostname: '',
+    port: 22,
+    username: 'root',
+    description: '',
+    server_type: 'vps',
+    os: 'ubuntu',
+    docker_enabled: true,
+    nginx_enabled: true,
+    deploy_path: '/var/www',
+    backup_path: '/var/backups',
+    log_path: '/var/log/deployments',
+    ssh_key_id: ''
+  };
+
+  // Form data voor bewerken webserver
+  let editForm = {
     name: '',
     hostname: '',
     port: 22,
@@ -123,6 +145,35 @@
     }
   }
 
+  async function updateWebServer() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers/${editingServer.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        },
+        body: JSON.stringify({
+          ...editForm,
+          ssh_key_id: parseInt(editForm.ssh_key_id)
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Webserver bijgewerkt');
+        showEditModal = false;
+        await loadData();
+        resetEditForm();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij bijwerken webserver');
+      }
+    } catch (error) {
+      console.error('Error updating webserver:', error);
+      toast.error('Netwerkfout bij bijwerken webserver');
+    }
+  }
+
   async function deleteWebServer(serverId: number) {
     if (!confirm('Weet je zeker dat je deze webserver wilt verwijderen?')) return;
 
@@ -163,12 +214,104 @@
     };
   }
 
+  function editWebServer(server) {
+    editingServer = server;
+    editForm = {
+      name: server.name,
+      hostname: server.hostname,
+      port: server.port,
+      username: server.username,
+      description: server.description || '',
+      server_type: server.server_type,
+      os: server.os,
+      docker_enabled: server.docker_enabled,
+      nginx_enabled: server.nginx_enabled,
+      deploy_path: server.deploy_path,
+      backup_path: server.backup_path,
+      log_path: server.log_path,
+      ssh_key_id: server.ssh_key_id.toString()
+    };
+    showEditModal = true;
+  }
+
+  function resetEditForm() {
+    editForm = {
+      name: '',
+      hostname: '',
+      port: 22,
+      username: 'root',
+      description: '',
+      server_type: 'vps',
+      os: 'ubuntu',
+      docker_enabled: true,
+      nginx_enabled: true,
+      deploy_path: '/var/www',
+      backup_path: '/var/backups',
+      log_path: '/var/log/deployments',
+      ssh_key_id: ''
+    };
+    editingServer = null;
+  }
+
+  // Key distribution variables
+  let keyDistributionForm = {
+    username: '',
+    password: ''
+  };
+
+  function openDistributeKeyModal(server) {
+    distributingServer = server;
+    keyDistributionForm = {
+      username: server.username || 'root',
+      password: ''
+    };
+    showDistributeKeyModal = true;
+  }
+
+  async function distributePublicKey() {
+    if (!distributingServer || !keyDistributionForm.username || !keyDistributionForm.password) {
+      toast.error('Vul alle velden in');
+      return;
+    }
+
+    distributingKey[distributingServer.id] = true;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers/${distributingServer.id}/distribute-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        },
+        body: JSON.stringify({
+          username: keyDistributionForm.username,
+          password: keyDistributionForm.password
+        })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast.success('Public key succesvol gedistribueerd naar server');
+        showDistributeKeyModal = false;
+        keyDistributionForm = { username: '', password: '' };
+        distributingServer = null;
+      } else {
+        toast.error(result.error || 'Fout bij distribueren van key');
+      }
+    } catch (error) {
+      console.error('Error distributing key:', error);
+      toast.error('Netwerkfout bij distribueren van key');
+    } finally {
+      distributingKey[distributingServer.id] = false;
+    }
+  }
+
   function getConnectionStatusColor(status: string) {
     switch (status) {
-      case 'connected': return 'text-green-600 bg-green-50 border-green-200';
-      case 'disconnected': return 'text-red-600 bg-red-50 border-red-200';
-      case 'error': return 'text-orange-600 bg-orange-50 border-orange-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'connected': return 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900 border-green-200 dark:border-green-800';
+      case 'disconnected': return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900 border-red-200 dark:border-red-800';
+      case 'error': return 'text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900 border-orange-200 dark:border-orange-800';
+      default: return 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 border-gray-200 dark:border-gray-800';
     }
   }
 
@@ -193,7 +336,7 @@
       <p class="text-muted-foreground mt-1">Beheer je deployment servers en verbindingen</p>
     </div>
     <Button on:click={() => showCreateModal = true} class="bg-primary text-primary-foreground">
-      <span class="mr-2">+</span>
+      <Icon name="server" size={16} className="mr-2" />
       Server Toevoegen
     </Button>
   </div>
@@ -224,6 +367,7 @@
         {/if}
 
         <Button on:click={() => showCreateModal = true} disabled={sshKeys.length === 0}>
+          <Icon name="server" size={16} className="mr-2" />
           Server Toevoegen
         </Button>
       </Card>
@@ -240,7 +384,7 @@
                     {server.connection_status || 'unknown'}
                   </span>
                   {#if server.is_active}
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-50 border border-blue-200 text-blue-600">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                       Actief
                     </span>
                   {/if}
@@ -288,17 +432,38 @@
                   size="sm"
                   variant="outline"
                   disabled={testingConnection[server.id]}
-                  class="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
+                  title="Verbinding testen"
                 >
-                  {testingConnection[server.id] ? 'Testen...' : 'Test Verbinding'}
+                  <Icon name={testingConnection[server.id] ? "refresh" : "zap"} size={16} />
+                </Button>
+                <Button
+                  on:click={() => openDistributeKeyModal(server)}
+                  size="sm"
+                  variant="outline"
+                  disabled={distributingKey[server.id]}
+                  class="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400"
+                  title="Public key distribueren"
+                >
+                  <Icon name={distributingKey[server.id] ? "refresh" : "shield"} size={16} />
+                </Button>
+                <Button
+                  on:click={() => editWebServer(server)}
+                  size="sm"
+                  variant="outline"
+                  class="border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400"
+                  title="Server bewerken"
+                >
+                  <Icon name="edit" size={16} />
                 </Button>
                 <Button
                   on:click={() => deleteWebServer(server.id)}
                   size="sm"
                   variant="outline"
-                  class="border-red-300 text-red-600 hover:bg-red-50"
+                  class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                  title="Server verwijderen"
                 >
-                  Verwijder
+                  <Icon name="trash" size={16} />
                 </Button>
               </div>
             </div>
@@ -311,8 +476,8 @@
 
 <!-- Create WebServer Modal -->
 {#if showCreateModal}
-  <Modal on:close={() => showCreateModal = false}>
-    <div class="p-6 max-h-[80vh] overflow-y-auto">
+  <Modal open={showCreateModal} on:close={() => showCreateModal = false} size="2xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
       <h2 class="text-xl font-semibold mb-4">Webserver Toevoegen</h2>
       
       <form on:submit|preventDefault={createWebServer} class="space-y-4">
@@ -347,7 +512,7 @@
           />
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label for="port">SSH Port</Label>
             <Input
@@ -369,36 +534,36 @@
           </div>
           <div>
             <Label for="ssh_key">SSH Key</Label>
-            <Select id="ssh_key" bind:value={serverForm.ssh_key_id} required>
+            <select id="ssh_key" bind:value={serverForm.ssh_key_id} required class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
               <option value="">Selecteer SSH key...</option>
               {#each sshKeys as key}
-                <option value={key.id}>{key.name}</option>
+                <option value={key.id.toString()}>{key.name}</option>
               {/each}
-            </Select>
+            </select>
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <Label for="server_type">Server Type</Label>
-            <Select id="server_type" bind:value={serverForm.server_type}>
+            <select id="server_type" bind:value={serverForm.server_type} class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
               <option value="vps">VPS</option>
               <option value="dedicated">Dedicated</option>
               <option value="cloud">Cloud</option>
-            </Select>
+            </select>
           </div>
           <div>
             <Label for="os">Operating System</Label>
-            <Select id="os" bind:value={serverForm.os}>
+            <select id="os" bind:value={serverForm.os} class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
               <option value="ubuntu">Ubuntu</option>
               <option value="debian">Debian</option>
               <option value="centos">CentOS</option>
               <option value="fedora">Fedora</option>
-            </Select>
+            </select>
           </div>
-          <div class="flex flex-col space-y-2">
+          <div class="flex flex-col space-y-2 col-span-full md:col-span-1">
             <Label>Services</Label>
-            <div class="flex space-x-4">
+            <div class="flex flex-wrap gap-4">
               <label class="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -419,7 +584,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label for="deploy_path">Deploy Path</Label>
             <Input
@@ -454,10 +619,261 @@
 
         <div class="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" on:click={() => showCreateModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
             Annuleren
           </Button>
           <Button type="submit" class="bg-primary text-primary-foreground">
+            <Icon name="server" size={16} className="mr-2" />
             Server Toevoegen
+          </Button>
+        </div>
+      </form>
+    </div>
+  </Modal>
+{/if}
+
+<!-- Edit WebServer Modal -->
+{#if showEditModal && editingServer}
+  <Modal open={showEditModal} on:close={() => showEditModal = false} size="2xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
+      <h2 class="text-xl font-semibold mb-4">Webserver Bewerken: {editingServer.name}</h2>
+      
+      <form on:submit|preventDefault={updateWebServer} class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="edit-name">Naam</Label>
+            <Input
+              id="edit-name"
+              bind:value={editForm.name}
+              placeholder="Productie Server"
+              required
+            />
+          </div>
+          <div>
+            <Label for="edit-hostname">Hostname/IP</Label>
+            <Input
+              id="edit-hostname"
+              bind:value={editForm.hostname}
+              placeholder="192.168.1.100 of server.example.com"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label for="edit-description">Beschrijving</Label>
+          <Textarea
+            id="edit-description"
+            bind:value={editForm.description}
+            placeholder="Productie server voor mijn applicatie"
+            rows={2}
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label for="edit-port">SSH Port</Label>
+            <Input
+              id="edit-port"
+              type="number"
+              bind:value={editForm.port}
+              min="1"
+              max="65535"
+            />
+          </div>
+          <div>
+            <Label for="edit-username">SSH Gebruiker</Label>
+            <Input
+              id="edit-username"
+              bind:value={editForm.username}
+              placeholder="root"
+              required
+            />
+          </div>
+          <div>
+            <Label for="edit-ssh_key">SSH Key</Label>
+            <select id="edit-ssh_key" bind:value={editForm.ssh_key_id} required class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <option value="">Selecteer SSH key...</option>
+              {#each sshKeys as key}
+                <option value={key.id.toString()}>{key.name}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <Label for="edit-server_type">Server Type</Label>
+            <select id="edit-server_type" bind:value={editForm.server_type} class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <option value="vps">VPS</option>
+              <option value="dedicated">Dedicated</option>
+              <option value="cloud">Cloud</option>
+            </select>
+          </div>
+          <div>
+            <Label for="edit-os">Operating System</Label>
+            <select id="edit-os" bind:value={editForm.os} class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <option value="ubuntu">Ubuntu</option>
+              <option value="debian">Debian</option>
+              <option value="centos">CentOS</option>
+              <option value="fedora">Fedora</option>
+            </select>
+          </div>
+          <div class="flex flex-col space-y-2 col-span-full md:col-span-1">
+            <Label>Services</Label>
+            <div class="flex flex-wrap gap-4">
+              <label class="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  bind:checked={editForm.docker_enabled}
+                  class="rounded border-border text-primary focus:ring-primary"
+                />
+                <span class="text-sm">Docker</span>
+              </label>
+              <label class="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  bind:checked={editForm.nginx_enabled}
+                  class="rounded border-border text-primary focus:ring-primary"
+                />
+                <span class="text-sm">Nginx</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label for="edit-deploy_path">Deploy Path</Label>
+            <Input
+              id="edit-deploy_path"
+              bind:value={editForm.deploy_path}
+              placeholder="/var/www"
+            />
+          </div>
+          <div>
+            <Label for="edit-backup_path">Backup Path</Label>
+            <Input
+              id="edit-backup_path"
+              bind:value={editForm.backup_path}
+              placeholder="/var/backups"
+            />
+          </div>
+          <div>
+            <Label for="edit-log_path">Log Path</Label>
+            <Input
+              id="edit-log_path"
+              bind:value={editForm.log_path}
+              placeholder="/var/log/deployments"
+            />
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" on:click={() => showEditModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
+            Annuleren
+          </Button>
+          <Button type="submit" class="bg-primary text-primary-foreground">
+            <Icon name="save" size={16} className="mr-2" />
+            Server Bijwerken
+          </Button>
+        </div>
+      </form>
+    </div>
+  </Modal>
+{/if}
+
+<!-- Distribute Public Key Modal -->
+{#if showDistributeKeyModal && distributingServer}
+  <Modal open={showDistributeKeyModal} on:close={() => showDistributeKeyModal = false} size="lg">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
+      <h2 class="text-xl font-semibold mb-4">Public Key Distribueren naar: {distributingServer.name}</h2>
+      
+      <form on:submit|preventDefault={distributePublicKey} class="space-y-4">
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+          <div class="flex items-start space-x-3">
+            <Icon name="info" size={20} className="text-blue-600 dark:text-blue-400 mt-0.5" />
+            <div>
+              <h4 class="font-medium text-blue-900 dark:text-blue-200 mb-1">Public Key Distributie</h4>
+              <p class="text-blue-800 dark:text-blue-200 text-sm">
+                Deze functie installeert de public key van de geselecteerde SSH key op de server 
+                zodat je zonder wachtwoord kunt inloggen. Voer je gebruikersnaam en wachtwoord in 
+                voor eenmalige toegang.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <Label>Server Details</Label>
+            <div class="grid grid-cols-2 gap-4 mt-2 p-3 bg-muted rounded-lg">
+              <div>
+                <span class="text-sm font-medium text-muted-foreground">Hostname:</span>
+                <p class="text-sm font-mono">{distributingServer.hostname}:{distributingServer.port}</p>
+              </div>
+              <div>
+                <span class="text-sm font-medium text-muted-foreground">SSH Key:</span>
+                <p class="text-sm">{sshKeys.find(k => k.id === distributingServer.ssh_key_id)?.name || 'Onbekend'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <Label for="dist-username">Gebruikersnaam</Label>
+            <Input
+              id="dist-username"
+              type="text"
+              bind:value={keyDistributionForm.username}
+              placeholder="root"
+              required
+              class="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label for="dist-password">Wachtwoord</Label>
+            <Input
+              id="dist-password"
+              type="password"
+              bind:value={keyDistributionForm.password}
+              placeholder="Voer je wachtwoord in"
+              required
+              class="mt-1"
+            />
+          </div>
+        </div>
+
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div class="flex items-start space-x-3">
+            <Icon name="warning" size={20} className="text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <div>
+              <h4 class="font-medium text-yellow-900 dark:text-yellow-200 mb-1">Veiligheid</h4>
+              <p class="text-yellow-800 dark:text-yellow-200 text-sm">
+                Je wachtwoord wordt alleen gebruikt voor deze eenmalige installatie en wordt niet opgeslagen. 
+                Na succesvolle installatie kun je inloggen met je SSH key zonder wachtwoord.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            on:click={() => { showDistributeKeyModal = false; distributingServer = null; keyDistributionForm = { username: '', password: '' }; }}
+          >
+            <Icon name="x" size={16} className="mr-2" />
+            Annuleren
+          </Button>
+          <Button 
+            type="submit" 
+            class="bg-primary text-primary-foreground"
+            disabled={distributingKey[distributingServer?.id]}
+          >
+            <Icon name={distributingKey[distributingServer?.id] ? "refresh" : "shield"} size={16} className="mr-2" />
+            {distributingKey[distributingServer?.id] ? 'Bezig...' : 'Key Distribueren'}
           </Button>
         </div>
       </form>

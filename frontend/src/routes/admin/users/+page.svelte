@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
+  import { API_BASE_URL, API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
   import Card from '$lib/components/ui/card.svelte';
@@ -26,8 +26,23 @@
   let error = '';
   let showEditModal = false;
   let showDeleteModal = false;
+  let showCreateModal = false;
   let editingUser: User | null = null;
+  let passwordValidation = {
+    minLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false
+  };
   let deletingUser: User | null = null;
+  let newUser = {
+    name: '',
+    email: '',
+    password: '',
+    role: 'user',
+    is_active: true
+  };
   let searchTerm = '';
   let selectedRole = 'all';
   let selectedStatus = 'all';
@@ -76,7 +91,7 @@
 
   async function updateUser(user: User) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${user.id}`, {
+      const response = await fetch(API_ENDPOINTS.admin.users.update(user.id.toString()), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -108,7 +123,7 @@
 
   async function deleteUser(user: User) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${user.id}`, {
+      const response = await fetch(API_ENDPOINTS.admin.users.delete(user.id.toString()), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -134,6 +149,60 @@
   async function toggleUserStatus(user: User) {
     const updatedUser = { ...user, is_active: !user.is_active };
     await updateUser(updatedUser);
+  }
+
+  function validatePassword(password: string) {
+    passwordValidation = {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    };
+    
+    return Object.values(passwordValidation).every(Boolean);
+  }
+
+  function isPasswordValid(): boolean {
+    return validatePassword(newUser.password);
+  }
+
+  async function createUser() {
+    // Validate password before submitting
+    if (!isPasswordValid()) {
+      toast.error('Wachtwoord voldoet niet aan alle vereisten');
+      return;
+    }
+    try {
+      const response = await fetch(API_ENDPOINTS.admin.users.create, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      });
+
+      if (response.ok) {
+        const createdUser = await response.json();
+        users = [...users, createdUser];
+        showCreateModal = false;
+        newUser = {
+          name: '',
+          email: '',
+          password: '',
+          role: 'user',
+          is_active: true
+        };
+        toast.success('Gebruiker aangemaakt');
+      } else {
+        const data = await response.json();
+        error = data.error || 'Fout bij aanmaken van gebruiker';
+      }
+    } catch (err) {
+      error = 'Netwerkfout bij aanmaken van gebruiker';
+      console.error('Create user error:', err);
+    }
   }
 
   function formatDate(dateStr: string) {
@@ -203,6 +272,15 @@
       >
         <Icon name="backup" size={16} />
         <span>Terug naar Dashboard</span>
+      </Button>
+      <Button
+        variant="outline"
+        on:click={() => showCreateModal = true}
+        size="lg"
+        class="flex items-center space-x-2"
+      >
+        <Icon name="users" size={16} />
+        <span>Nieuwe Gebruiker</span>
       </Button>
       <Button
         on:click={loadUsers}
@@ -393,9 +471,9 @@
                 </td>
                 <td class="p-4 text-foreground">{user.email}</td>
                 <td class="p-4">
-                  <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} class="flex items-center space-x-1">
-                    <Icon name={user.role === 'admin' ? 'shield' : 'user'} size={12} />
-                    <span>{user.role === 'admin' ? 'Admin' : 'User'}</span>
+                  <Badge variant={user.role === 'superadmin' ? 'destructive' : user.role === 'admin' ? 'default' : 'secondary'} class="flex items-center space-x-1">
+                    <Icon name={user.role === 'superadmin' ? 'crown' : user.role === 'admin' ? 'shield' : 'user'} size={12} />
+                    <span>{user.role === 'superadmin' ? 'SuperAdmin' : user.role === 'admin' ? 'Admin' : 'User'}</span>
                   </Badge>
                 </td>
                 <td class="p-4">
@@ -492,6 +570,7 @@
           >
             <option value="user">User</option>
             <option value="admin">Admin</option>
+            <option value="superadmin">SuperAdmin</option>
           </select>
         </div>
 
@@ -579,6 +658,155 @@
           </Button>
         </div>
       </div>
+    </Card>
+  </div>
+{/if}
+
+<!-- Create User Modal -->
+{#if showCreateModal}
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+          <Icon name="users" size={20} className="text-primary" />
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-foreground">Nieuwe Gebruiker</h2>
+          <p class="text-sm text-muted-foreground">Maak een nieuwe gebruiker aan</p>
+        </div>
+      </div>
+      
+      <form on:submit|preventDefault={createUser} class="space-y-6">
+        <div class="space-y-2">
+          <Label for="create-name">Naam</Label>
+          <Input
+            id="create-name"
+            type="text"
+            bind:value={newUser.name}
+            required
+            placeholder="Volledige naam"
+          />
+        </div>
+        
+        <div class="space-y-2">
+          <Label for="create-email">Email</Label>
+          <Input
+            id="create-email"
+            type="email"
+            bind:value={newUser.email}
+            required
+            placeholder="email@voorbeeld.nl"
+          />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="create-password">Wachtwoord</Label>
+          <Input
+            id="create-password"
+            type="password"
+            bind:value={newUser.password}
+            on:input={() => validatePassword(newUser.password)}
+            required
+            placeholder="Wachtwoord"
+          />
+          
+          <!-- Password Requirements -->
+          <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Wachtwoord vereisten:</p>
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <Icon name={passwordValidation.minLength ? "check" : "x"} 
+                      size={14} 
+                      className={passwordValidation.minLength ? "text-green-500" : "text-red-500"} />
+                <span class="text-xs {passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}">
+                  Minimaal 8 karakters
+                </span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <Icon name={passwordValidation.hasUppercase ? "check" : "x"} 
+                      size={14} 
+                      className={passwordValidation.hasUppercase ? "text-green-500" : "text-red-500"} />
+                <span class="text-xs {passwordValidation.hasUppercase ? 'text-green-600' : 'text-red-600'}">
+                  Hoofdletter (A-Z)
+                </span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <Icon name={passwordValidation.hasLowercase ? "check" : "x"} 
+                      size={14} 
+                      className={passwordValidation.hasLowercase ? "text-green-500" : "text-red-500"} />
+                <span class="text-xs {passwordValidation.hasLowercase ? 'text-green-600' : 'text-red-600'}">
+                  Kleine letter (a-z)
+                </span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <Icon name={passwordValidation.hasNumber ? "check" : "x"} 
+                      size={14} 
+                      className={passwordValidation.hasNumber ? "text-green-500" : "text-red-500"} />
+                <span class="text-xs {passwordValidation.hasNumber ? 'text-green-600' : 'text-red-600'}">
+                  Cijfer (0-9)
+                </span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <Icon name={passwordValidation.hasSpecialChar ? "check" : "x"} 
+                      size={14} 
+                      className={passwordValidation.hasSpecialChar ? "text-green-500" : "text-red-500"} />
+                <span class="text-xs {passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-600'}">
+                  Speciaal karakter (!@#$%^&*)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="create-role">Rol</Label>
+          <select 
+            id="create-role"
+            bind:value={newUser.role}
+            class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          >
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="superadmin">SuperAdmin</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <input 
+            id="create-active"
+            type="checkbox" 
+            bind:checked={newUser.is_active}
+            class="rounded border-gray-300 text-primary focus:ring-primary focus:ring-offset-0"
+          />
+          <Label for="create-active">Account actief</Label>
+        </div>
+        
+        <div class="flex space-x-3 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            on:click={() => {
+              showCreateModal = false;
+              newUser = {
+                name: '',
+                email: '',
+                password: '',
+                role: 'user',
+                is_active: true
+              };
+            }}
+            class="flex-1"
+          >
+            Annuleren
+          </Button>
+          <Button
+            type="submit"
+            class="flex-1"
+          >
+            Aanmaken
+          </Button>
+        </div>
+      </form>
     </Card>
   </div>
 {/if}

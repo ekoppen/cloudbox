@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
@@ -43,6 +44,7 @@ type CreateGitHubRepositoryRequest struct {
 	BuildCommand string                 `json:"build_command"`
 	StartCommand string                 `json:"start_command"`
 	Environment  map[string]interface{} `json:"environment"`
+	SSHKeyID     *uint                  `json:"ssh_key_id"` // SSH key for private repository access
 }
 
 // UpdateGitHubRepositoryRequest represents a request to update a GitHub repository
@@ -56,6 +58,31 @@ type UpdateGitHubRepositoryRequest struct {
 	StartCommand string                 `json:"start_command"`
 	Environment  map[string]interface{} `json:"environment"`
 	IsActive     *bool                  `json:"is_active"`
+	SSHKeyID     *uint                  `json:"ssh_key_id"` // SSH key for private repository access
+}
+
+// ProjectAnalysisRequest represents a request to analyze a repository
+type ProjectAnalysisRequest struct {
+	RepoURL  string `json:"repo_url" binding:"required"`
+	Branch   string `json:"branch"`
+	SSHKeyID *uint  `json:"ssh_key_id"` // SSH key for private repository access
+}
+
+// ProjectAnalysisResponse represents the analysis result
+type ProjectAnalysisResponse struct {
+	ProjectType    string                 `json:"project_type"`    // react, vue, angular, next, nuxt, etc.
+	Framework      string                 `json:"framework"`       // vite, webpack, etc.
+	Language       string                 `json:"language"`        // javascript, typescript
+	PackageManager string                 `json:"package_manager"` // npm, yarn, pnpm
+	BuildCommand   string                 `json:"build_command"`
+	StartCommand   string                 `json:"start_command"`
+	DevCommand     string                 `json:"dev_command"`
+	InstallCommand string                 `json:"install_command"`
+	Port           int                    `json:"port"`
+	Environment    map[string]interface{} `json:"environment"`
+	HasDocker      bool                   `json:"has_docker"`
+	DockerCommand  string                 `json:"docker_command"`
+	Files          []string               `json:"files"` // Important files found
 }
 
 // ListGitHubRepositories returns all GitHub repositories for a project
@@ -67,7 +94,7 @@ func (h *GitHubHandler) ListGitHubRepositories(c *gin.Context) {
 	}
 
 	var repositories []models.GitHubRepository
-	if err := h.db.Where("project_id = ?", uint(projectID)).Find(&repositories).Error; err != nil {
+	if err := h.db.Where("project_id = ?", uint(projectID)).Preload("SSHKey").Find(&repositories).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch GitHub repositories"})
 		return
 	}
@@ -87,6 +114,19 @@ func (h *GitHubHandler) CreateGitHubRepository(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Validate SSH key if provided
+	if req.SSHKeyID != nil {
+		var sshKey models.SSHKey
+		if err := h.db.Where("id = ? AND project_id = ?", *req.SSHKeyID, uint(projectID)).First(&sshKey).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "SSH key not found"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify SSH key"})
+			}
+			return
+		}
 	}
 
 	// Set defaults
@@ -119,6 +159,7 @@ func (h *GitHubHandler) CreateGitHubRepository(c *gin.Context) {
 		IsPrivate:     req.IsPrivate,
 		Description:   req.Description,
 		WebhookSecret: webhookSecret,
+		SSHKeyID:      req.SSHKeyID,
 		SDKVersion:    req.SDKVersion,
 		AppPort:       req.AppPort,
 		BuildCommand:  req.BuildCommand,
@@ -130,6 +171,12 @@ func (h *GitHubHandler) CreateGitHubRepository(c *gin.Context) {
 
 	if err := h.db.Create(&repository).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create GitHub repository"})
+		return
+	}
+
+	// Load with SSH key for response
+	if err := h.db.Preload("SSHKey").First(&repository, repository.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load repository details"})
 		return
 	}
 
@@ -151,7 +198,7 @@ func (h *GitHubHandler) GetGitHubRepository(c *gin.Context) {
 	}
 
 	var repository models.GitHubRepository
-	if err := h.db.Where("id = ? AND project_id = ?", uint(repoID), uint(projectID)).First(&repository).Error; err != nil {
+	if err := h.db.Where("id = ? AND project_id = ?", uint(repoID), uint(projectID)).Preload("SSHKey").First(&repository).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "GitHub repository not found"})
 		} else {
@@ -194,6 +241,19 @@ func (h *GitHubHandler) UpdateGitHubRepository(c *gin.Context) {
 		return
 	}
 
+	// Validate SSH key if provided
+	if req.SSHKeyID != nil {
+		var sshKey models.SSHKey
+		if err := h.db.Where("id = ? AND project_id = ?", *req.SSHKeyID, uint(projectID)).First(&sshKey).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "SSH key not found"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify SSH key"})
+			}
+			return
+		}
+	}
+
 	// Update fields
 	updates := make(map[string]interface{})
 	if req.Name != "" {
@@ -223,14 +283,17 @@ func (h *GitHubHandler) UpdateGitHubRepository(c *gin.Context) {
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
 	}
+	if req.SSHKeyID != nil {
+		updates["ssh_key_id"] = *req.SSHKeyID
+	}
 
 	if err := h.db.Model(&repository).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update GitHub repository"})
 		return
 	}
 
-	// Reload repository
-	if err := h.db.First(&repository, repository.ID).Error; err != nil {
+	// Reload repository with SSH key
+	if err := h.db.Preload("SSHKey").First(&repository, repository.ID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load updated repository"})
 		return
 	}
@@ -503,6 +566,173 @@ func (h *GitHubHandler) GetUserRepositories(c *gin.Context) {
 		"repositories": repositories,
 		"count": len(repositories),
 	})
+}
+
+// AnalyzeRepository analyzes a repository to detect project type and suggest build commands
+func (h *GitHubHandler) AnalyzeRepository(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var req ProjectAnalysisRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set default branch if not provided
+	if req.Branch == "" {
+		req.Branch = "main"
+	}
+
+	// Analyze repository
+	analysis, err := h.analyzeRepository(uint(projectID), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to analyze repository",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, analysis)
+}
+
+// analyzeRepository performs the actual repository analysis
+func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisRequest) (*ProjectAnalysisResponse, error) {
+	// For now, we'll create a basic analysis based on common patterns
+	// In a full implementation, this would clone/fetch the repository and analyze files
+	
+	analysis := &ProjectAnalysisResponse{
+		ProjectType:    "unknown",
+		Framework:      "unknown",
+		Language:       "javascript",
+		PackageManager: "npm",
+		Port:           3000,
+		Environment:    make(map[string]interface{}),
+		Files:          []string{},
+	}
+
+	// Basic analysis based on repository URL and name patterns
+	repoName := extractRepoName(req.RepoURL)
+	
+	// Detect common project types based on repository name
+	switch {
+	case containsIgnoreCase(repoName, "photoportfolio") || containsIgnoreCase(repoName, "portfolio"):
+		analysis.ProjectType = "photoportfolio"
+		analysis.Framework = "vite"
+		analysis.Language = "typescript"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm run preview"
+		analysis.DevCommand = "npm run dev"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 5173
+		analysis.Environment["VITE_API_URL"] = "http://localhost:8080/p/project-slug/api"
+		analysis.Files = []string{"package.json", "vite.config.ts", "src/main.tsx"}
+		
+	case containsIgnoreCase(repoName, "react") || containsIgnoreCase(repoName, "cra"):
+		analysis.ProjectType = "react"
+		analysis.Framework = "create-react-app"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm start"
+		analysis.DevCommand = "npm start"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 3000
+		
+	case containsIgnoreCase(repoName, "next"):
+		analysis.ProjectType = "nextjs"
+		analysis.Framework = "nextjs"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm start"
+		analysis.DevCommand = "npm run dev"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 3000
+		
+	case containsIgnoreCase(repoName, "vue"):
+		analysis.ProjectType = "vue"
+		analysis.Framework = "vite"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm run preview"
+		analysis.DevCommand = "npm run dev"  
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 5173
+		
+	case containsIgnoreCase(repoName, "nuxt"):
+		analysis.ProjectType = "nuxt"
+		analysis.Framework = "nuxt"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm start"
+		analysis.DevCommand = "npm run dev"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 3000
+		
+	case containsIgnoreCase(repoName, "angular"):
+		analysis.ProjectType = "angular"
+		analysis.Framework = "angular-cli"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm start"
+		analysis.DevCommand = "ng serve"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 4200
+		
+	case containsIgnoreCase(repoName, "svelte"):
+		analysis.ProjectType = "svelte"
+		analysis.Framework = "vite"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm run preview"
+		analysis.DevCommand = "npm run dev"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 5173
+		
+	default:
+		// Generic Node.js project
+		analysis.ProjectType = "nodejs"
+		analysis.Framework = "generic"
+		analysis.BuildCommand = "npm run build"
+		analysis.StartCommand = "npm start"
+		analysis.DevCommand = "npm run dev"
+		analysis.InstallCommand = "npm install"
+		analysis.Port = 3000
+	}
+
+	// Check for Docker
+	analysis.HasDocker = false // Would check for Dockerfile in real implementation
+	if analysis.HasDocker {
+		analysis.DockerCommand = "docker build -t " + repoName + " ."
+	}
+
+	return analysis, nil
+}
+
+// extractRepoName extracts repository name from URL
+func extractRepoName(repoURL string) string {
+	// Extract repo name from various URL formats
+	// https://github.com/user/repo.git -> repo
+	// git@github.com:user/repo.git -> repo
+	
+	if repoURL == "" {
+		return ""
+	}
+	
+	// Remove .git suffix
+	if len(repoURL) > 4 && repoURL[len(repoURL)-4:] == ".git" {
+		repoURL = repoURL[:len(repoURL)-4]
+	}
+	
+	// Split by / and get last part
+	parts := strings.Split(repoURL, "/")
+	if len(parts) > 0 {
+		return strings.ToLower(parts[len(parts)-1])
+	}
+	
+	return ""
+}
+
+// containsIgnoreCase checks if a string contains a substring (case insensitive)
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // generateWebhookSecret generates a random webhook secret

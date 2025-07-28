@@ -76,7 +76,7 @@
 
   async function loadSystemStats(headers) {
     try {
-      const response = await createApiRequest(API_ENDPOINTS.admin.stats.systemHealth, { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.system, { headers });
       if (response.ok) {
         const stats = await response.json();
         systemStats = {
@@ -115,7 +115,7 @@
 
   async function loadProjectActivity(headers) {
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/admin/stats/project-activity?days=7`, { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.projectActivity + '?days=7', { headers });
       if (response.ok) {
         projectActivity = await response.json();
       } else {
@@ -130,7 +130,7 @@
 
   async function loadFunctionExecutions(headers) {
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/admin/stats/function-executions?hours=24`, { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.functionExecutions + '?hours=24', { headers });
       if (response.ok) {
         functionExecutions = await response.json();
       } else {
@@ -145,7 +145,7 @@
 
   async function loadDeploymentStats(headers) {
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/admin/stats/deployment-stats`, { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.deploymentStats, { headers });
       if (response.ok) {
         deploymentStats = await response.json();
       } else {
@@ -159,7 +159,7 @@
 
   async function loadStorageStats(headers) {
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/admin/stats/storage-stats`, { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.storageStats, { headers });
       if (response.ok) {
         storageStats = await response.json();
       } else {
@@ -173,7 +173,7 @@
 
   async function loadSystemHealth(headers) {
     try {
-      const response = await createApiRequest(`${API_BASE_URL}/api/v1/admin/stats/system-health`, { headers });
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.systemHealth, { headers });
       if (response.ok) {
         const health = await response.json();
         systemHealth = {

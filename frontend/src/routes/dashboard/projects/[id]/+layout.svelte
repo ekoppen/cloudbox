@@ -135,17 +135,37 @@
         <nav class="mt-6 px-3">
           <div class="space-y-1">
             {#each navItems as item}
-              <a
-                href={item.href}
-                class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 {
-                  currentPath === item.href 
-                    ? 'bg-primary/10 text-primary border-r-2 border-primary' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }"
-              >
-                <Icon name={item.icon} size={16} className="mr-3" />
-                {item.name}
-              </a>
+              <div>
+                <a
+                  href={item.href}
+                  class="group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 {
+                    currentPath === item.href || (item.id === 'deployments' && (currentPath.includes('/deployments') || currentPath.includes('/ssh-keys') || currentPath.includes('/servers') || currentPath.includes('/github')))
+                      ? 'bg-primary/10 text-primary border-r-2 border-primary' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }"
+                >
+                  <Icon name={item.icon} size={16} className="mr-3" />
+                  {item.name}
+                </a>
+                
+                <!-- Sub-items for Deployments -->
+                {#if item.subItems && item.id === 'deployments' && (currentPath.includes('/deployments') || currentPath.includes('/ssh-keys') || currentPath.includes('/servers') || currentPath.includes('/github'))}
+                  <div class="ml-6 mt-1 space-y-1">
+                    {#each item.subItems as subItem}
+                      <a
+                        href={subItem.href}
+                        class="block px-3 py-1.5 text-sm rounded-md transition-colors duration-150 {
+                          currentPath === subItem.href
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }"
+                      >
+                        {subItem.name}
+                      </a>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
             {/each}
           </div>
         </nav>

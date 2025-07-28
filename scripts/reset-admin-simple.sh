@@ -120,7 +120,7 @@ if [[ -n "$user_info" && "$user_info" != *"(0 rows)"* ]]; then
     docker exec cloudbox-postgres psql -U cloudbox -d cloudbox -c "
         UPDATE users 
         SET password_hash = '$bcrypt_hash', 
-            role = 'admin', 
+            role = 'superadmin', 
             is_active = true, 
             updated_at = '$timestamp'
         WHERE email = '$email';
@@ -140,7 +140,7 @@ else
     
     docker exec cloudbox-postgres psql -U cloudbox -d cloudbox -c "
         INSERT INTO users (created_at, updated_at, email, name, password_hash, role, is_active)
-        VALUES ('$timestamp', '$timestamp', '$email', '$name', '$bcrypt_hash', 'admin', true);
+        VALUES ('$timestamp', '$timestamp', '$email', '$name', '$bcrypt_hash', 'superadmin', true);
     " > /dev/null
     
     echo -e "${GREEN}✅ New admin user created${NC}"

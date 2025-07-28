@@ -9,8 +9,8 @@
   import Modal from '$lib/components/ui/modal.svelte';
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
-  import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
+  import Icon from '$lib/components/ui/icon.svelte';
 
   let projectId = $page.params.id;
   let deployments = [];
@@ -18,6 +18,8 @@
   let webServers = [];
   let loading = true;
   let showCreateModal = false;
+  let showEditModal = false;
+  let editingDeployment = null;
 
   // Form data voor nieuwe deployment
   let deploymentForm = {
@@ -29,6 +31,21 @@
     subdomain: '',
     port: 3000,
     environment: {},
+    build_command: '',
+    start_command: '',
+    branch: 'main',
+    is_auto_deploy_enabled: false
+  };
+
+  // Form data voor bewerken deployment  
+  let editForm = {
+    name: '',
+    description: '',
+    github_repository_id: '',
+    web_server_id: '',
+    domain: '',
+    subdomain: '',
+    port: 3000,
     build_command: '',
     start_command: '',
     branch: 'main',
@@ -150,6 +167,32 @@
     }
   }
 
+  async function updateDeployment() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments/${editingDeployment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        },
+        body: JSON.stringify(editForm)
+      });
+
+      if (response.ok) {
+        toast.success('Deployment bijgewerkt');
+        showEditModal = false;
+        await loadData();
+        resetEditForm();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij bijwerken deployment');
+      }
+    } catch (error) {
+      console.error('Error updating deployment:', error);
+      toast.error('Netwerkfout bij bijwerken deployment');
+    }
+  }
+
   async function deleteDeployment(deploymentId: number) {
     if (!confirm('Weet je zeker dat je deze deployment wilt verwijderen?')) return;
 
@@ -189,14 +232,49 @@
     };
   }
 
+  function editDeployment(deployment) {
+    editingDeployment = deployment;
+    editForm = {
+      name: deployment.name,
+      description: deployment.description || '',
+      github_repository_id: deployment.github_repository_id,
+      web_server_id: deployment.web_server_id,
+      domain: deployment.domain || '',
+      subdomain: deployment.subdomain || '',
+      port: deployment.port,
+      build_command: deployment.build_command || '',
+      start_command: deployment.start_command || '',
+      branch: deployment.branch,
+      is_auto_deploy_enabled: deployment.is_auto_deploy_enabled
+    };
+    showEditModal = true;
+  }
+
+  function resetEditForm() {
+    editForm = {
+      name: '',
+      description: '',
+      github_repository_id: '',
+      web_server_id: '',
+      domain: '',
+      subdomain: '',
+      port: 3000,
+      build_command: '',
+      start_command: '',
+      branch: 'main',
+      is_auto_deploy_enabled: false
+    };
+    editingDeployment = null;
+  }
+
   function getStatusColor(status: string) {
     switch (status) {
-      case 'deployed': return 'text-green-600 bg-green-50 border-green-200';
-      case 'deploying': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'building': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'failed': return 'text-red-600 bg-red-50 border-red-200';
-      case 'pending': return 'text-gray-600 bg-gray-50 border-gray-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'deployed': return 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900 border-green-200 dark:border-green-800';
+      case 'deploying': return 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900 border-blue-200 dark:border-blue-800';
+      case 'building': return 'text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-800';
+      case 'failed': return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900 border-red-200 dark:border-red-800';
+      case 'pending': return 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 border-gray-200 dark:border-gray-800';
+      default: return 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 border-gray-200 dark:border-gray-800';
     }
   }
 </script>
@@ -212,7 +290,7 @@
       <p class="text-muted-foreground mt-1">Beheer je app deployments en automatisering</p>
     </div>
     <Button on:click={() => showCreateModal = true} class="bg-primary text-primary-foreground">
-      <span class="mr-2">+</span>
+      <Icon name="rocket" size={16} className="mr-2" />
       Nieuwe Deployment
     </Button>
   </div>
@@ -250,6 +328,7 @@
         {/if}
 
         <Button on:click={() => showCreateModal = true} disabled={githubRepos.length === 0 || webServers.length === 0}>
+          <Icon name="rocket" size={16} className="mr-2" />
           Deployment Aanmaken
         </Button>
       </Card>
@@ -303,15 +382,23 @@
                   disabled={deployment.status === 'deploying' || deployment.status === 'building'}
                   class="bg-green-600 text-white hover:bg-green-700"
                 >
-                  {deployment.status === 'deploying' || deployment.status === 'building' ? 'Bezig...' : 'Deploy'}
+                  <Icon name={deployment.status === 'deploying' || deployment.status === 'building' ? "refresh" : "rocket"} size={16} />
+                </Button>
+                <Button
+                  on:click={() => editDeployment(deployment)}
+                  size="sm"
+                  variant="outline"
+                  class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
+                >
+                  <Icon name="edit" size={16} />
                 </Button>
                 <Button
                   on:click={() => deleteDeployment(deployment.id)}
                   size="sm"
                   variant="outline"
-                  class="border-red-300 text-red-600 hover:bg-red-50"
+                  class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
                 >
-                  Verwijder
+                  <Icon name="trash" size={16} />
                 </Button>
               </div>
             </div>
@@ -324,8 +411,8 @@
 
 <!-- Create Deployment Modal -->
 {#if showCreateModal}
-  <Modal on:close={() => showCreateModal = false}>
-    <div class="p-6">
+  <Modal open={showCreateModal} on:close={() => showCreateModal = false} size="2xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
       <h2 class="text-xl font-semibold mb-4">Nieuwe Deployment</h2>
       
       <form on:submit|preventDefault={createDeployment} class="space-y-4">
@@ -362,25 +449,25 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <Label for="repo">GitHub Repository</Label>
-            <Select id="repo" bind:value={deploymentForm.github_repository_id} required>
+            <select id="repo" bind:value={deploymentForm.github_repository_id} required class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
               <option value="">Selecteer repository...</option>
               {#each githubRepos as repo}
-                <option value={repo.id}>{repo.name} ({repo.branch})</option>
+                <option value={repo.id.toString()}>{repo.name} ({repo.branch})</option>
               {/each}
-            </Select>
+            </select>
           </div>
           <div>
             <Label for="server">Webserver</Label>
-            <Select id="server" bind:value={deploymentForm.web_server_id} required>
+            <select id="server" bind:value={deploymentForm.web_server_id} required class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
               <option value="">Selecteer server...</option>
               {#each webServers as server}
-                <option value={server.id}>{server.name} ({server.hostname})</option>
+                <option value={server.id.toString()}>{server.name} ({server.hostname})</option>
               {/each}
-            </Select>
+            </select>
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label for="branch">Branch</Label>
             <Input
@@ -442,10 +529,145 @@
 
         <div class="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" on:click={() => showCreateModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
             Annuleren
           </Button>
           <Button type="submit" class="bg-primary text-primary-foreground">
+            <Icon name="rocket" size={16} className="mr-2" />
             Deployment Aanmaken
+          </Button>
+        </div>
+      </form>
+    </div>
+  </Modal>
+{/if}
+
+<!-- Edit Deployment Modal -->
+{#if showEditModal && editingDeployment}
+  <Modal open={showEditModal} on:close={() => showEditModal = false} size="2xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
+      <h2 class="text-xl font-semibold mb-4">Deployment Bewerken: {editingDeployment.name}</h2>
+      
+      <form on:submit|preventDefault={updateDeployment} class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="edit-name">Naam</Label>
+            <Input
+              id="edit-name"
+              bind:value={editForm.name}
+              placeholder="Mijn App Productie"
+              required
+            />
+          </div>
+          <div>
+            <Label for="edit-domain">Domein (optioneel)</Label>
+            <Input
+              id="edit-domain"
+              bind:value={editForm.domain}
+              placeholder="mijnapp.com"
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label for="edit-description">Beschrijving</Label>
+          <Textarea
+            id="edit-description"
+            bind:value={editForm.description}
+            placeholder="Productie deployment voor mijn applicatie"
+            rows={2}
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="edit-repo">GitHub Repository</Label>
+            <select id="edit-repo" bind:value={editForm.github_repository_id} required class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <option value="">Selecteer repository...</option>
+              {#each githubRepos as repo}
+                <option value={repo.id.toString()}>{repo.name} ({repo.branch})</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <Label for="edit-server">Webserver</Label>
+            <select id="edit-server" bind:value={editForm.web_server_id} required class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <option value="">Selecteer server...</option>
+              {#each webServers as server}
+                <option value={server.id.toString()}>{server.name} ({server.hostname})</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label for="edit-branch">Branch</Label>
+            <Input
+              id="edit-branch"
+              bind:value={editForm.branch}
+              placeholder="main"
+            />
+          </div>
+          <div>
+            <Label for="edit-port">Port</Label>
+            <Input
+              id="edit-port"
+              type="number"
+              bind:value={editForm.port}
+              min="1"
+              max="65535"
+            />
+          </div>
+          <div>
+            <Label for="edit-subdomain">Subdomain (optioneel)</Label>
+            <Input
+              id="edit-subdomain"
+              bind:value={editForm.subdomain}
+              placeholder="app"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="edit-build">Build Command</Label>
+            <Input
+              id="edit-build"
+              bind:value={editForm.build_command}
+              placeholder="npm run build"
+            />
+          </div>
+          <div>
+            <Label for="edit-start">Start Command</Label>
+            <Input
+              id="edit-start"
+              bind:value={editForm.start_command}
+              placeholder="npm start"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <input
+            id="edit-auto-deploy"
+            type="checkbox"
+            bind:checked={editForm.is_auto_deploy_enabled}
+            class="rounded border-border text-primary focus:ring-primary"
+          />
+          <Label for="edit-auto-deploy" class="text-sm cursor-pointer">
+            Automatisch deployen bij push naar branch
+          </Label>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" on:click={() => showEditModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
+            Annuleren
+          </Button>
+          <Button type="submit" class="bg-primary text-primary-foreground">
+            <Icon name="save" size={16} className="mr-2" />
+            Deployment Bijwerken
           </Button>
         </div>
       </form>

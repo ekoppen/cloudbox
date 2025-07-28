@@ -184,6 +184,26 @@ function createAuthStore() {
       }
     },
 
+    // Update user data
+    updateUser(userData: Partial<User>) {
+      update(state => {
+        if (state.user) {
+          const updatedUser = { ...state.user, ...userData };
+          
+          // Update localStorage
+          if (browser) {
+            localStorage.setItem('cloudbox_user', JSON.stringify(updatedUser));
+          }
+          
+          return {
+            ...state,
+            user: updatedUser
+          };
+        }
+        return state;
+      });
+    },
+
     // Get authorization header
     getAuthHeader(): Record<string, string> {
       const state = get(auth);

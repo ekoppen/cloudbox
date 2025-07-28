@@ -32,6 +32,7 @@
   }
 
   let apiKeys: APIKey[] = [];
+  let apiKeysLoaded = false;
 
   let corsConfig: CORSConfig = {
     allowed_origins: ['https://place.holder'],
@@ -53,6 +54,7 @@
   // CORS form fields
   let newOrigin = '';
   let corsFormData = { ...corsConfig };
+  let allowedHeadersString = corsConfig.allowed_headers.join(', ');
 
   $: projectId = $page.params.id;
   
@@ -78,6 +80,83 @@
     console.log('Reactive update - page url:', $page.url.pathname);
   }
 
+  // Load API keys and CORS config when projectId changes
+  $: {
+    if (projectId && projectId !== 'undefined' && !apiKeysLoaded) {
+      loadAPIKeys();
+      loadCORSConfig();
+    }
+  }
+
+  async function loadAPIKeys() {
+    if (!projectId || projectId === 'undefined') return;
+    
+    try {
+      console.log('Loading API keys for project:', projectId);
+      const response = await createApiRequest(`${API_BASE_URL}/api/v1/projects/${projectId}/api-keys`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded API keys:', data);
+        apiKeys = data.map(key => ({
+          id: key.id,
+          name: key.name,
+          key: key.key, // This will be masked on the backend for security
+          created_at: key.created_at,
+          last_used_at: key.last_used_at,
+          permissions: key.permissions || [],
+          is_active: key.is_active
+        }));
+        apiKeysLoaded = true;
+      } else {
+        console.error('Failed to load API keys:', response.status, response.statusText);
+        const errorData = await response.json();
+        console.error('Error data:', errorData);
+      }
+    } catch (err) {
+      console.error('Error loading API keys:', err);
+    }
+  }
+
+  async function loadCORSConfig() {
+    if (!projectId || projectId === 'undefined') return;
+    
+    try {
+      console.log('Loading CORS config for project:', projectId);
+      const response = await createApiRequest(`${API_BASE_URL}/api/v1/projects/${projectId}/cors`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded CORS config:', data);
+        corsConfig = {
+          allowed_origins: data.allowed_origins || ['*'],
+          allowed_methods: data.allowed_methods || ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+          allowed_headers: data.allowed_headers || ['Content-Type', 'Authorization', 'X-API-Key'],
+          allow_credentials: data.allow_credentials || false,
+          max_age: data.max_age || 3600
+        };
+        corsFormData = { ...corsConfig };
+        allowedHeadersString = corsConfig.allowed_headers.join(', ');
+      } else {
+        console.error('Failed to load CORS config:', response.status, response.statusText);
+        // Use defaults if no CORS config exists yet
+        console.log('Using default CORS config');
+      }
+    } catch (err) {
+      console.error('Error loading CORS config:', err);
+    }
+  }
+
   function generateAPIKey(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = 'cb_live_';
@@ -92,22 +171,48 @@
 
     loading = true;
     try {
-      const newKey: APIKey = {
-        id: Date.now(),
-        name: newKeyName,
-        key: generateAPIKey(),
-        created_at: new Date().toISOString(),
-        permissions: [...newKeyPermissions],
-        is_active: true
-      };
+      console.log('Creating API key for project:', projectId);
+      const response = await createApiRequest(`${API_BASE_URL}/api/v1/projects/${projectId}/api-keys`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newKeyName,
+          permissions: newKeyPermissions.length > 0 ? newKeyPermissions : ['read', 'write']
+        }),
+      });
 
-      apiKeys = [...apiKeys, newKey];
-      showCreateKey = false;
-      newKeyName = '';
-      newKeyPermissions = [];
-      showKeyDetails = newKey; // Show the new key
+      if (response.ok) {
+        const newKey = await response.json();
+        console.log('Created API key:', newKey);
+        
+        apiKeys = [...apiKeys, {
+          id: newKey.id,
+          name: newKey.name,
+          key: newKey.key,
+          created_at: newKey.created_at,
+          last_used_at: newKey.last_used_at,
+          permissions: newKey.permissions || [],
+          is_active: newKey.is_active
+        }];
+        
+        showCreateKey = false;
+        newKeyName = '';
+        newKeyPermissions = [];
+        showKeyDetails = apiKeys[apiKeys.length - 1]; // Show the new key
+        toastStore.success('API key succesvol aangemaakt');
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to create API key:', errorData);
+        error = errorData.error || 'Fout bij aanmaken van API key';
+        toastStore.error(error);
+      }
     } catch (err) {
-      error = 'Fout bij aanmaken van API key';
+      console.error('Error creating API key:', err);
+      error = 'Netwerkfout bij aanmaken van API key';
+      toastStore.error(error);
     } finally {
       loading = false;
     }
@@ -122,7 +227,8 @@
   async function deleteKey(keyId: number) {
     if (confirm('Weet je zeker dat je deze API key wilt verwijderen?')) {
       try {
-        const response = await createApiRequest(API_ENDPOINTS.projects.delete(projectId), {
+        console.log('Deleting API key:', keyId, 'for project:', projectId);
+        const response = await createApiRequest(`${API_BASE_URL}/api/v1/projects/${projectId}/api-keys/${keyId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
@@ -137,6 +243,7 @@
           toastStore.error(data.error || 'Fout bij verwijderen van API key');
         }
       } catch (err) {
+        console.error('Error deleting API key:', err);
         toastStore.error('Netwerkfout bij verwijderen van API key');
       }
     }
@@ -230,13 +337,53 @@
     corsFormData.allowed_origins = corsFormData.allowed_origins.filter(o => o !== origin);
   }
 
-  function saveCORSConfig() {
-    corsConfig = { ...corsFormData };
-    alert('CORS configuratie opgeslagen!');
+  async function saveCORSConfig() {
+    if (!projectId || projectId === 'undefined') {
+      toastStore.error('Ongeldige project ID');
+      return;
+    }
+
+    loading = true;
+    try {
+      console.log('Saving CORS config for project:', projectId);
+      const response = await createApiRequest(`${API_BASE_URL}/api/v1/projects/${projectId}/cors`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          allowed_origins: corsFormData.allowed_origins,
+          allowed_methods: corsFormData.allowed_methods,
+          allowed_headers: allowedHeadersString.split(',').map(h => h.trim()).filter(h => h.length > 0),
+          allow_credentials: corsFormData.allow_credentials,
+          max_age: corsFormData.max_age
+        }),
+      });
+
+      if (response.ok) {
+        corsConfig = { 
+          ...corsFormData, 
+          allowed_headers: allowedHeadersString.split(',').map(h => h.trim()).filter(h => h.length > 0)
+        };
+        console.log('CORS config saved successfully');
+        toastStore.success('CORS configuratie succesvol opgeslagen!');
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to save CORS config:', errorData);
+        toastStore.error(errorData.error || 'Fout bij opslaan van CORS configuratie');
+      }
+    } catch (err) {
+      console.error('Error saving CORS config:', err);
+      toastStore.error('Netwerkfout bij opslaan van CORS configuratie');
+    } finally {
+      loading = false;
+    }
   }
 
   function resetCORSConfig() {
     corsFormData = { ...corsConfig };
+    allowedHeadersString = corsConfig.allowed_headers.join(', ');
   }
 
   function formatDate(dateStr: string): string {
@@ -341,9 +488,19 @@
       </div>
 
       <Card>
-        <div class="divide-y divide-border">
-          {#each apiKeys as apiKey}
-            <div class="p-6">
+        {#if !apiKeysLoaded}
+          <div class="p-6 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+            <p class="text-muted-foreground">API keys laden...</p>
+          </div>
+        {:else if apiKeys.length === 0}
+          <div class="p-6 text-center">
+            <p class="text-muted-foreground">Nog geen API keys aangemaakt</p>
+          </div>
+        {:else}
+          <div class="divide-y divide-border">
+            {#each apiKeys as apiKey}
+              <div class="p-6">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="flex items-center space-x-3">
@@ -400,9 +557,10 @@
                   </Button>
                 </div>
               </div>
-            </div>
-          {/each}
-        </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
       </Card>
     </div>
   {/if}
@@ -475,7 +633,7 @@
             <Label>Toegestane Headers</Label>
             <div class="mt-2">
               <Textarea
-                bind:value={corsFormData.allowed_headers}
+                bind:value={allowedHeadersString}
                 rows={3}
                 placeholder="Content-Type, Authorization, X-API-Key"
               />

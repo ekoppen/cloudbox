@@ -405,7 +405,7 @@ func (h *WebServerHandler) testSSHConnection(webServer models.WebServer) (bool, 
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: hostKeyManager.CreateHostKeyCallback(webServer.ProjectID, false), // Don't allow new hosts automatically
+		HostKeyCallback: hostKeyManager.CreateHostKeyCallback(webServer.ProjectID, true), // Allow new hosts for testing
 		Timeout:         10 * time.Second,
 	}
 
@@ -431,4 +431,109 @@ func (h *WebServerHandler) testSSHConnection(webServer models.WebServer) (bool, 
 	}
 
 	return true, nil
+}
+
+// DistributeKeyRequest represents a request to distribute a public key to a server
+type DistributeKeyRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// DistributePublicKey distributes the SSH public key to the server using password authentication
+func (h *WebServerHandler) DistributePublicKey(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	serverID, err := strconv.ParseUint(c.Param("server_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid server ID"})
+		return
+	}
+
+	var req DistributeKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find web server with SSH key
+	var webServer models.WebServer
+	if err := h.db.Where("id = ? AND project_id = ?", uint(serverID), uint(projectID)).Preload("SSHKey").First(&webServer).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Web server not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch web server"})
+		}
+		return
+	}
+
+	// Connect using password authentication
+	config := &ssh.ClientConfig{
+		User: req.Username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(req.Password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // For initial setup only
+		Timeout:         30 * time.Second,
+	}
+
+	addr := fmt.Sprintf("%s:%d", webServer.Hostname, webServer.Port)
+	client, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to connect with password: %v", err)})
+		return
+	}
+	defer client.Close()
+
+	// Create session for key installation
+	session, err := client.NewSession()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SSH session"})
+		return
+	}
+	defer session.Close()
+
+	// Get the public key content
+	publicKey := webServer.SSHKey.PublicKey
+	if publicKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "SSH key has no public key content"})
+		return
+	}
+
+	// Create the command to install the public key
+	// This creates the .ssh directory if it doesn't exist and adds the key to authorized_keys
+	command := fmt.Sprintf(`
+		mkdir -p ~/.ssh
+		chmod 700 ~/.ssh
+		echo '%s' >> ~/.ssh/authorized_keys
+		chmod 600 ~/.ssh/authorized_keys
+		sort ~/.ssh/authorized_keys | uniq > ~/.ssh/authorized_keys.tmp
+		mv ~/.ssh/authorized_keys.tmp ~/.ssh/authorized_keys
+		echo "Public key installed successfully"
+	`, publicKey)
+
+	// Execute the command
+	output, err := session.CombinedOutput(command)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "Failed to install public key",
+			"detail": string(output),
+		})
+		return
+	}
+
+	// Update server status to indicate successful key distribution
+	h.db.Model(&webServer).Updates(map[string]interface{}{
+		"connection_status": "connected",
+		"last_connected_at": time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Public key successfully distributed to server",
+		"output":  string(output),
+	})
 }

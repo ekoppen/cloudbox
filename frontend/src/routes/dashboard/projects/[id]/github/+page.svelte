@@ -11,16 +11,34 @@
   import Label from '$lib/components/ui/label.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
+  import Icon from '$lib/components/ui/icon.svelte';
 
   let projectId = $page.params.id;
   let repositories = [];
   let loading = true;
   let showCreateModal = false;
   let showWebhookModal = false;
+  let showEditModal = false;
   let selectedRepo = null;
+  let editingRepo = null;
 
   // Form data voor nieuwe repository
   let repoForm = {
+    name: '',
+    full_name: '',
+    clone_url: '',
+    branch: 'main',
+    is_private: false,
+    description: '',
+    sdk_version: '1.0.0',
+    app_port: 3000,
+    build_command: 'npm run build',
+    start_command: 'npm start',
+    environment: {}
+  };
+
+  // Form data voor bewerken repository
+  let editForm = {
     name: '',
     full_name: '',
     clone_url: '',
@@ -107,6 +125,32 @@
     }
   }
 
+  async function updateRepository() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${editingRepo.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        },
+        body: JSON.stringify(editForm)
+      });
+
+      if (response.ok) {
+        toast.success('Repository bijgewerkt');
+        showEditModal = false;
+        await loadRepositories();
+        resetEditForm();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij bijwerken repository');
+      }
+    } catch (error) {
+      console.error('Error updating repository:', error);
+      toast.error('Netwerkfout bij bijwerken repository');
+    }
+  }
+
   async function deleteRepository(repoId: number) {
     if (!confirm('Weet je zeker dat je deze repository wilt verwijderen?')) return;
 
@@ -156,6 +200,24 @@
     });
   }
 
+  function editRepository(repo) {
+    editingRepo = repo;
+    editForm = {
+      name: repo.name,
+      full_name: repo.full_name,
+      clone_url: repo.clone_url,
+      branch: repo.branch,
+      is_private: repo.is_private,
+      description: repo.description || '',
+      sdk_version: repo.sdk_version || '1.0.0',
+      app_port: repo.app_port,
+      build_command: repo.build_command,
+      start_command: repo.start_command,
+      environment: repo.environment || {}
+    };
+    showEditModal = true;
+  }
+
   function resetForm() {
     repoForm = {
       name: '',
@@ -170,6 +232,23 @@
       start_command: 'npm start',
       environment: {}
     };
+  }
+
+  function resetEditForm() {
+    editForm = {
+      name: '',
+      full_name: '',
+      clone_url: '',
+      branch: 'main',
+      is_private: false,
+      description: '',
+      sdk_version: '1.0.0',
+      app_port: 3000,
+      build_command: 'npm run build',
+      start_command: 'npm start',
+      environment: {}
+    };
+    editingRepo = null;
   }
 
   function getRepoIcon(isPrivate: boolean) {
@@ -188,7 +267,7 @@
       <p class="text-muted-foreground mt-1">Koppel je GitHub repositories voor automatische deployments</p>
     </div>
     <Button on:click={() => showCreateModal = true} class="bg-primary text-primary-foreground">
-      <span class="mr-2">+</span>
+      <Icon name="code" size={16} className="mr-2" />
       Repository Toevoegen
     </Button>
   </div>
@@ -205,6 +284,7 @@
         <h3 class="text-lg font-semibold mb-2">Nog geen repositories</h3>
         <p class="text-muted-foreground mb-4">Voeg je eerste GitHub repository toe om automatische deployments in te stellen.</p>
         <Button on:click={() => showCreateModal = true}>
+          <Icon name="code" size={16} className="mr-2" />
           Repository Toevoegen
         </Button>
       </Card>
@@ -217,11 +297,11 @@
                 <div class="flex items-center gap-3 mb-2">
                   <span class="text-2xl">{getRepoIcon(repo.is_private)}</span>
                   <h3 class="text-lg font-semibold">{repo.name}</h3>
-                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-50 border border-blue-200 text-blue-600">
+                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                     {repo.branch}
                   </span>
                   {#if repo.is_active}
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-50 border border-green-200 text-green-600">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300">
                       Actief
                     </span>
                   {/if}
@@ -250,11 +330,11 @@
                 <div class="mt-3 grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span class="font-medium text-muted-foreground">Build Command:</span>
-                    <code class="text-xs bg-gray-100 px-1 rounded">{repo.build_command}</code>
+                    <code class="text-xs bg-muted px-1 rounded">{repo.build_command}</code>
                   </div>
                   <div>
                     <span class="font-medium text-muted-foreground">Start Command:</span>
-                    <code class="text-xs bg-gray-100 px-1 rounded">{repo.start_command}</code>
+                    <code class="text-xs bg-muted px-1 rounded">{repo.start_command}</code>
                   </div>
                 </div>
 
@@ -270,25 +350,33 @@
                   on:click={() => syncRepository(repo.id)}
                   size="sm"
                   variant="outline"
-                  class="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
                 >
-                  Sync
+                  <Icon name="refresh" size={16} />
+                </Button>
+                <Button
+                  on:click={() => editRepository(repo)}
+                  size="sm"
+                  variant="outline"
+                  class="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400"
+                >
+                  <Icon name="edit" size={16} />
                 </Button>
                 <Button
                   on:click={() => showWebhookInfo(repo)}
                   size="sm"
                   variant="outline"
-                  class="border-green-300 text-green-600 hover:bg-green-50"
+                  class="border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400"
                 >
-                  Webhook
+                  <Icon name="link" size={16} />
                 </Button>
                 <Button
                   on:click={() => deleteRepository(repo.id)}
                   size="sm"
                   variant="outline"
-                  class="border-red-300 text-red-600 hover:bg-red-50"
+                  class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
                 >
-                  Verwijder
+                  <Icon name="trash" size={16} />
                 </Button>
               </div>
             </div>
@@ -301,8 +389,8 @@
 
 <!-- Create Repository Modal -->
 {#if showCreateModal}
-  <Modal on:close={() => showCreateModal = false}>
-    <div class="p-6 max-h-[80vh] overflow-y-auto">
+  <Modal open={showCreateModal} on:close={() => showCreateModal = false} size="2xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
       <h2 class="text-xl font-semibold mb-4">GitHub Repository Toevoegen</h2>
       
       <form on:submit|preventDefault={createRepository} class="space-y-4">
@@ -347,7 +435,7 @@
           />
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label for="branch">Branch</Label>
             <Input
@@ -415,9 +503,11 @@
 
         <div class="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" on:click={() => showCreateModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
             Annuleren
           </Button>
           <Button type="submit" class="bg-primary text-primary-foreground">
+            <Icon name="code" size={16} className="mr-2" />
             Repository Toevoegen
           </Button>
         </div>
@@ -428,8 +518,8 @@
 
 <!-- Webhook Info Modal -->
 {#if showWebhookModal && selectedRepo}
-  <Modal on:close={() => showWebhookModal = false}>
-    <div class="p-6">
+  <Modal open={showWebhookModal} on:close={() => showWebhookModal = false} size="xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
       <h2 class="text-xl font-semibold mb-4">Webhook Configuratie: {selectedRepo.name}</h2>
       
       <div class="space-y-4">
@@ -438,7 +528,7 @@
           <div class="mt-1 relative">
             <input
               readonly
-              class="w-full p-3 border border-border rounded-md font-mono text-sm bg-gray-50"
+              class="w-full p-3 border border-border rounded-md font-mono text-sm bg-muted"
               value={selectedRepo.webhookData?.webhook_url || ''}
             />
             <Button
@@ -446,7 +536,7 @@
               size="sm"
               class="absolute top-2 right-2"
             >
-              Kopiëren
+              <Icon name="package" size={16} />
             </Button>
           </div>
         </div>
@@ -456,7 +546,7 @@
           <div class="mt-1 relative">
             <input
               readonly
-              class="w-full p-3 border border-border rounded-md font-mono text-sm bg-gray-50"
+              class="w-full p-3 border border-border rounded-md font-mono text-sm bg-muted"
               value={selectedRepo.webhookData?.webhook_secret || ''}
             />
             <Button
@@ -464,14 +554,14 @@
               size="sm"
               class="absolute top-2 right-2"
             >
-              Kopiëren
+              <Icon name="package" size={16} />
             </Button>
           </div>
         </div>
 
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h4 class="font-medium text-green-900 mb-2">GitHub Webhook Instellen:</h4>
-          <ol class="text-green-800 text-sm space-y-1 list-decimal list-inside">
+        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <h4 class="font-medium text-green-900 dark:text-green-200 mb-2">GitHub Webhook Instellen:</h4>
+          <ol class="text-green-800 dark:text-green-200 text-sm space-y-1 list-decimal list-inside">
             <li>Ga naar je GitHub repository</li>
             <li>Klik op "Settings" → "Webhooks"</li>
             <li>Klik "Add webhook"</li>
@@ -490,10 +580,134 @@
 
         <div class="flex justify-end pt-4">
           <Button on:click={() => showWebhookModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
             Sluiten
           </Button>
         </div>
       </div>
+    </div>
+  </Modal>
+{/if}
+
+<!-- Edit Repository Modal -->
+{#if showEditModal && editingRepo}
+  <Modal open={showEditModal} on:close={() => showEditModal = false} size="2xl">
+    <div class="p-8 max-h-[80vh] overflow-y-auto">
+      <h2 class="text-xl font-semibold mb-4">Repository Bewerken: {editingRepo.name}</h2>
+      
+      <form on:submit|preventDefault={updateRepository} class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="edit-name">Repository Naam</Label>
+            <Input
+              id="edit-name"
+              bind:value={editForm.name}
+              placeholder="my-awesome-app"
+              required
+            />
+          </div>
+          <div>
+            <Label for="edit-full_name">Full Name (owner/repo)</Label>
+            <Input
+              id="edit-full_name"
+              bind:value={editForm.full_name}
+              placeholder="username/my-awesome-app"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label for="edit-clone_url">Clone URL</Label>
+          <Input
+            id="edit-clone_url"
+            bind:value={editForm.clone_url}
+            placeholder="https://github.com/username/my-awesome-app.git"
+            required
+          />
+        </div>
+
+        <div>
+          <Label for="edit-description">Beschrijving</Label>
+          <Textarea
+            id="edit-description"
+            bind:value={editForm.description}
+            placeholder="Mijn geweldige applicatie"
+            rows={2}
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label for="edit-branch">Branch</Label>
+            <Input
+              id="edit-branch"
+              bind:value={editForm.branch}
+              placeholder="main"
+            />
+          </div>
+          <div>
+            <Label for="edit-sdk_version">SDK Version</Label>
+            <Input
+              id="edit-sdk_version"
+              bind:value={editForm.sdk_version}
+              placeholder="1.0.0"
+            />
+          </div>
+          <div>
+            <Label for="edit-app_port">App Port</Label>
+            <Input
+              id="edit-app_port"
+              type="number"
+              bind:value={editForm.app_port}
+              min="1"
+              max="65535"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="edit-build_command">Build Command</Label>
+            <Input
+              id="edit-build_command"
+              bind:value={editForm.build_command}
+              placeholder="npm run build"
+            />
+          </div>
+          <div>
+            <Label for="edit-start_command">Start Command</Label>
+            <Input
+              id="edit-start_command"
+              bind:value={editForm.start_command}
+              placeholder="npm start"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <input
+            id="edit-is_private"
+            type="checkbox"
+            bind:checked={editForm.is_private}
+            class="rounded border-border text-primary focus:ring-primary"
+          />
+          <Label for="edit-is_private" class="text-sm cursor-pointer">
+            Private repository
+          </Label>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" on:click={() => showEditModal = false}>
+            <Icon name="x" size={16} className="mr-2" />
+            Annuleren
+          </Button>
+          <Button type="submit" class="bg-primary text-primary-foreground">
+            <Icon name="save" size={16} className="mr-2" />
+            Repository Bijwerken
+          </Button>
+        </div>
+      </form>
     </div>
   </Modal>
 {/if}

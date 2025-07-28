@@ -38,6 +38,12 @@ type CreateSSHKeyRequest struct {
 	KeySize     int    `json:"key_size"` // 2048, 4096
 }
 
+// UpdateSSHKeyRequest represents a request to update an SSH key
+type UpdateSSHKeyRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+}
+
 // ListSSHKeys returns all SSH keys for a project
 func (h *SSHKeyHandler) ListSSHKeys(c *gin.Context) {
 	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -132,7 +138,7 @@ func (h *SSHKeyHandler) CreateSSHKey(c *gin.Context) {
 
 // GetSSHKey returns a specific SSH key
 func (h *SSHKeyHandler) GetSSHKey(c *gin.Context) {
-	projectID, err := strconv.ParseUint(c.Param("project_id"), 10, 32)
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
 		return
@@ -179,9 +185,54 @@ func (h *SSHKeyHandler) GetDecryptedPrivateKey(keyID uint) (string, error) {
 	return decryptedKey, nil
 }
 
+// UpdateSSHKey updates an SSH key
+func (h *SSHKeyHandler) UpdateSSHKey(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	keyID, err := strconv.ParseUint(c.Param("key_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid key ID"})
+		return
+	}
+
+	var req UpdateSSHKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find the SSH key
+	var sshKey models.SSHKey
+	if err := h.db.Where("id = ? AND project_id = ?", uint(keyID), uint(projectID)).First(&sshKey).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "SSH key not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch SSH key"})
+		}
+		return
+	}
+
+	// Update the SSH key
+	sshKey.Name = req.Name
+	sshKey.Description = req.Description
+
+	if err := h.db.Save(&sshKey).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update SSH key"})
+		return
+	}
+
+	// Remove private key from response for security
+	sshKey.PrivateKey = ""
+	c.JSON(http.StatusOK, sshKey)
+}
+
 // DeleteSSHKey deletes an SSH key
 func (h *SSHKeyHandler) DeleteSSHKey(c *gin.Context) {
-	projectID, err := strconv.ParseUint(c.Param("project_id"), 10, 32)
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
 		return

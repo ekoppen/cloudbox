@@ -218,6 +218,10 @@ type GitHubRepository struct {
 	WebhookID     *int64 `json:"webhook_id"`
 	WebhookSecret string `json:"webhook_secret"`
 
+	// SSH Key for private repository access (optional)
+	SSHKeyID *uint   `json:"ssh_key_id,omitempty"`
+	SSHKey   *SSHKey `json:"ssh_key,omitempty"`
+
 	// SDK Configuration
 	SDKVersion    string                 `json:"sdk_version"`
 	AppPort       int                    `json:"app_port" gorm:"default:3000"`
@@ -422,6 +426,7 @@ type File struct {
 
 	// Storage info
 	BucketName string `json:"bucket_name" gorm:"not null;index"`
+	FolderPath string `json:"folder_path" gorm:"index"` // Path within bucket (empty for root)
 	ProjectID  uint   `json:"project_id" gorm:"not null;index"`
 
 	// Access control
@@ -452,6 +457,7 @@ type AppUser struct {
 	
 	// Status
 	IsActive        bool       `json:"is_active" gorm:"default:true"`
+	Status          string     `json:"status" gorm:"-"` // Computed field, not stored in DB
 	IsEmailVerified bool       `json:"is_email_verified" gorm:"default:false"`
 	LastLoginAt     *time.Time `json:"last_login_at"`
 	LastSeenAt      *time.Time `json:"last_seen_at"`
@@ -777,4 +783,14 @@ type AuditLog struct {
 	// Success/failure
 	Success   bool   `json:"success" gorm:"default:true"`
 	ErrorMsg  string `json:"error_msg,omitempty"`
+}
+
+// AfterFind hook to populate computed fields
+func (u *AppUser) AfterFind(tx *gorm.DB) (err error) {
+	if u.IsActive {
+		u.Status = "active"
+	} else {
+		u.Status = "suspended"
+	}
+	return
 }

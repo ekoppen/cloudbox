@@ -2,6 +2,8 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
+  import { toast } from '$lib/stores/toast';
+  import { API_BASE_URL } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -26,34 +28,7 @@
     icon: string;
   }
 
-  let users: User[] = [
-    {
-      id: 1,
-      email: 'jan@voorbeeld.nl',
-      name: 'Jan de Vries',
-      created_at: '2025-01-15T10:30:00Z',
-      last_login: '2025-01-19T14:20:00Z',
-      status: 'active',
-      email_verified: true
-    },
-    {
-      id: 2,
-      email: 'sarah@test.nl',
-      name: 'Sarah Johnson',
-      created_at: '2025-01-16T11:45:00Z',
-      last_login: '2025-01-19T09:10:00Z',
-      status: 'active',
-      email_verified: true
-    },
-    {
-      id: 3,
-      email: 'mike@demo.com',
-      name: 'Mike Peters',
-      created_at: '2025-01-17T09:15:00Z',
-      status: 'pending',
-      email_verified: false
-    }
-  ];
+  let users: User[] = [];
 
   let authProviders: AuthProvider[] = [
     { id: 'email', name: 'Email/Password', enabled: true, icon: '✉️' },
@@ -74,8 +49,77 @@
   let showCreateUser = false;
   let newUser = { email: '', name: '', password: '', send_invitation: true };
   let loading = false;
+  let backendAvailable = true;
 
   $: projectId = $page.params.id;
+
+  onMount(() => {
+    loadUsers();
+    loadAuthSettings();
+  });
+
+  async function loadUsers() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        users = data.users || [];
+      } else {
+        console.error('Failed to load users:', response.status);
+        users = []; // Ensure users is always an array
+        // Don't show error toast if backend is not available - this is expected during development
+        if (response.status === 404) {
+          backendAvailable = false;
+        } else if (response.status !== 0) {
+          toast.error('Fout bij het laden van gebruikers');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      users = []; // Ensure users is always an array
+      // Check if backend is unavailable
+      if (error.message.includes('Failed to fetch')) {
+        backendAvailable = false;
+      } else {
+        toast.error('Netwerkfout bij het laden van gebruikers');
+      }
+    }
+  }
+
+  async function loadAuthSettings() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/settings`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const settings = await response.json();
+        authSettings = { ...authSettings, ...settings };
+        authProviders = settings.providers || authProviders;
+      } else {
+        console.error('Failed to load auth settings:', response.status);
+        // Don't show error toast if backend is not available
+        if (response.status === 404) {
+          backendAvailable = false;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading auth settings:', error);
+      // Only show error toast if it's not a connection error
+      if (!error.message.includes('Failed to fetch')) {
+        toast.error('Netwerkfout bij het laden van instellingen');
+      }
+    }
+  }
 
   function getStatusColor(status: string): string {
     switch (status) {
@@ -96,18 +140,57 @@
     });
   }
 
-  function toggleUserStatus(userId: number) {
-    users = users.map(user => 
-      user.id === userId ? { 
-        ...user, 
-        status: user.status === 'active' ? 'suspended' : 'active' 
-      } : user
-    );
+  async function toggleUserStatus(userId: number) {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      const newStatus = user.status === 'active' ? 'suspended' : 'active';
+      
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        users = users.map(user => 
+          user.id === userId ? { ...user, status: newStatus } : user
+        );
+        toast.success(`Gebruiker ${newStatus === 'active' ? 'geactiveerd' : 'gesuspendeerd'}`);
+      } else {
+        toast.error('Fout bij het wijzigen van gebruikersstatus');
+      }
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      toast.error('Netwerkfout bij het wijzigen van gebruikersstatus');
+    }
   }
 
-  function deleteUser(userId: number) {
-    if (confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
-      users = users.filter(user => user.id !== userId);
+  async function deleteUser(userId: number) {
+    if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        users = users.filter(user => user.id !== userId);
+        toast.success('Gebruiker verwijderd');
+      } else {
+        toast.error('Fout bij het verwijderen van gebruiker');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Netwerkfout bij het verwijderen van gebruiker');
     }
   }
 
@@ -116,33 +199,91 @@
 
     loading = true;
     try {
-      const user: User = {
-        id: Date.now(),
-        email: newUser.email,
-        name: newUser.name,
-        created_at: new Date().toISOString(),
-        status: 'pending',
-        email_verified: false
-      };
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newUser.email,
+          name: newUser.name,
+          password: newUser.password || undefined,
+          send_invitation: newUser.send_invitation,
+        }),
+      });
 
-      users = [user, ...users];
-      showCreateUser = false;
-      newUser = { email: '', name: '', password: '', send_invitation: true };
+      if (response.ok) {
+        const user = await response.json();
+        users = [user, ...users];
+        showCreateUser = false;
+        newUser = { email: '', name: '', password: '', send_invitation: true };
+        toast.success('Gebruiker succesvol aangemaakt');
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Fout bij het aanmaken van gebruiker');
+      }
     } catch (err) {
       console.error('Create user error:', err);
+      toast.error('Netwerkfout bij het aanmaken van gebruiker');
     } finally {
       loading = false;
     }
   }
 
-  function toggleProvider(providerId: string) {
-    authProviders = authProviders.map(provider => 
-      provider.id === providerId ? { ...provider, enabled: !provider.enabled } : provider
-    );
+  async function toggleProvider(providerId: string) {
+    try {
+      const provider = authProviders.find(p => p.id === providerId);
+      if (!provider) return;
+
+      const newEnabled = !provider.enabled;
+      
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/providers/${providerId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled: newEnabled }),
+      });
+
+      if (response.ok) {
+        authProviders = authProviders.map(provider => 
+          provider.id === providerId ? { ...provider, enabled: newEnabled } : provider
+        );
+        toast.success(`${provider.name} ${newEnabled ? 'ingeschakeld' : 'uitgeschakeld'}`);
+      } else {
+        toast.error('Fout bij het wijzigen van provider instellingen');
+      }
+    } catch (error) {
+      console.error('Error toggling provider:', error);
+      toast.error('Netwerkfout bij het wijzigen van provider instellingen');
+    }
   }
 
-  function saveAuthSettings() {
-    alert('Authenticatie instellingen opgeslagen!');
+  async function saveAuthSettings() {
+    loading = true;
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/settings`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(authSettings),
+      });
+
+      if (response.ok) {
+        toast.success('Authenticatie instellingen opgeslagen');
+      } else {
+        toast.error('Fout bij het opslaan van instellingen');
+      }
+    } catch (error) {
+      console.error('Error saving auth settings:', error);
+      toast.error('Netwerkfout bij het opslaan van instellingen');
+    } finally {
+      loading = false;
+    }
   }
 </script>
 
@@ -151,6 +292,21 @@
 </svelte:head>
 
 <div class="space-y-6">
+  <!-- Backend Status Notice -->
+  {#if !backendAvailable}
+    <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
+      <div class="flex items-center space-x-3">
+        <Icon name="warning" size={20} className="text-yellow-600 dark:text-yellow-400" />
+        <div>
+          <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Backend Server Niet Beschikbaar</h3>
+          <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+            De backend server draait niet op localhost:8080. Start de backend server om alle functionaliteit te gebruiken.
+          </p>
+        </div>
+      </div>
+    </Card>
+  {/if}
+
   <!-- Header -->
   <div class="flex items-center space-x-4">
     <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">

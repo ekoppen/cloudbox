@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -50,7 +52,7 @@ func Load() (*Config, error) {
 	
 	// CORS defaults
 	viper.SetDefault("ALLOWED_ORIGINS", []string{"*"})
-	viper.SetDefault("ALLOWED_METHODS", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
+	viper.SetDefault("ALLOWED_METHODS", []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 	viper.SetDefault("ALLOWED_HEADERS", []string{"*"})
 	
 	// Rate limiting defaults
@@ -70,6 +72,9 @@ func Load() (*Config, error) {
 
 	maxFileSize, _ := strconv.ParseInt(getEnvOrDefault("MAX_FILE_SIZE", "10485760"), 10, 64)
 
+	allowedMethods := getStringSliceFromEnv("ALLOWED_METHODS", []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
+	fmt.Printf("DEBUG: ALLOWED_METHODS from env: %v\n", allowedMethods)
+	
 	config := &Config{
 		Port:        getEnvOrDefault("PORT", "8080"),
 		Environment: getEnvOrDefault("ENVIRONMENT", "development"),
@@ -79,9 +84,9 @@ func Load() (*Config, error) {
 		BaseURL:     getEnvOrDefault("BASE_URL", "http://localhost:8080"),
 		MasterKey:   getEnvOrDefault("MASTER_KEY", ""),
 		
-		AllowedOrigins: viper.GetStringSlice("ALLOWED_ORIGINS"),
-		AllowedMethods: viper.GetStringSlice("ALLOWED_METHODS"),
-		AllowedHeaders: viper.GetStringSlice("ALLOWED_HEADERS"),
+		AllowedOrigins: getStringSliceFromEnv("ALLOWED_ORIGINS", []string{"*"}),
+		AllowedMethods: allowedMethods,
+		AllowedHeaders: getStringSliceFromEnv("ALLOWED_HEADERS", []string{"*"}),
 		
 		RateLimitRequests: viper.GetInt("RATE_LIMIT_REQUESTS"),
 		RateLimitWindow:   viper.GetString("RATE_LIMIT_WINDOW"),
@@ -101,5 +106,17 @@ func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
+	return defaultValue
+}
+
+// getStringSliceFromEnv gets comma-separated environment variable as string slice
+func getStringSliceFromEnv(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		fmt.Printf("DEBUG: Found env var %s = %s\n", key, value)
+		result := strings.Split(value, ",")
+		fmt.Printf("DEBUG: Split result: %v\n", result)
+		return result
+	}
+	fmt.Printf("DEBUG: Using default for %s: %v\n", key, defaultValue)
 	return defaultValue
 }

@@ -1,0 +1,42 @@
+{
+  "name": "create-cloudbox-app",
+  "version": "1.0.0",
+  "description": "Create full-stack applications with CloudBox backend",
+  "main": "scripts/create-cloudbox-project.js",
+  "bin": {
+    "create-cloudbox-app": "./scripts/create-cloudbox-project.js",
+    "create-cloudbox": "./scripts/create-cloudbox-project.js"
+  },
+  "scripts": {
+    "start": "node scripts/create-cloudbox-project.js",
+    "create": "node scripts/create-cloudbox-project.js"
+  },
+  "keywords": [
+    "cloudbox",
+    "full-stack",
+    "backend-as-a-service",
+    "react",
+    "typescript",
+    "portfolio",
+    "blog",
+    "ecommerce",
+    "saas",
+    "crm"
+  ],
+  "author": "CloudBox Team",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git", 
+    "url": "https://github.com/your-org/cloudbox.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/cloudbox/issues"
+  },
+  "homepage": "https://github.com/your-org/cloudbox#readme"
+}

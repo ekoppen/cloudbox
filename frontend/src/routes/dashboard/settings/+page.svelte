@@ -1,9 +1,20 @@
 <script lang="ts">
   import { theme, type AccentColor } from '$lib/stores/theme';
   import { auth } from '$lib/stores/auth';
+  import { toast } from '$lib/stores/toast';
+  import { API_ENDPOINTS } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
+  import Input from '$lib/components/ui/input.svelte';
+  import Label from '$lib/components/ui/label.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  
+  let showEditProfileModal = false;
+  let editProfileData = {
+    name: $auth.user?.name || '',
+    email: $auth.user?.email || ''
+  };
+  let updatingProfile = false;
   
   const accentColors: { name: AccentColor; label: string; preview: string; darkPreview: string }[] = [
     { name: 'blue', label: 'Blauw', preview: 'bg-blue-500', darkPreview: 'bg-blue-400' },
@@ -17,6 +28,50 @@
   function handleAccentColorChange(accentColor: AccentColor) {
     console.log('Settings: changing accent color to', accentColor);
     theme.setAccentColor(accentColor);
+  }
+
+  function openEditProfileModal() {
+    editProfileData = {
+      name: $auth.user?.name || '',
+      email: $auth.user?.email || ''
+    };
+    showEditProfileModal = true;
+  }
+
+  async function updateProfile() {
+    if (!editProfileData.name.trim()) {
+      toast.error('Naam is verplicht');
+      return;
+    }
+
+    updatingProfile = true;
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.me, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editProfileData.name.trim()
+        }),
+      });
+
+      if (response.ok) {
+        // Update the auth store with the new name
+        auth.updateUser({ ...$auth.user, name: editProfileData.name.trim() });
+        toast.success('Profiel succesvol bijgewerkt');
+        showEditProfileModal = false;
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Fout bij het bijwerken van profiel');
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      toast.error('Netwerk fout bij het bijwerken van profiel');
+    } finally {
+      updatingProfile = false;
+    }
   }
 
   // Debug function to check current classes
@@ -207,7 +262,8 @@
       </div>
 
       <div class="pt-4">
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" on:click={openEditProfileModal}>
+          <Icon name="edit" size={16} class="mr-2" />
           Profiel Bewerken
         </Button>
       </div>
@@ -237,3 +293,72 @@
     </div>
   </Card>
 </div>
+
+<!-- Edit Profile Modal -->
+{#if showEditProfileModal}
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+          <Icon name="user" size={20} className="text-primary" />
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-foreground">Profiel Bewerken</h2>
+          <p class="text-sm text-muted-foreground">Werk je profielgegevens bij</p>
+        </div>
+      </div>
+      
+      <form on:submit|preventDefault={updateProfile} class="space-y-4">
+        <div class="space-y-2">
+          <Label for="edit-name">Naam</Label>
+          <Input
+            id="edit-name"
+            type="text"
+            bind:value={editProfileData.name}
+            required
+            placeholder="Je naam"
+          />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="edit-email">Email</Label>
+          <Input
+            id="edit-email"
+            type="email"
+            bind:value={editProfileData.email}
+            disabled
+            class="bg-muted text-muted-foreground cursor-not-allowed"
+            placeholder="Email kan niet worden gewijzigd"
+          />
+          <p class="text-xs text-muted-foreground">
+            Email adres kan niet worden gewijzigd. Neem contact op met een administrator.
+          </p>
+        </div>
+
+        <div class="flex space-x-3 pt-4">
+          <Button
+            type="submit"
+            disabled={updatingProfile}
+            class="flex-1"
+          >
+            {#if updatingProfile}
+              <Icon name="loader" size={16} class="mr-2 animate-spin" />
+              Bijwerken...
+            {:else}
+              <Icon name="check" size={16} class="mr-2" />
+              Opslaan
+            {/if}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            on:click={() => showEditProfileModal = false}
+            disabled={updatingProfile}
+          >
+            Annuleren
+          </Button>
+        </div>
+      </form>
+    </Card>
+  </div>
+{/if}

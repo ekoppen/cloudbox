@@ -751,3 +751,79 @@ func (h *MessagingHandler) isChannelMember(projectID uint, channelID, userID str
 		projectID, channelID, userID, true).First(&member).Error
 	return err == nil
 }
+
+// ListAllMessages returns all messages across all channels for the project
+func (h *MessagingHandler) ListAllMessages(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	
+	var messages []models.Message
+	err := h.db.Where("project_id = ?", project.ID).
+		Order("created_at DESC").
+		Limit(100). // Limit to recent 100 messages
+		Find(&messages).Error
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, messages)
+}
+
+// ListTemplates returns message templates for the project
+func (h *MessagingHandler) ListTemplates(c *gin.Context) {
+	_ = c.MustGet("project").(models.Project)
+	
+	// For now, return default templates. In a real implementation,
+	// these would be stored in the database per project
+	templates := []gin.H{
+		{
+			"id": "welcome",
+			"name": "Welcome Message",
+			"content": "Welcome to {{project_name}}!",
+			"type": "system",
+		},
+		{
+			"id": "notification",
+			"name": "Notification",
+			"content": "You have a new notification: {{message}}",
+			"type": "notification",
+		},
+	}
+	
+	c.JSON(http.StatusOK, templates)
+}
+
+// GetMessagingStats returns messaging statistics for the project
+func (h *MessagingHandler) GetMessagingStats(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	
+	// Count total channels
+	var channelCount int64
+	h.db.Model(&models.Channel{}).Where("project_id = ?", project.ID).Count(&channelCount)
+	
+	// Count total messages
+	var messageCount int64
+	h.db.Model(&models.Message{}).Where("project_id = ?", project.ID).Count(&messageCount)
+	
+	// Count active members across all channels
+	var memberCount int64
+	h.db.Model(&models.ChannelMember{}).Where("project_id = ? AND is_active = ?", project.ID, true).Count(&memberCount)
+	
+	stats := gin.H{
+		"total_channels": channelCount,
+		"total_messages": messageCount,
+		"active_members": memberCount,
+		"messages_today": 0, // Would need more complex query for this
+		// Frontend expects these properties for the messaging dashboard
+		"total_sent": messageCount,
+		"total_delivered": messageCount,
+		"total_opened": 0,
+		"total_clicked": 0,
+		"bounce_rate": 0,
+		"open_rate": 0,
+		"click_rate": 0,
+	}
+	
+	c.JSON(http.StatusOK, stats)
+}

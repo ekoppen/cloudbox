@@ -33,13 +33,17 @@ export const API_ENDPOINTS = {
   },
   admin: {
     stats: {
-      overview: `${API_BASE_URL}/api/v1/admin/stats/overview`,
+      system: `${API_BASE_URL}/api/v1/admin/stats/system`,
       userGrowth: `${API_BASE_URL}/api/v1/admin/stats/user-growth`,
       projectActivity: `${API_BASE_URL}/api/v1/admin/stats/project-activity`,
+      functionExecutions: `${API_BASE_URL}/api/v1/admin/stats/function-executions`,
+      deploymentStats: `${API_BASE_URL}/api/v1/admin/stats/deployment-stats`,
+      storageStats: `${API_BASE_URL}/api/v1/admin/stats/storage-stats`,
       systemHealth: `${API_BASE_URL}/api/v1/admin/stats/system-health`,
     },
     users: {
       list: `${API_BASE_URL}/api/v1/admin/users`,
+      create: `${API_BASE_URL}/api/v1/admin/users`,
       get: (id: string) => `${API_BASE_URL}/api/v1/admin/users/${id}`,
       update: (id: string) => `${API_BASE_URL}/api/v1/admin/users/${id}`,
       delete: (id: string) => `${API_BASE_URL}/api/v1/admin/users/${id}`,
@@ -71,4 +75,25 @@ export function createApiRequest(url: string, options: RequestInit = {}): Promis
   };
 
   return fetch(url, defaultOptions);
+}
+
+// Helper function to check if an error is a connection error (backend not available)
+export function isConnectionError(error: Error): boolean {
+  return error.message.includes('Failed to fetch') || 
+         error.message.includes('NetworkError') ||
+         error.message.includes('ERR_CONNECTION_RESET');
+}
+
+// Helper function to handle API errors gracefully
+export function handleApiError(error: Error, showToast: (message: string) => void = () => {}): boolean {
+  console.error('API Error:', error);
+  
+  if (isConnectionError(error)) {
+    // Backend is not available - this is expected during development
+    return false; // Don't show error toast
+  } else {
+    // Show error toast for actual network issues
+    showToast('Netwerkfout bij communicatie met server');
+    return true;
+  }
 }

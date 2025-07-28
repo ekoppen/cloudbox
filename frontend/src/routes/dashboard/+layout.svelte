@@ -45,6 +45,14 @@
     goto(path);
   }
 
+  function getInitials(name: string): string {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+  }
+
   // Watch for page changes to update navigation
   $: if ($page.url.pathname) {
     navigation.navigate($page.url.pathname);
@@ -133,7 +141,7 @@
             <!-- Theme toggle -->
             <button
               on:click={() => theme.toggleTheme()}
-              class="p-2 text-muted-foreground hover:text-foreground"
+              class="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
               title="Donkere/lichte modus"
             >
               {#if $theme.theme === 'dark'}
@@ -143,27 +151,34 @@
               {/if}
             </button>
             
-            <div class="flex items-center space-x-2">
-              <Icon name="user" size={16} />
-              <span class="text-sm text-foreground">Welkom, {user.name}</span>
-            </div>
+            <!-- User Avatar Button with Initials -->
+            <button
+              on:click={() => goto('/dashboard/settings')}
+              class="flex items-center space-x-3 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-lg transition-colors"
+              title="Profiel en instellingen"
+            >
+              <div class="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
+                {getInitials(user.name || 'User')}
+              </div>
+              <span class="text-sm font-medium">{user.name}</span>
+            </button>
             
+            <!-- Admin Button (Icon Only) -->
             <button
               on:click={() => goto('/admin')}
-              class="flex items-center space-x-2 text-muted-foreground hover:text-foreground"
+              class="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
               title="Admin Dashboard"
             >
               <Icon name="shield-check" size={16} />
-              <span class="text-sm">Admin</span>
             </button>
 
+            <!-- Logout Button (Icon Only) -->
             <button
               on:click={handleLogout}
-              class="flex items-center space-x-2 text-muted-foreground hover:text-foreground"
+              class="p-2 text-muted-foreground hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
               title="Uitloggen"
             >
               <Icon name="logout" size={16} />
-              <span class="text-sm">Uitloggen</span>
             </button>
           </div>
         </div>

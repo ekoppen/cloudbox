@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cloudbox/backend/internal/config"
@@ -154,6 +155,24 @@ func (h *DeploymentHandler) CreateDeployment(c *gin.Context) {
 
 	// Generate initial version
 	version := fmt.Sprintf("v1.0.0-%d", time.Now().Unix())
+
+	// Auto-detect PhotoPortfolio template and setup environment
+	if req.Environment == nil {
+		req.Environment = make(map[string]interface{})
+	}
+	
+	// Check if this is a PhotoPortfolio deployment
+	isPhotoPortfolio := h.isPhotoPortfolioRepository(repository)
+	if isPhotoPortfolio {
+		// Auto-setup PhotoPortfolio template
+		if err := h.setupPhotoPortfolioTemplate(uint(projectID)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to setup PhotoPortfolio template: " + err.Error()})
+			return
+		}
+		
+		// Configure PhotoPortfolio environment variables
+		h.configurePhotoPortfolioEnvironment(req.Environment, uint(projectID), req.Domain, req.Port)
+	}
 
 	// Create deployment configuration
 	deployment := models.Deployment{
@@ -439,4 +458,129 @@ func (h *DeploymentHandler) executeRealDeployment(deployment models.Deployment, 
 	} else {
 		fmt.Printf("Deployment %d failed: %s\n", deployment.ID, result.ErrorLogs)
 	}
+}
+
+// PhotoPortfolio Template Integration Functions
+
+// isPhotoPortfolioRepository checks if a repository is a PhotoPortfolio project
+func (h *DeploymentHandler) isPhotoPortfolioRepository(repository models.GitHubRepository) bool {
+	// Check repository name patterns
+	if repository.Name == "photoportfolio" || repository.Name == "photo-portfolio" {
+		return true
+	}
+	
+	// Check for PhotoPortfolio-specific files or configurations
+	// This could be enhanced to check actual repository content via GitHub API
+	
+	// Check description for PhotoPortfolio keywords
+	if repository.Description != "" {
+		desc := repository.Description
+		keywords := []string{"photoportfolio", "photo portfolio", "photography portfolio", "cloudbox photo"}
+		for _, keyword := range keywords {
+			if containsKeyword(desc, keyword) {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
+// setupPhotoPortfolioTemplate sets up the PhotoPortfolio template for a project
+func (h *DeploymentHandler) setupPhotoPortfolioTemplate(projectID uint) error {
+	// Check if template is already set up
+	var existingCollections []models.Collection
+	if err := h.db.Where("project_id = ?", projectID).Find(&existingCollections).Error; err != nil {
+		return fmt.Errorf("failed to check existing collections: %v", err)
+	}
+	
+	// If collections already exist, skip setup
+	if len(existingCollections) > 0 {
+		fmt.Printf("PhotoPortfolio template already set up for project %d\n", projectID)
+		return nil
+	}
+	
+	// Create template handler to set up collections
+	templateHandler := NewTemplateHandler(h.db, h.cfg)
+	
+	// Get PhotoPortfolio template definition
+	template := templateHandler.getPhotoPortfolioTemplate()
+	
+	// Setup all collections
+	for _, collectionTemplate := range template.Collections {
+		_, err := templateHandler.setupCollection(projectID, collectionTemplate)
+		if err != nil {
+			return fmt.Errorf("failed to setup collection %s: %v", collectionTemplate.Name, err)
+		}
+	}
+	
+	fmt.Printf("PhotoPortfolio template successfully set up for project %d\n", projectID)
+	return nil
+}
+
+// configurePhotoPortfolioEnvironment sets up environment variables for PhotoPortfolio
+func (h *DeploymentHandler) configurePhotoPortfolioEnvironment(env map[string]interface{}, projectID uint, domain string, port int) {
+	// Get project details
+	var project models.Project
+	if err := h.db.First(&project, projectID).Error; err != nil {
+		fmt.Printf("Warning: Could not load project %d for environment setup: %v\n", projectID, err)
+		return
+	}
+	
+	// Get project API key
+	var apiKey models.APIKey
+	if err := h.db.Where("project_id = ? AND is_active = true", projectID).First(&apiKey).Error; err != nil {
+		fmt.Printf("Warning: Could not find API key for project %d: %v\n", projectID, err)
+		return
+	}
+	
+	// CloudBox connection settings
+	cloudboxEndpoint := "http://localhost:8080" // This should come from config
+	if h.cfg.BaseURL != "" {
+		cloudboxEndpoint = h.cfg.BaseURL
+	}
+	
+	// Set PhotoPortfolio environment variables
+	env["CLOUDBOX_ENDPOINT"] = cloudboxEndpoint
+	env["CLOUDBOX_PROJECT_SLUG"] = project.Slug
+	env["CLOUDBOX_PROJECT_ID"] = fmt.Sprintf("%d", projectID)
+	env["CLOUDBOX_API_KEY"] = apiKey.Key
+	
+	// API Configuration
+	env["VITE_API_URL"] = fmt.Sprintf("%s/p/%s/api", cloudboxEndpoint, project.Slug)
+	
+	// Application Settings
+	env["APP_TITLE"] = "PhotoPortfolio"
+	env["APP_DESCRIPTION"] = "Professional Photography Portfolio powered by CloudBox"
+	env["ANALYTICS_ENABLED"] = "true"
+	
+	// Docker Production Settings
+	if domain != "" {
+		env["DOMAIN"] = domain
+	} else {
+		env["DOMAIN"] = "localhost"
+	}
+	
+	if port != 0 {
+		env["WEB_PORT"] = fmt.Sprintf("%d", port)
+	} else {
+		env["WEB_PORT"] = "3000"
+	}
+	
+	env["PROJECT_PREFIX"] = fmt.Sprintf("%s-prod", project.Slug)
+	env["NETWORK_NAME"] = "cloudbox-network"
+	
+	// Build Arguments (for browser access)
+	env["VITE_CLOUDBOX_ENDPOINT"] = cloudboxEndpoint
+	env["VITE_CLOUDBOX_PROJECT_SLUG"] = project.Slug
+	env["VITE_CLOUDBOX_PROJECT_ID"] = fmt.Sprintf("%d", projectID)
+	env["VITE_CLOUDBOX_API_KEY"] = apiKey.Key
+	env["VITE_API_URL"] = fmt.Sprintf("%s/p/%s/api", cloudboxEndpoint, project.Slug)
+	
+	fmt.Printf("PhotoPortfolio environment configured for project %d (%s)\n", projectID, project.Slug)
+}
+
+// containsKeyword checks if a string contains a substring (case-insensitive)
+func containsKeyword(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

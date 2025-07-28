@@ -134,6 +134,62 @@ func (h *StorageHandler) GetBucket(c *gin.Context) {
 	c.JSON(http.StatusOK, bucket)
 }
 
+// UpdateBucket updates bucket settings
+func (h *StorageHandler) UpdateBucket(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	
+	var req struct {
+		Description  *string  `json:"description"`
+		MaxFileSize  *int64   `json:"max_file_size"`
+		AllowedTypes []string `json:"allowed_types"`
+		IsPublic     *bool    `json:"is_public"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Find bucket
+	var bucket models.Bucket
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	// Update fields individually to avoid JSONB issues
+	if req.Description != nil {
+		bucket.Description = *req.Description
+	}
+	
+	if req.MaxFileSize != nil {
+		if *req.MaxFileSize <= 0 || *req.MaxFileSize > 1073741824 { // Max 1GB
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file size limit (must be between 1 byte and 1GB)"})
+			return
+		}
+		bucket.MaxFileSize = *req.MaxFileSize
+	}
+	
+	if req.AllowedTypes != nil {
+		bucket.AllowedTypes = req.AllowedTypes
+	}
+	
+	if req.IsPublic != nil {
+		bucket.IsPublic = *req.IsPublic
+	}
+	
+	// Save the updated bucket
+	if err := h.db.Save(&bucket).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bucket"})
+		return
+	}
+	
+	// Return updated bucket
+	h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket)
+	c.JSON(http.StatusOK, bucket)
+}
+
 // DeleteBucket deletes a bucket and all its files
 func (h *StorageHandler) DeleteBucket(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
@@ -194,6 +250,7 @@ func (h *StorageHandler) ListFiles(c *gin.Context) {
 	limit := 25 // Default limit
 	offset := 0
 	orderBy := "created_at DESC"
+	path := c.Query("path") // Optional path parameter for folder filtering
 	
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
@@ -214,8 +271,17 @@ func (h *StorageHandler) ListFiles(c *gin.Context) {
 		}
 	}
 	
+	// Clean and validate path if provided
+	if path != "" {
+		path = filepath.Clean(path)
+		if strings.Contains(path, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid path"})
+			return
+		}
+	}
+	
 	var files []models.File
-	query := h.db.Where("project_id = ? AND bucket_name = ?", project.ID, bucketName).
+	query := h.db.Where("project_id = ? AND bucket_name = ? AND folder_path = ?", project.ID, bucketName, path).
 		Limit(limit).
 		Offset(offset).
 		Order(orderBy)
@@ -227,7 +293,7 @@ func (h *StorageHandler) ListFiles(c *gin.Context) {
 	
 	// Get total count
 	var total int64
-	h.db.Model(&models.File{}).Where("project_id = ? AND bucket_name = ?", project.ID, bucketName).Count(&total)
+	h.db.Model(&models.File{}).Where("project_id = ? AND bucket_name = ? AND folder_path = ?", project.ID, bucketName, path).Count(&total)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"files":  files,
@@ -257,6 +323,17 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 	}
 	defer file.Close()
 	
+	// Get optional path parameter for folder uploads
+	uploadPath := c.PostForm("path")
+	if uploadPath != "" {
+		// Clean and validate path
+		uploadPath = filepath.Clean(uploadPath)
+		if strings.Contains(uploadPath, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid upload path"})
+			return
+		}
+	}
+	
 	// Validate file size
 	if header.Size > bucket.MaxFileSize {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -279,8 +356,30 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 		extension := filepath.Ext(header.Filename)
 		extMimeType := mime.TypeByExtension(extension)
 		
-		// Validate against both content-based and extension-based MIME types
-		if !contains(bucket.AllowedTypes, actualMimeType) && !contains(bucket.AllowedTypes, extMimeType) {
+		// Create list of potential MIME types to check
+		var mimeTypesToCheck []string
+		mimeTypesToCheck = append(mimeTypesToCheck, actualMimeType)
+		if extMimeType != "" {
+			mimeTypesToCheck = append(mimeTypesToCheck, extMimeType)
+		}
+		
+		// Special handling for SVG files - they can be detected as text/xml or image/svg+xml
+		if strings.Contains(strings.ToLower(header.Filename), ".svg") || 
+		   strings.Contains(actualMimeType, "xml") || 
+		   strings.Contains(extMimeType, "svg") {
+			mimeTypesToCheck = append(mimeTypesToCheck, "image/svg+xml", "image/svg", "text/xml")
+		}
+		
+		// Check if any of the MIME types are allowed
+		isAllowed := false
+		for _, mimeType := range mimeTypesToCheck {
+			if contains(bucket.AllowedTypes, mimeType) {
+				isAllowed = true
+				break
+			}
+		}
+		
+		if !isAllowed {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Sprintf("File type not allowed. Detected: %s, Allowed: %v", actualMimeType, bucket.AllowedTypes),
 			})
@@ -314,7 +413,13 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 		return
 	}
 	
-	filePath := filepath.Join(baseDir, projectDir, bucketDir, fileName)
+	// Construct file path with optional upload path (folder)
+	var filePath string
+	if uploadPath != "" {
+		filePath = filepath.Join(baseDir, projectDir, bucketDir, uploadPath, fileName)
+	} else {
+		filePath = filepath.Join(baseDir, projectDir, bucketDir, fileName)
+	}
 	
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
@@ -361,16 +466,37 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 		return
 	}
 	
-	// Get API key info for author
-	apiKey := c.MustGet("api_key").(models.APIKey)
-	author := fmt.Sprintf("api_key:%s", apiKey.Name)
+	// Get author info - could be from API key or JWT
+	var author string
+	if apiKeyInterface, exists := c.Get("api_key"); exists {
+		if apiKey, ok := apiKeyInterface.(models.APIKey); ok {
+			author = fmt.Sprintf("api_key:%s", apiKey.Name)
+		} else {
+			author = "api_key:unknown"
+		}
+	} else if userInterface, exists := c.Get("user"); exists {
+		if user, ok := userInterface.(models.User); ok {
+			author = fmt.Sprintf("user:%s", user.Email)
+		} else {
+			author = "user:unknown"
+		}
+	} else {
+		author = "unknown"
+	}
 	
-	// Generate URLs
+	// Generate URLs with proper host
+	host := c.Request.Host
+	scheme := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, host)
+	
 	publicURL := ""
-	privateURL := fmt.Sprintf("/p/%s/api/storage/%s/files/%s", project.Slug, bucketName, fileID)
+	privateURL := fmt.Sprintf("%s/p/%s/api/storage/%s/files/%s", baseURL, project.Slug, bucketName, fileID)
 	
 	if bucket.IsPublic {
-		publicURL = fmt.Sprintf("/storage/%s/%s/%s", project.Slug, bucketName, fileName)
+		publicURL = fmt.Sprintf("%s/storage/%s/%s/%s", baseURL, project.Slug, bucketName, fileName)
 	}
 	
 	// Create file record
@@ -379,6 +505,7 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 		OriginalName: header.Filename,
 		FileName:     fileName,
 		FilePath:     filePath,
+		FolderPath:   uploadPath, // Store the folder path within bucket
 		MimeType:     header.Header.Get("Content-Type"),
 		Size:         header.Size,
 		Checksum:     checksum,
@@ -429,6 +556,85 @@ func (h *StorageHandler) GetFile(c *gin.Context) {
 	c.File(file.FilePath)
 }
 
+// MoveFile moves a file to a different folder within the same bucket
+func (h *StorageHandler) MoveFile(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	fileID := c.Param("file_id")
+
+	var req struct {
+		NewFolderPath string `json:"new_folder_path"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Clean and validate the new path
+	newPath := req.NewFolderPath
+	if newPath != "" {
+		newPath = filepath.Clean(newPath)
+		if strings.Contains(newPath, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder path"})
+			return
+		}
+	}
+
+	// Find the file
+	var file models.File
+	if err := h.db.Where("project_id = ? AND bucket_name = ? AND id = ?", 
+		project.ID, bucketName, fileID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	// If the file is already in the target folder, no need to move
+	if file.FolderPath == newPath {
+		c.JSON(http.StatusOK, file)
+		return
+	}
+
+	// Construct the new file path on disk
+	baseDir := filepath.Join("./uploads", project.Slug, bucketName)
+	oldFilePath := file.FilePath
+	
+	var newFilePath string
+	if newPath != "" {
+		newFilePath = filepath.Join(baseDir, newPath, file.FileName)
+	} else {
+		newFilePath = filepath.Join(baseDir, file.FileName)
+	}
+
+	// Ensure the new directory exists
+	if newPath != "" {
+		newDirPath := filepath.Join(baseDir, newPath)
+		if err := os.MkdirAll(newDirPath, 0755); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create target directory"})
+			return
+		}
+	}
+
+	// Move the file on disk
+	if err := os.Rename(oldFilePath, newFilePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move file on disk"})
+		return
+	}
+
+	// Update the file record in database
+	file.FolderPath = newPath
+	file.FilePath = newFilePath
+
+	if err := h.db.Save(&file).Error; err != nil {
+		// Try to move the file back if database update fails
+		os.Rename(newFilePath, oldFilePath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update file record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, file)
+}
+
 // DeleteFile deletes a file
 func (h *StorageHandler) DeleteFile(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
@@ -457,7 +663,235 @@ func (h *StorageHandler) DeleteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
 }
 
+// CreateFolder creates a new folder in a bucket
+func (h *StorageHandler) CreateFolder(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	
+	var req struct {
+		Name string `json:"name" binding:"required"`
+		Path string `json:"path"` // Parent path, empty for root
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Verify bucket exists
+	var bucket models.Bucket
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	// Validate folder name
+	if !isValidFolderName(req.Name) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder name. Use only letters, numbers, hyphens, underscores, and spaces"})
+		return
+	}
+	
+	// Construct folder path
+	basePath := filepath.Join("./uploads", project.Slug, bucketName)
+	var folderPath string
+	
+	if req.Path != "" {
+		// Clean and validate parent path
+		parentPath := filepath.Clean(req.Path)
+		if strings.Contains(parentPath, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid parent path"})
+			return
+		}
+		folderPath = filepath.Join(basePath, parentPath, req.Name)
+	} else {
+		folderPath = filepath.Join(basePath, req.Name)
+	}
+	
+	// Check if folder already exists
+	if _, err := os.Stat(folderPath); err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Folder already exists"})
+		return
+	}
+	
+	// Create the folder
+	if err := os.MkdirAll(folderPath, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create folder"})
+		return
+	}
+	
+	// Return success response
+	relativePath := req.Path
+	if relativePath != "" {
+		relativePath = filepath.Join(relativePath, req.Name)
+	} else {
+		relativePath = req.Name
+	}
+	
+	c.JSON(http.StatusCreated, gin.H{
+		"name": req.Name,
+		"path": relativePath,
+		"message": "Folder created successfully",
+	})
+}
+
+// ListFolders returns all folders in a bucket path
+func (h *StorageHandler) ListFolders(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	path := c.Query("path") // Optional path parameter
+	
+	// Verify bucket exists
+	if !h.bucketExists(project.ID, bucketName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	// Construct directory path
+	basePath := filepath.Join("./uploads", project.Slug, bucketName)
+	var targetPath string
+	
+	if path != "" {
+		// Clean and validate path
+		cleanPath := filepath.Clean(path)
+		if strings.Contains(cleanPath, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid path"})
+			return
+		}
+		targetPath = filepath.Join(basePath, cleanPath)
+	} else {
+		targetPath = basePath
+	}
+	
+	// Read directory
+	entries, err := os.ReadDir(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Path not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read directory"})
+		}
+		return
+	}
+	
+	var folders []gin.H
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// Get folder info
+			folderPath := filepath.Join(targetPath, entry.Name())
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			
+			// Count files in folder (recursive)
+			fileCount := countFilesInDirectory(folderPath)
+			
+			relativePath := entry.Name()
+			if path != "" {
+				relativePath = filepath.Join(path, entry.Name())
+			}
+			
+			folders = append(folders, gin.H{
+				"name":         entry.Name(),
+				"path":         relativePath,
+				"created_at":   info.ModTime(),
+				"file_count":   fileCount,
+			})
+		}
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"folders": folders,
+		"path":    path,
+	})
+}
+
+// DeleteFolder deletes a folder and all its contents
+func (h *StorageHandler) DeleteFolder(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	folderPath := c.Query("path")
+	
+	if folderPath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Folder path is required"})
+		return
+	}
+	
+	// Verify bucket exists
+	if !h.bucketExists(project.ID, bucketName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	// Clean and validate path
+	cleanPath := filepath.Clean(folderPath)
+	if strings.Contains(cleanPath, "..") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder path"})
+		return
+	}
+	
+	// Construct full path
+	basePath := filepath.Join("./uploads", project.Slug, bucketName)
+	fullPath := filepath.Join(basePath, cleanPath)
+	
+	// Check if folder exists
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+	
+	// Delete folder and all contents
+	if err := os.RemoveAll(fullPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete folder"})
+		return
+	}
+	
+	// Delete file records for files that were in this folder
+	folderPrefix := cleanPath + "/"
+	h.db.Where("project_id = ? AND bucket_name = ? AND file_path LIKE ?", 
+		project.ID, bucketName, "%"+folderPrefix+"%").Delete(&models.File{})
+	
+	// Update bucket statistics
+	h.updateBucketStats(project.ID, bucketName)
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Folder deleted successfully"})
+}
+
 // Helper functions
+
+// isValidFolderName validates folder name
+func isValidFolderName(name string) bool {
+	if name == "" || len(name) > 100 {
+		return false
+	}
+	
+	// Check for reserved names
+	reservedNames := []string{".", "..", "admin", "api", "www", "config", "system"}
+	for _, reserved := range reservedNames {
+		if strings.EqualFold(name, reserved) {
+			return false
+		}
+	}
+	
+	// Allow letters, numbers, hyphens, underscores, and spaces
+	re := regexp.MustCompile(`^[a-zA-Z0-9_\- ]+$`)
+	return re.MatchString(name)
+}
+
+// countFilesInDirectory counts files in a directory recursively
+func countFilesInDirectory(dirPath string) int {
+	count := 0
+	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			count++
+		}
+		return nil
+	})
+	return count
+}
 
 // bucketExists checks if a bucket exists
 func (h *StorageHandler) bucketExists(projectID uint, bucketName string) bool {

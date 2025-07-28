@@ -6,7 +6,7 @@
 
   export let open = false;
   export let title = '';
-  export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
+  export let size: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' = 'md';
   export let closeOnEscape = true;
   export let closeOnClickOutside = true;
 
@@ -18,7 +18,9 @@
     sm: 'max-w-md',
     md: 'max-w-lg',
     lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    xl: 'max-w-4xl',
+    '2xl': 'max-w-6xl',
+    '3xl': 'max-w-7xl'
   };
 
   function handleKeydown(event: KeyboardEvent) {
@@ -72,7 +74,7 @@
     >
       <div
         bind:this={modalElement}
-        class="relative bg-background border border-border rounded-lg shadow-lg p-6"
+        class="relative bg-card border border-border rounded-lg shadow-lg p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}

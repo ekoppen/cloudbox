@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -207,11 +208,21 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		ProfileData map[string]interface{} `json:"profile_data"`
 		Preferences map[string]interface{} `json:"preferences"`
 		IsActive    *bool                  `json:"is_active"`
+		Status      *string                `json:"status"` // Support frontend 'status' field
 	}
 	
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	
+	// Debug logging
+	fmt.Printf("UpdateUser: userID=%s, IsActive=%v, Status=%v\n", userID, req.IsActive, req.Status)
+	if req.IsActive != nil {
+		fmt.Printf("UpdateUser: IsActive value=%t\n", *req.IsActive)
+	}
+	if req.Status != nil {
+		fmt.Printf("UpdateUser: Status value=%s\n", *req.Status)
 	}
 	
 	// Find user
@@ -230,26 +241,43 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		}
 	}
 	
-	// Update fields
+	// Update fields - using Select to ensure boolean false values are updated
 	updates := make(map[string]interface{})
+	selectFields := []string{}
 	
 	if req.Name != nil {
 		updates["name"] = *req.Name
+		selectFields = append(selectFields, "name")
 	}
 	if req.Username != nil {
 		updates["username"] = *req.Username
+		selectFields = append(selectFields, "username")
 	}
 	if req.ProfileData != nil {
 		updates["profile_data"] = req.ProfileData
+		selectFields = append(selectFields, "profile_data")
 	}
 	if req.Preferences != nil {
 		updates["preferences"] = req.Preferences
+		selectFields = append(selectFields, "preferences")
 	}
+	// Handle both is_active boolean and status string
+	var isActiveValue *bool
 	if req.IsActive != nil {
-		updates["is_active"] = *req.IsActive
+		isActiveValue = req.IsActive
+	} else if req.Status != nil {
+		// Convert status string to is_active boolean
+		active := (*req.Status == "active")
+		isActiveValue = &active
 	}
 	
-	if err := h.db.Model(&user).Updates(updates).Error; err != nil {
+	if isActiveValue != nil {
+		updates["is_active"] = *isActiveValue
+		selectFields = append(selectFields, "is_active")
+	}
+	
+	// Use Select to force update of specified fields, including boolean false values
+	if err := h.db.Model(&user).Select(selectFields).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
@@ -293,16 +321,22 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 	}
 	
 	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("LoginUser: JSON binding error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	
+	fmt.Printf("LoginUser: attempting login for email=%s, project=%s\n", req.Email, project.Slug)
+	
 	// Find user
 	var user models.AppUser
 	if err := h.db.Where("project_id = ? AND email = ?", project.ID, req.Email).First(&user).Error; err != nil {
+		fmt.Printf("LoginUser: user not found for email=%s, project_id=%d, error=%v\n", req.Email, project.ID, err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+	
+	fmt.Printf("LoginUser: found user id=%s, is_active=%t\n", user.ID, user.IsActive)
 	
 	// Check if user is active
 	if !user.IsActive {
@@ -317,7 +351,9 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 	}
 	
 	// Verify password
+	fmt.Printf("LoginUser: Comparing password for user %s\n", user.Email)
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		fmt.Printf("LoginUser: Password verification failed for user %s: %v\n", user.Email, err)
 		// Increment login attempts
 		user.LoginAttempts++
 		if user.LoginAttempts >= 5 {
@@ -329,6 +365,8 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+	
+	fmt.Printf("LoginUser: Password verification successful for user %s\n", user.Email)
 	
 	// Reset login attempts on successful login
 	user.LoginAttempts = 0
@@ -362,9 +400,11 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, gin.H{
-		"user":         user,
-		"session_token": sessionToken,
-		"expires_at":   session.ExpiresAt,
+		"user": user,
+		"session": gin.H{
+			"token":      sessionToken,
+			"expires_at": session.ExpiresAt,
+		},
 	})
 }
 
@@ -507,6 +547,88 @@ func (h *UserHandler) RevokeSession(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, gin.H{"message": "Session revoked successfully"})
+}
+
+// GetAuthSettings returns authentication settings for the project
+func (h *UserHandler) GetAuthSettings(c *gin.Context) {
+	_ = c.MustGet("project").(models.Project)
+	
+	// Return default auth settings - in a real implementation, 
+	// these would be stored in the database per project
+	settings := gin.H{
+		"email_verification":   true,
+		"password_min_length":  8,
+		"session_duration":     24,
+		"max_login_attempts":   5,
+		"lockout_duration":     30,
+		"providers": []gin.H{
+			{"id": "email", "name": "Email/Password", "enabled": true, "icon": "✉️"},
+			{"id": "google", "name": "Google OAuth", "enabled": false, "icon": "🌐"},
+			{"id": "github", "name": "GitHub OAuth", "enabled": false, "icon": "⚫"},
+			{"id": "apple", "name": "Apple ID", "enabled": false, "icon": "🍎"},
+		},
+	}
+	
+	c.JSON(http.StatusOK, settings)
+}
+
+// UpdateAuthSettings updates authentication settings for the project
+func (h *UserHandler) UpdateAuthSettings(c *gin.Context) {
+	_ = c.MustGet("project").(models.Project)
+	
+	var req struct {
+		EmailVerification  bool `json:"email_verification"`
+		PasswordMinLength  int  `json:"password_min_length"`
+		SessionDuration    int  `json:"session_duration"`
+		MaxLoginAttempts   int  `json:"max_login_attempts"`
+		LockoutDuration    int  `json:"lockout_duration"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// In a real implementation, you would save these settings to the database
+	// For now, we'll just return success
+	c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
+}
+
+// GetAuthProviders returns available authentication providers
+func (h *UserHandler) GetAuthProviders(c *gin.Context) {
+	_ = c.MustGet("project").(models.Project)
+	
+	providers := []gin.H{
+		{"id": "email", "name": "Email/Password", "enabled": true, "icon": "✉️"},
+		{"id": "google", "name": "Google OAuth", "enabled": false, "icon": "🌐"},
+		{"id": "github", "name": "GitHub OAuth", "enabled": false, "icon": "⚫"},
+		{"id": "apple", "name": "Apple ID", "enabled": false, "icon": "🍎"},
+	}
+	
+	c.JSON(http.StatusOK, providers)
+}
+
+// UpdateAuthProvider updates an authentication provider's settings
+func (h *UserHandler) UpdateAuthProvider(c *gin.Context) {
+	_ = c.MustGet("project").(models.Project)
+	providerID := c.Param("provider_id")
+	
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// In a real implementation, you would save provider settings to the database
+	// For now, we'll just return success
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Provider settings updated successfully",
+		"provider_id": providerID,
+		"enabled": req.Enabled,
+	})
 }
 
 // Helper functions

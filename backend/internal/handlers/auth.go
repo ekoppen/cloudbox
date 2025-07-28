@@ -288,6 +288,142 @@ func (h *AuthHandler) ListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+// CreateUser creates a new user (superadmin only)
+func (h *AuthHandler) CreateUser(c *gin.Context) {
+	var req struct {
+		Email     string `json:"email" binding:"required,email"`
+		Name      string `json:"name" binding:"required"`
+		Password  string `json:"password" binding:"required,min=8"`
+		Role      string `json:"role" binding:"required"`
+		IsActive  bool   `json:"is_active"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Validate role and convert to UserRole type
+	var userRole models.UserRole
+	switch req.Role {
+	case "user":
+		userRole = models.RoleUser
+	case "admin":
+		userRole = models.RoleAdmin
+	case "superadmin":
+		userRole = models.RoleSuperAdmin
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+		return
+	}
+	
+	// Check if user already exists
+	var existingUser models.User
+	if err := h.db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
+		return
+	}
+	
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	
+	// Create user
+	user := models.User{
+		Email:        req.Email,
+		Name:         req.Name,
+		PasswordHash: string(hashedPassword),
+		Role:         userRole,
+		IsActive:     req.IsActive,
+	}
+	
+	if err := h.db.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+	
+	// Don't return password hash
+	user.PasswordHash = ""
+	
+	c.JSON(http.StatusCreated, user)
+}
+
+// UpdateUser updates a user's details (superadmin only)
+func (h *AuthHandler) UpdateUser(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	
+	var req struct {
+		Email    string `json:"email" binding:"required,email"`
+		Name     string `json:"name" binding:"required"`
+		Role     string `json:"role" binding:"required"`
+		IsActive bool   `json:"is_active"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Validate role and convert to UserRole type
+	var userRole models.UserRole
+	switch req.Role {
+	case "user":
+		userRole = models.RoleUser
+	case "admin":
+		userRole = models.RoleAdmin
+	case "superadmin":
+		userRole = models.RoleSuperAdmin
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+		return
+	}
+	
+	// Check if email is already taken by another user
+	var existingUser models.User
+	if err := h.db.Where("email = ? AND id != ?", req.Email, uint(userID)).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Email is already taken by another user"})
+		return
+	}
+	
+	// Update user - use Select to ensure boolean false values are updated
+	updates := map[string]interface{}{
+		"email":     req.Email,
+		"name":      req.Name,
+		"role":      userRole,
+		"is_active": req.IsActive,
+	}
+	
+	result := h.db.Model(&models.User{}).Select("email", "name", "role", "is_active").Where("id = ?", uint(userID)).Updates(updates)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+	
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	
+	// Fetch and return updated user
+	var updatedUser models.User
+	if err := h.db.First(&updatedUser, uint(userID)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated user"})
+		return
+	}
+	
+	// Don't return password hash
+	updatedUser.PasswordHash = ""
+	
+	c.JSON(http.StatusOK, updatedUser)
+}
+
 // UpdateUserRole updates a user's role (superadmin only)
 func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 	userID, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -305,14 +441,22 @@ func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 	
-	// Validate role
-	if req.Role != "user" && req.Role != "admin" && req.Role != "superadmin" {
+	// Validate role and convert to UserRole type
+	var userRole models.UserRole
+	switch req.Role {
+	case "user":
+		userRole = models.RoleUser
+	case "admin":
+		userRole = models.RoleAdmin
+	case "superadmin":
+		userRole = models.RoleSuperAdmin
+	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
 		return
 	}
 	
 	// Update user role
-	result := h.db.Model(&models.User{}).Where("id = ?", uint(userID)).Update("role", req.Role)
+	result := h.db.Model(&models.User{}).Where("id = ?", uint(userID)).Update("role", userRole)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
 		return
