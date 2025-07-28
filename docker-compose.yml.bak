@@ -22,11 +22,15 @@ services:
     image: golang:1.21-alpine
     container_name: cloudbox-backend
     working_dir: /app
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgres://cloudbox:cloudbox_dev_password@postgres:5432/cloudbox?sslmode=disable
       - JWT_SECRET=your-super-secret-jwt-key-change-in-production
       - PORT=8080
       - ENVIRONMENT=development
+      - ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+      - MASTER_KEY=a1b2c3d4e5f6789012345678901234567890abcdef1234567890123456789012
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
