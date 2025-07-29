@@ -200,11 +200,16 @@
           if (messagesResponse.ok) {
             const messagesData = await messagesResponse.json();
             const messages = Array.isArray(messagesData) ? messagesData : [];
-            // Filter for GitHub-related notifications and sort by newest first
+            // Debug: Show all messages first, then filter for GitHub-related notifications
+            console.log('All messages:', messages);
             systemNotifications = messages
-              .filter(msg => msg.metadata?.type === 'github_update' || msg.metadata?.type === 'deployment_started')
+              .filter(msg => {
+                console.log('Message metadata:', msg.metadata);
+                return msg.metadata?.type === 'github_update' || msg.metadata?.type === 'deployment_started' || msg.type === 'system';
+              })
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
               .slice(0, 10); // Show last 10 notifications
+            console.log('Filtered system notifications:', systemNotifications);
           } else {
             systemNotifications = [];
           }
