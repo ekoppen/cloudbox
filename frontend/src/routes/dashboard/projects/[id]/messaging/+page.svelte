@@ -116,7 +116,9 @@
 
   async function loadMessagingStats() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/stats`, {
+      // Instead of using backend stats (which includes GitHub webhooks),
+      // calculate stats based on regular email messages only
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/messages`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -125,17 +127,36 @@
 
       if (response.ok) {
         const data = await response.json();
+        const allMessages = Array.isArray(data) ? data : [];
+        
+        // Filter out GitHub webhooks for stats calculation
+        const emailMessages = allMessages.filter(msg => 
+          !msg.metadata?.type || 
+          (msg.metadata.type !== 'github_update' && 
+           msg.metadata.type !== 'deployment_started' && 
+           msg.metadata.type !== 'webhook_test')
+        );
+        
+        // Calculate stats based on email messages only
+        const sentMessages = emailMessages.filter(msg => msg.status === 'sent');
+        const deliveredMessages = emailMessages.filter(msg => msg.status === 'delivered' || msg.status === 'sent');
+        const openedMessages = emailMessages.filter(msg => msg.opened_at);
+        const clickedMessages = emailMessages.filter(msg => msg.clicked_at);
+        
         messagingStats = {
-          total_sent: data.total_sent || data.total_messages || 0,
-          total_delivered: data.total_delivered || data.total_messages || 0,
-          total_opened: data.total_opened || 0,
-          total_clicked: data.total_clicked || 0,
-          bounce_rate: data.bounce_rate || 0,
-          open_rate: data.open_rate || 0,
-          click_rate: data.click_rate || 0,
+          total_sent: sentMessages.length,
+          total_delivered: deliveredMessages.length,
+          total_opened: openedMessages.length,
+          total_clicked: clickedMessages.length,
+          bounce_rate: 0, // Would need bounce data from backend
+          open_rate: sentMessages.length > 0 ? Math.round((openedMessages.length / sentMessages.length) * 100) : 0,
+          click_rate: sentMessages.length > 0 ? Math.round((clickedMessages.length / sentMessages.length) * 100) : 0,
         };
+        
+        console.log('Messaging stats (excluding GitHub webhooks):', messagingStats);
+        console.log('Total messages:', allMessages.length, 'Email messages:', emailMessages.length);
       } else {
-        console.error('Failed to load messaging stats:', response.status);
+        console.error('Failed to load messages for stats:', response.status);
         if (response.status === 404) {
           backendAvailable = false;
         }
@@ -152,65 +173,44 @@
 
   async function loadSystemNotifications() {
     try {
-      // First load channels to find the system notifications channel
-      const channelsResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/channels`, {
+      // Load all messages and filter for GitHub webhooks
+      const messagesResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/messages`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (channelsResponse.ok) {
-        const channelsData = await channelsResponse.json();
-        const channels = Array.isArray(channelsData) ? channelsData : [];
-        const systemChannel = channels.find(channel => 
-          channel.type === 'system' && channel.name === 'System Notifications'
-        );
-
-        if (systemChannel) {
-          // Load messages from the system channel - but this endpoint doesn't exist in admin API
-          // So we'll use the all messages endpoint and filter
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/messages`, {
-            headers: {
-              'Authorization': `Bearer ${$auth.token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (messagesResponse.ok) {
-            const messagesData = await messagesResponse.json();
-            const messages = Array.isArray(messagesData) ? messagesData : [];
-            // Debug: Show all messages first, then filter for GitHub-related notifications
-            console.log('All messages:', messages);
-            systemNotifications = messages
-              .filter(msg => {
-                console.log('Message metadata:', msg.metadata);
-                // Include all GitHub webhook-related message types
-                const isGitHubMessage = msg.metadata?.type === 'github_update' || 
-                                      msg.metadata?.type === 'deployment_started' || 
-                                      msg.metadata?.type === 'webhook_test' ||
-                                      msg.type === 'system';
-                return isGitHubMessage;
-              })
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-              .slice(0, 10); // Show last 10 notifications
-              
-            // Calculate unread count (messages newer than last viewed time)
-            if (activeTab !== 'notifications') {
-              unreadCount = systemNotifications.filter(msg => 
-                new Date(msg.created_at).getTime() > lastViewedTime
-              ).length;
-            }
-            
-            console.log('Filtered system notifications:', systemNotifications);
-          } else {
-            systemNotifications = [];
-          }
-        } else {
-          systemNotifications = [];
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json();
+        const messages = Array.isArray(messagesData) ? messagesData : [];
+        
+        // Debug: Show all messages first, then filter for GitHub-related notifications
+        console.log('All messages for GitHub filtering:', messages);
+        
+        systemNotifications = messages
+          .filter(msg => {
+            console.log('Checking message metadata:', msg.metadata);
+            // Include all GitHub webhook-related message types
+            const isGitHubMessage = msg.metadata?.type === 'github_update' || 
+                                  msg.metadata?.type === 'deployment_started' || 
+                                  msg.metadata?.type === 'webhook_test';
+            return isGitHubMessage;
+          })
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 10); // Show last 10 notifications
+          
+        // Calculate unread count (messages newer than last viewed time)
+        if (activeTab !== 'notifications') {
+          unreadCount = systemNotifications.filter(msg => 
+            new Date(msg.created_at).getTime() > lastViewedTime
+          ).length;
         }
+        
+        console.log('Filtered GitHub notifications:', systemNotifications);
+        console.log('Unread count:', unreadCount);
       } else {
-        console.error('Failed to load system notifications:', channelsResponse.status);
+        console.error('Failed to load messages for GitHub notifications:', messagesResponse.status);
         systemNotifications = [];
       }
     } catch (error) {
