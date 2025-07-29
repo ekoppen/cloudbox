@@ -28,7 +28,11 @@ func NewMessagingHandler(db *gorm.DB, cfg *config.Config) *MessagingHandler {
 
 // ListChannels returns all channels for a project
 func (h *MessagingHandler) ListChannels(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
 	
 	// Parse query parameters
 	limit := 25
@@ -48,7 +52,7 @@ func (h *MessagingHandler) ListChannels(c *gin.Context) {
 	}
 	
 	var channels []models.Channel
-	query := h.db.Where("project_id = ?", project.ID).
+	query := h.db.Where("project_id = ?", uint(projectID)).
 		Limit(limit).
 		Offset(offset).
 		Order(orderBy)
@@ -754,10 +758,14 @@ func (h *MessagingHandler) isChannelMember(projectID uint, channelID, userID str
 
 // ListAllMessages returns all messages across all channels for the project
 func (h *MessagingHandler) ListAllMessages(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
 	
 	var messages []models.Message
-	err := h.db.Where("project_id = ?", project.ID).
+	err = h.db.Where("project_id = ?", uint(projectID)).
 		Order("created_at DESC").
 		Limit(100). // Limit to recent 100 messages
 		Find(&messages).Error
@@ -772,7 +780,12 @@ func (h *MessagingHandler) ListAllMessages(c *gin.Context) {
 
 // ListTemplates returns message templates for the project
 func (h *MessagingHandler) ListTemplates(c *gin.Context) {
-	_ = c.MustGet("project").(models.Project)
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+	_ = projectID // Use projectID if needed for database queries
 	
 	// For now, return default templates. In a real implementation,
 	// these would be stored in the database per project
@@ -796,19 +809,23 @@ func (h *MessagingHandler) ListTemplates(c *gin.Context) {
 
 // GetMessagingStats returns messaging statistics for the project
 func (h *MessagingHandler) GetMessagingStats(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
 	
 	// Count total channels
 	var channelCount int64
-	h.db.Model(&models.Channel{}).Where("project_id = ?", project.ID).Count(&channelCount)
+	h.db.Model(&models.Channel{}).Where("project_id = ?", uint(projectID)).Count(&channelCount)
 	
 	// Count total messages
 	var messageCount int64
-	h.db.Model(&models.Message{}).Where("project_id = ?", project.ID).Count(&messageCount)
+	h.db.Model(&models.Message{}).Where("project_id = ?", uint(projectID)).Count(&messageCount)
 	
 	// Count active members across all channels
 	var memberCount int64
-	h.db.Model(&models.ChannelMember{}).Where("project_id = ? AND is_active = ?", project.ID, true).Count(&memberCount)
+	h.db.Model(&models.ChannelMember{}).Where("project_id = ? AND is_active = ?", uint(projectID), true).Count(&memberCount)
 	
 	stats := gin.H{
 		"total_channels": channelCount,
