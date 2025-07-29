@@ -152,6 +152,30 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/functions/:function_id/deploy", functionHandler.DeployFunction)
 				projects.POST("/:id/functions/:function_id/execute", functionHandler.ExecuteFunction)
 				projects.GET("/:id/functions/:function_id/logs", functionHandler.GetFunctionLogs)
+				
+				// Messaging API
+				projects.GET("/:id/messaging/channels", messagingHandler.ListChannels)
+				projects.POST("/:id/messaging/channels", messagingHandler.CreateChannel)
+				projects.GET("/:id/messaging/channels/:channel_id", messagingHandler.GetChannel)
+				projects.PUT("/:id/messaging/channels/:channel_id", messagingHandler.UpdateChannel)
+				projects.DELETE("/:id/messaging/channels/:channel_id", messagingHandler.DeleteChannel)
+				
+				// Channel membership
+				projects.GET("/:id/messaging/channels/:channel_id/members", messagingHandler.ListChannelMembers)
+				projects.POST("/:id/messaging/channels/:channel_id/members", messagingHandler.JoinChannel)
+				projects.DELETE("/:id/messaging/channels/:channel_id/members/:user_id", messagingHandler.LeaveChannel)
+				
+				// Messages
+				projects.GET("/:id/messaging/channels/:channel_id/messages", messagingHandler.ListMessages)
+				projects.POST("/:id/messaging/channels/:channel_id/messages", messagingHandler.SendMessage)
+				projects.GET("/:id/messaging/channels/:channel_id/messages/:message_id", messagingHandler.GetMessage)
+				projects.PUT("/:id/messaging/channels/:channel_id/messages/:message_id", messagingHandler.UpdateMessage)
+				projects.DELETE("/:id/messaging/channels/:channel_id/messages/:message_id", messagingHandler.DeleteMessage)
+				
+				// Additional messaging endpoints that frontend expects
+				projects.GET("/:id/messaging/messages", messagingHandler.ListAllMessages)
+				projects.GET("/:id/messaging/templates", messagingHandler.ListTemplates)
+				projects.GET("/:id/messaging/stats", messagingHandler.GetMessagingStats)
 			}
 
 			// Admin routes (accessible to authenticated users for demo)
@@ -290,29 +314,6 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			auth.PATCH("/providers/:provider_id", userHandler.UpdateAuthProvider)
 		}
 		
-		// Messaging API
-		projectAPI.GET("/messaging/channels", messagingHandler.ListChannels)
-		projectAPI.POST("/messaging/channels", messagingHandler.CreateChannel)
-		
-		// Additional messaging endpoints that frontend expects
-		projectAPI.GET("/messaging/messages", messagingHandler.ListAllMessages)
-		projectAPI.GET("/messaging/templates", messagingHandler.ListTemplates)
-		projectAPI.GET("/messaging/stats", messagingHandler.GetMessagingStats)
-		projectAPI.GET("/messaging/channels/:channel_id", messagingHandler.GetChannel)
-		projectAPI.PUT("/messaging/channels/:channel_id", messagingHandler.UpdateChannel)
-		projectAPI.DELETE("/messaging/channels/:channel_id", messagingHandler.DeleteChannel)
-		
-		// Channel membership
-		projectAPI.GET("/messaging/channels/:channel_id/members", messagingHandler.ListChannelMembers)
-		projectAPI.POST("/messaging/channels/:channel_id/members", messagingHandler.JoinChannel)
-		projectAPI.DELETE("/messaging/channels/:channel_id/members/:user_id", messagingHandler.LeaveChannel)
-		
-		// Messages
-		projectAPI.GET("/messaging/channels/:channel_id/messages", messagingHandler.ListMessages)
-		projectAPI.POST("/messaging/channels/:channel_id/messages", messagingHandler.SendMessage)
-		projectAPI.GET("/messaging/channels/:channel_id/messages/:message_id", messagingHandler.GetMessage)
-		projectAPI.PUT("/messaging/channels/:channel_id/messages/:message_id", messagingHandler.UpdateMessage)
-		projectAPI.DELETE("/messaging/channels/:channel_id/messages/:message_id", messagingHandler.DeleteMessage)
 		
 		// Functions execution (public access for deployed functions)
 		projectAPI.POST("/functions/:function_name", functionHandler.ExecuteFunctionByName)

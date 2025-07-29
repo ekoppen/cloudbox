@@ -45,7 +45,6 @@
   };
   let loading = true;
   let backendAvailable = true;
-  let projectSlug = '';
 
   let activeTab = 'messages';
   let showCreateMessage = false;
@@ -69,45 +68,15 @@
   $: projectId = $page.params.id;
 
   onMount(() => {
-    loadProjectData();
+    loadMessages();
+    loadTemplates();
+    loadMessagingStats();
+    loadSystemNotifications();
   });
 
-  async function loadProjectData() {
-    try {
-      // First get project details to get the slug
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}`, {
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const project = await response.json();
-        projectSlug = project.slug;
-        
-        // Now load messaging data with the correct slug
-        loadMessages();
-        loadTemplates();
-        loadMessagingStats();
-        loadSystemNotifications();
-      } else {
-        console.error('Failed to load project:', response.status);
-        backendAvailable = false;
-        loading = false;
-      }
-    } catch (error) {
-      console.error('Error loading project:', error);
-      backendAvailable = false;
-      loading = false;
-    }
-  }
-
   async function loadMessages() {
-    if (!projectSlug) return;
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/messages`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -135,10 +104,8 @@
   }
 
   async function loadTemplates() {
-    if (!projectSlug) return;
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/templates`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/templates`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -162,10 +129,8 @@
   }
 
   async function loadMessagingStats() {
-    if (!projectSlug) return;
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/stats`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/stats`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -200,11 +165,9 @@
   }
 
   async function loadSystemNotifications() {
-    if (!projectSlug) return;
-    
     try {
       // First load channels to find the system notifications channel
-      const channelsResponse = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/channels`, {
+      const channelsResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/channels`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -219,7 +182,7 @@
 
         if (systemChannel) {
           // Load messages from the system channel
-          const messagesResponse = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/channels/${systemChannel.id}/messages`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/channels/${systemChannel.id}/messages`, {
             headers: {
               'Authorization': `Bearer ${$auth.token}`,
               'Content-Type': 'application/json',
@@ -273,165 +236,25 @@
   }
 
   async function duplicateMessage(messageId: string) {
-    const message = messages.find(m => m.id === messageId);
-    if (!message || !projectSlug) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          subject: `${message.subject} (kopie)`,
-          type: message.type,
-          content: message.content,
-          status: 'draft'
-        }),
-      });
-
-      if (response.ok) {
-        const duplicate = await response.json();
-        messages = [duplicate, ...messages];
-        toast.success('Bericht gekopieerd');
-      } else {
-        toast.error('Fout bij het kopiëren van bericht');
-      }
-    } catch (error) {
-      console.error('Error duplicating message:', error);
-      toast.error('Netwerkfout bij het kopiëren van bericht');
-    }
+    toast.error('Bericht kopiëren is nog niet geïmplementeerd');
   }
 
   async function deleteMessage(messageId: string) {
-    if (!confirm('Weet je zeker dat je dit bericht wilt verwijderen?') || !projectSlug) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages/${messageId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        messages = messages.filter(m => m.id !== messageId);
-        toast.success('Bericht verwijderd');
-      } else {
-        toast.error('Fout bij het verwijderen van bericht');
-      }
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      toast.error('Netwerkfout bij het verwijderen van bericht');
-    }
+    toast.error('Bericht verwijderen is nog niet geïmplementeerd');
   }
 
   async function deleteTemplate(templateId: string) {
-    if (!confirm('Weet je zeker dat je deze template wilt verwijderen?') || !projectSlug) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/templates/${templateId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        templates = templates.filter(t => t.id !== templateId);
-        toast.success('Template verwijderd');
-      } else {
-        toast.error('Fout bij het verwijderen van template');
-      }
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      toast.error('Netwerkfout bij het verwijderen van template');
-    }
+    toast.error('Template verwijderen is nog niet geïmplementeerd');
   }
 
   async function createMessage() {
-    if (!newMessage.subject || !newMessage.content || !projectSlug) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          subject: newMessage.subject,
-          type: newMessage.type,
-          content: newMessage.content,
-          recipients: newMessage.recipients,
-          schedule_at: newMessage.schedule_at || undefined,
-          status: newMessage.schedule_at ? 'pending' : 'draft'
-        }),
-      });
-
-      if (response.ok) {
-        const message = await response.json();
-        messages = [message, ...messages];
-        showCreateMessage = false;
-        newMessage = {
-          subject: '',
-          type: 'email',
-          content: '',
-          recipients: 'all',
-          schedule_at: ''
-        };
-        toast.success('Bericht aangemaakt');
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Fout bij het aanmaken van bericht');
-      }
-    } catch (error) {
-      console.error('Error creating message:', error);
-      toast.error('Netwerkfout bij het aanmaken van bericht');
-    }
+    toast.error('Bericht aanmaken is nog niet geïmplementeerd');
+    showCreateMessage = false;
   }
 
   async function createTemplate() {
-    if (!newTemplate.name || !newTemplate.content || !projectSlug) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/templates`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newTemplate.name,
-          type: newTemplate.type,
-          subject: newTemplate.subject,
-          content: newTemplate.content,
-          variables: extractVariables(newTemplate.content + ' ' + newTemplate.subject)
-        }),
-      });
-
-      if (response.ok) {
-        const template = await response.json();
-        templates = [template, ...templates];
-        showCreateTemplate = false;
-        newTemplate = {
-          name: '',
-          type: 'email',
-          subject: '',
-          content: ''
-        };
-        toast.success('Template aangemaakt');
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Fout bij het aanmaken van template');
-      }
-    } catch (error) {
-      console.error('Error creating template:', error);
-      toast.error('Netwerkfout bij het aanmaken van template');
-    }
+    toast.error('Template aanmaken is nog niet geïmplementeerd');
+    showCreateTemplate = false;
   }
 
   function extractVariables(text: string): string[] {
@@ -441,33 +264,7 @@
   }
 
   async function sendMessage(messageId: string) {
-    if (!confirm('Weet je zeker dat je dit bericht wilt versturen?') || !projectSlug) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages/${messageId}/send`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        messages = messages.map(m => 
-          m.id === messageId ? { 
-            ...m, 
-            status: 'sent',
-            sent_at: new Date().toISOString()
-          } : m
-        );
-        toast.success('Bericht verstuurd');
-      } else {
-        toast.error('Fout bij het versturen van bericht');
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Netwerkfout bij het versturen van bericht');
-    }
+    toast.error('Bericht versturen is nog niet geïmplementeerd');
   }
 
   function useTemplate(template: MessageTemplate) {
