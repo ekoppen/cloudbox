@@ -42,12 +42,13 @@
   let systemNotifications: any[] = [];
   let showNotifications = true;
   let expandedNotifications = new Set(); // Track which notifications are expanded
+  let expandedMessages = new Set(); // Track which messages are expanded
   let refreshInterval: number;
   let lastViewedTime = Date.now(); // Track when user last viewed notifications
   let unreadCount = 0;
   let newMessage = {
     subject: '',
-    type: 'email' as 'email' | 'sms' | 'push',
+    type: 'email',
     content: '',
     recipients: 'all',
     schedule_at: ''
@@ -84,7 +85,14 @@
 
       if (response.ok) {
         const data = await response.json();
-        messages = Array.isArray(data) ? data : [];
+        const allMessages = Array.isArray(data) ? data : [];
+        // Filter out GitHub webhook messages - these should only appear in GitHub Meldingen tab
+        messages = allMessages.filter(msg => 
+          !msg.metadata?.type || 
+          (msg.metadata.type !== 'github_update' && 
+           msg.metadata.type !== 'deployment_started' && 
+           msg.metadata.type !== 'webhook_test')
+        );
       } else {
         console.error('Failed to load messages:', response.status);
         messages = [];
@@ -240,9 +248,6 @@
     });
   }
 
-  async function duplicateMessage(messageId: string) {
-    toast.error('Bericht kopiëren is nog niet geïmplementeerd');
-  }
 
   async function deleteMessage(messageId: string) {
     toast.error('Bericht verwijderen is nog niet geïmplementeerd');
@@ -313,6 +318,15 @@
     expandedNotifications = expandedNotifications; // Trigger reactivity
   }
 
+  function toggleMessageExpansion(messageId: string) {
+    if (expandedMessages.has(messageId)) {
+      expandedMessages.delete(messageId);
+    } else {
+      expandedMessages.add(messageId);
+    }
+    expandedMessages = expandedMessages; // Trigger reactivity
+  }
+
   function markNotificationsAsRead() {
     lastViewedTime = Date.now();
     unreadCount = 0;
@@ -374,7 +388,7 @@
       <div>
         <h1 class="text-2xl font-bold text-foreground">Berichten</h1>
         <p class="text-sm text-muted-foreground">
-          Verstuur emails, SMS en push notificaties naar gebruikers
+          GitHub webhook notificaties en instellingen voor Gmail en Discord
         </p>
       </div>
     </div>
@@ -496,8 +510,11 @@
   {#if activeTab === 'messages'}
     <div class="space-y-4">
       {#each messages as message}
-        <Card class="p-6">
-          <div class="flex items-center justify-between">
+        <Card 
+          class="p-6 cursor-pointer hover:bg-muted/30 hover:border-muted-foreground/20 transition-colors"
+          on:click={() => toggleMessageExpansion(message.id)}
+        >
+          <div class="flex items-start justify-between">
             <div class="flex-1">
               <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -518,14 +535,46 @@
                 </div>
               </div>
               
-              <p class="mt-2 text-sm text-muted-foreground line-clamp-2">{message.content}</p>
+              <!-- Message content preview/full -->
+              {#if expandedMessages.has(message.id)}
+                <div class="mt-3 text-sm text-foreground">
+                  <p class="whitespace-pre-wrap">{message.content}</p>
+                </div>
+              {:else}
+                <div class="mt-2 text-sm text-muted-foreground">
+                  <p class="line-clamp-2">{message.content}</p>
+                  {#if message.content.length > 100}
+                    <p class="text-xs mt-1 text-muted-foreground/70">Klik om volledig bericht te bekijken</p>
+                  {/if}
+                </div>
+              {/if}
             </div>
 
             <div class="flex items-center space-x-3">
+              <!-- Expand/Collapse icon -->
+              <Button
+                variant="ghost"
+                size="sm"
+                class="w-8 h-8 p-0"
+                on:click={(e) => {
+                  e.stopPropagation();
+                  toggleMessageExpansion(message.id);
+                }}
+              >
+                <Icon 
+                  name={expandedMessages.has(message.id) ? 'arrow-down' : 'arrow-right'} 
+                  size={14} 
+                  className="text-muted-foreground"
+                />
+              </Button>
+              
               {#if message.status === 'draft' || message.status === 'pending'}
                 <Button
                   size="sm"
-                  on:click={() => sendMessage(message.id)}
+                  on:click={(e) => {
+                    e.stopPropagation();
+                    sendMessage(message.id);
+                  }}
                   class="flex items-center space-x-1"
                 >
                   <Icon name="messaging" size={14} />
@@ -535,22 +584,13 @@
               <Button
                 variant="ghost"
                 size="sm"
-                on:click={() => duplicateMessage(message.id)}
+                class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                on:click={(e) => {
+                  e.stopPropagation();
+                  deleteMessage(message.id);
+                }}
               >
-                Kopiëren
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-              >
-                Statistieken
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                class="text-destructive hover:text-destructive"
-                on:click={() => deleteMessage(message.id)}
-              >
+                <Icon name="backup" size={14} className="mr-1" />
                 Verwijderen
               </Button>
             </div>
@@ -862,8 +902,6 @@
               class="w-full p-2 border border-border rounded-md bg-background text-foreground mt-1 focus:ring-2 focus:ring-primary"
             >
               <option value="email">✉️ Email</option>
-              <option value="sms">💬 SMS</option>
-              <option value="push">🔔 Push Notificatie</option>
             </select>
           </div>
 
