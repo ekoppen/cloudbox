@@ -584,3 +584,103 @@ func (h *DeploymentHandler) configurePhotoPortfolioEnvironment(env map[string]in
 func containsKeyword(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
+
+// HandleWebhook handles GitHub webhook requests for automatic deployments
+func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
+	// Get repository ID from URL parameter
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Find the GitHub repository
+	var repository models.GitHubRepository
+	if err := h.db.Where("id = ?", uint(repoID)).First(&repository).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch repository"})
+		}
+		return
+	}
+
+	// Verify webhook secret if provided
+	webhookSecret := c.GetHeader("X-Hub-Signature-256")
+	if webhookSecret != "" {
+		// In a full implementation, verify the webhook signature here
+		// For now, we'll just acknowledge the webhook
+	}
+
+	// Parse the webhook payload
+	var payload map[string]interface{}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		return
+	}
+
+	// Check if this is a push event
+	eventType := c.GetHeader("X-GitHub-Event")
+	if eventType != "push" {
+		// Only handle push events for now
+		c.JSON(http.StatusOK, gin.H{"message": "Event ignored", "event": eventType})
+		return
+	}
+
+	// Extract commit information from payload
+	commitHash := ""
+	branch := ""
+	
+	if ref, ok := payload["ref"].(string); ok {
+		// Extract branch name from ref (e.g., "refs/heads/main" -> "main")
+		if strings.HasPrefix(ref, "refs/heads/") {
+			branch = strings.TrimPrefix(ref, "refs/heads/")
+		}
+	}
+	
+	if headCommit, ok := payload["head_commit"].(map[string]interface{}); ok {
+		if id, ok := headCommit["id"].(string); ok {
+			commitHash = id
+		}
+	}
+
+	// Check if the branch matches the repository's configured branch
+	if branch != "" && branch != repository.Branch {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Branch ignored", 
+			"branch": branch,
+			"configured_branch": repository.Branch,
+		})
+		return
+	}
+
+	// Find deployments that use this repository and have auto-deploy enabled
+	var deployments []models.Deployment
+	if err := h.db.Where("github_repository_id = ? AND is_auto_deploy_enabled = ?", repository.ID, true).
+		Preload("GitHubRepository").Preload("WebServer").Find(&deployments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deployments"})
+		return
+	}
+
+	if len(deployments) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "No auto-deploy enabled deployments found for this repository",
+		})
+		return
+	}
+
+	// Trigger deployments
+	deployedCount := 0
+	for _, deployment := range deployments {
+		// Start deployment in background
+		go h.executeRealDeployment(deployment, commitHash, branch)
+		deployedCount++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": fmt.Sprintf("Triggered %d deployments", deployedCount),
+		"deployments_triggered": deployedCount,
+		"commit": commitHash,
+		"branch": branch,
+	})
+}
