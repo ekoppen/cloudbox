@@ -86,12 +86,13 @@
       if (response.ok) {
         const data = await response.json();
         const allMessages = Array.isArray(data) ? data : [];
-        // Filter out GitHub webhook messages - these should only appear in GitHub Meldingen tab
+        // Filter out GitHub webhook messages and deleted messages
         messages = allMessages.filter(msg => 
-          !msg.metadata?.type || 
-          (msg.metadata.type !== 'github_update' && 
-           msg.metadata.type !== 'deployment_started' && 
-           msg.metadata.type !== 'webhook_test')
+          !msg.is_deleted && // Exclude deleted messages
+          (!msg.metadata?.type || 
+           (msg.metadata.type !== 'github_update' && 
+            msg.metadata.type !== 'deployment_started' && 
+            msg.metadata.type !== 'webhook_test'))
         );
       } else {
         console.error('Failed to load messages:', response.status);
@@ -129,12 +130,13 @@
         const data = await response.json();
         const allMessages = Array.isArray(data) ? data : [];
         
-        // Filter out GitHub webhooks for stats calculation
+        // Filter out GitHub webhooks and deleted messages for stats calculation
         const emailMessages = allMessages.filter(msg => 
-          !msg.metadata?.type || 
-          (msg.metadata.type !== 'github_update' && 
-           msg.metadata.type !== 'deployment_started' && 
-           msg.metadata.type !== 'webhook_test')
+          !msg.is_deleted && // Exclude deleted messages
+          (!msg.metadata?.type || 
+           (msg.metadata.type !== 'github_update' && 
+            msg.metadata.type !== 'deployment_started' && 
+            msg.metadata.type !== 'webhook_test'))
         );
         
         // Calculate stats based on email messages only
@@ -190,12 +192,13 @@
         
         systemNotifications = messages
           .filter(msg => {
-            console.log('Checking message metadata:', msg.metadata);
-            // Include all GitHub webhook-related message types
+            console.log('Checking message metadata:', msg.metadata, 'is_deleted:', msg.is_deleted);
+            // Include all GitHub webhook-related message types that are not deleted
             const isGitHubMessage = msg.metadata?.type === 'github_update' || 
                                   msg.metadata?.type === 'deployment_started' || 
                                   msg.metadata?.type === 'webhook_test';
-            return isGitHubMessage;
+            const notDeleted = !msg.is_deleted;
+            return isGitHubMessage && notDeleted;
           })
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 10); // Show last 10 notifications
@@ -344,10 +347,14 @@
 
       if (response.ok) {
         toast.success('Bericht verwijderd');
-        // Remove from local array immediately for better UX
+        // Remove from local array immediately - no need to reload since filtering handles it
         systemNotifications = systemNotifications.filter(n => n.id !== messageId);
-        // Reload to ensure consistency
-        await loadSystemNotifications();
+        // Update unread count if necessary
+        if (activeTab !== 'notifications') {
+          unreadCount = systemNotifications.filter(msg => 
+            new Date(msg.created_at).getTime() > lastViewedTime
+          ).length;
+        }
       } else {
         const error = await response.json();
         toast.error(error.error || 'Kon bericht niet verwijderen');
