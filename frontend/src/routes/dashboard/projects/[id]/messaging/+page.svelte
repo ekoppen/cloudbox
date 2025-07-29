@@ -49,6 +49,8 @@
   let activeTab = 'messages';
   let showCreateMessage = false;
   let showCreateTemplate = false;
+  let systemNotifications = [];
+  let showNotifications = true;
   let newMessage = {
     subject: '',
     type: 'email' as 'email' | 'sms' | 'push',
@@ -69,6 +71,7 @@
     loadMessages();
     loadTemplates();
     loadMessagingStats();
+    loadSystemNotifications();
   });
 
   async function loadMessages() {
@@ -158,6 +161,48 @@
       }
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadSystemNotifications() {
+    try {
+      // First load channels to find the system notifications channel
+      const channelsResponse = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/channels`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (channelsResponse.ok) {
+        const channels = await channelsResponse.json();
+        const systemChannel = channels.find(channel => 
+          channel.type === 'system' && channel.name === 'System Notifications'
+        );
+
+        if (systemChannel) {
+          // Load messages from the system channel
+          const messagesResponse = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/channels/${systemChannel.id}/messages`, {
+            headers: {
+              'Authorization': `Bearer ${$auth.token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (messagesResponse.ok) {
+            const messages = await messagesResponse.json();
+            // Filter for GitHub-related notifications and sort by newest first
+            systemNotifications = messages
+              .filter(msg => msg.metadata?.type === 'github_update' || msg.metadata?.type === 'deployment_started')
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .slice(0, 10); // Show last 10 notifications
+          }
+        }
+      } else {
+        console.error('Failed to load system notifications:', channelsResponse.status);
+      }
+    } catch (error) {
+      console.error('Error loading system notifications:', error);
     }
   }
 
@@ -398,6 +443,49 @@
     };
     showCreateMessage = true;
   }
+
+  async function deployFromNotification(notification) {
+    if (!notification.metadata?.repository_id) return;
+    
+    const repositoryId = notification.metadata.repository_id;
+    const repositoryName = notification.metadata.repository_name;
+    
+    if (!confirm(`Weet je zeker dat je de pending update voor ${repositoryName} wilt deployen?`)) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repositoryId}/deploy-pending`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(`Deployment gestart voor ${result.deployments_started} environment(s)`);
+        // Reload notifications to update the UI
+        await loadSystemNotifications();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij starten deployment');
+      }
+    } catch (error) {
+      console.error('Error deploying from notification:', error);
+      toast.error('Netwerkfout bij deployment');
+    }
+  }
+
+  function formatNotificationTime(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Zojuist';
+    if (diffInMinutes < 60) return `${diffInMinutes}m geleden`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}u geleden`;
+    return `${Math.floor(diffInMinutes / 1440)}d geleden`;
+  }
 </script>
 
 <svelte:head>
@@ -530,6 +618,17 @@
       >
         <Icon name="backup" size={16} />
         <span>Templates ({templates.length})</span>
+      </button>
+      <button
+        on:click={() => activeTab = 'notifications'}
+        class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
+          activeTab === 'notifications' 
+            ? 'border-primary text-primary' 
+            : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+        }"
+      >
+        <Icon name="github" size={16} />
+        <span>GitHub Meldingen ({systemNotifications.length})</span>
       </button>
       <button
         on:click={() => activeTab = 'settings'}
@@ -708,6 +807,91 @@
             <Icon name="backup" size={16} />
             <span>Nieuwe Template</span>
           </Button>
+        </Card>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- GitHub Notifications Tab -->
+  {#if activeTab === 'notifications'}
+    <div class="space-y-4">
+      {#if systemNotifications.length > 0}
+        {#each systemNotifications as notification}
+          <Card class="p-6">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                    <Icon name="github" size={16} className="text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div class="flex-1">
+                    <div class="flex items-center space-x-2">
+                      <h3 class="text-lg font-medium text-foreground">
+                        {notification.metadata?.repository_name || 'Repository'}
+                      </h3>
+                      {#if notification.metadata?.type === 'github_update'}
+                        <Badge class="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">
+                          Update Beschikbaar
+                        </Badge>
+                      {:else if notification.metadata?.type === 'deployment_started'}
+                        <Badge class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                          Deployment Gestart
+                        </Badge>
+                      {/if}
+                    </div>
+                    <div class="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                      <span>Commit: {notification.metadata?.commit_hash?.substring(0, 8) || 'Unknown'}</span>
+                      <span>{formatNotificationTime(notification.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="mt-3 text-sm text-foreground">
+                  {@html notification.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`(.*?)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>').replace(/\n/g, '<br>')}
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-3 ml-4">
+                {#if notification.metadata?.type === 'github_update' && notification.metadata?.can_deploy}
+                  <Button
+                    size="sm"
+                    on:click={() => deployFromNotification(notification)}
+                    class="bg-orange-600 text-white hover:bg-orange-700"
+                  >
+                    <Icon name="rocket" size={14} className="mr-1" />
+                    Deploy
+                  </Button>
+                {/if}
+                
+                {#if notification.metadata?.github_url}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={() => window.open(notification.metadata.github_url, '_blank')}
+                  >
+                    <Icon name="github" size={14} className="mr-1" />
+                    Bekijk op GitHub
+                  </Button>
+                {/if}
+              </div>
+            </div>
+          </Card>
+        {/each}
+      {:else}
+        <Card class="p-12 text-center">
+          <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
+            <Icon name="github" size={32} className="text-muted-foreground" />
+          </div>
+          <h3 class="text-lg font-medium text-foreground mb-2">Geen GitHub meldingen</h3>
+          <p class="text-muted-foreground mb-4">Hier verschijnen meldingen over repository updates en deployments</p>
+          <div class="text-sm text-muted-foreground">
+            <p>Meldingen worden automatisch aangemaakt wanneer:</p>
+            <ul class="mt-2 space-y-1">
+              <li>• Er nieuwe commits zijn gepusht naar je repository</li>
+              <li>• Een deployment wordt gestart</li>
+              <li>• Er problemen zijn met deployments</li>
+            </ul>
+          </div>
         </Card>
       {/if}
     </div>

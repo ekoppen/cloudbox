@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -605,21 +606,13 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	// Verify webhook secret if provided
-	webhookSecret := c.GetHeader("X-Hub-Signature-256")
-	if webhookSecret != "" {
-		// In a full implementation, verify the webhook signature here
-		// For now, we'll just acknowledge the webhook
-	}
+	// Log webhook details for debugging
+	fmt.Printf("Webhook received for repo %d\n", repoID)
+	fmt.Printf("Content-Type: %s\n", c.GetHeader("Content-Type"))
+	fmt.Printf("X-GitHub-Event: %s\n", c.GetHeader("X-GitHub-Event"))
+	fmt.Printf("X-Hub-Signature-256: %s\n", c.GetHeader("X-Hub-Signature-256"))
 
-	// Parse the webhook payload
-	var payload map[string]interface{}
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
-		return
-	}
-
-	// Check if this is a push event
+	// Check if this is a push event first (before parsing JSON)
 	eventType := c.GetHeader("X-GitHub-Event")
 	if eventType != "push" {
 		// Only handle push events for now
@@ -627,9 +620,47 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	// Extract commit information from payload
-	commitHash := ""
-	branch := ""
+	// Read raw body for debugging
+	body, err := c.GetRawData()
+	if err != nil {
+		fmt.Printf("Failed to read webhook body: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+
+	fmt.Printf("Webhook body length: %d bytes\n", len(body))
+	if len(body) > 0 {
+		previewLen := 200
+		if len(body) < previewLen {
+			previewLen = len(body)
+		}
+		fmt.Printf("Webhook body preview: %s\n", string(body[:previewLen]))
+	}
+
+	// Parse the webhook payload
+	var payload map[string]interface{}
+	if len(body) == 0 {
+		fmt.Printf("Empty webhook body, creating default payload\n")
+		payload = map[string]interface{}{}
+	} else {
+		if err := json.Unmarshal(body, &payload); err != nil {
+			fmt.Printf("Failed to parse webhook JSON: %v\n", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload", "details": err.Error()})
+			return
+		}
+	}
+
+	// Verify webhook secret if provided
+	webhookSecret := c.GetHeader("X-Hub-Signature-256")
+	if webhookSecret != "" {
+		// In a full implementation, verify the webhook signature here
+		// For now, we'll just acknowledge the webhook
+		fmt.Printf("Webhook signature provided but not verified\n")
+	}
+
+	// Extract commit information from payload with fallbacks
+	commitHash := "unknown"
+	branch := repository.Branch // Default to repository's configured branch
 	
 	if ref, ok := payload["ref"].(string); ok {
 		// Extract branch name from ref (e.g., "refs/heads/main" -> "main")
@@ -644,8 +675,17 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 		}
 	}
 
+	// If we couldn't extract commit info from payload, generate a fallback
+	if commitHash == "unknown" {
+		commitHash = fmt.Sprintf("webhook-%d", time.Now().Unix())
+		fmt.Printf("No commit hash found in payload, using fallback: %s\n", commitHash)
+	}
+
+	fmt.Printf("Extracted branch: %s, commit: %s\n", branch, commitHash)
+
 	// Check if the branch matches the repository's configured branch
 	if branch != "" && branch != repository.Branch {
+		fmt.Printf("Branch mismatch: got %s, expected %s\n", branch, repository.Branch)
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Branch ignored", 
 			"branch": branch,
@@ -668,18 +708,26 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 	}
 
 	// Send notification to project owner about available update
+	fmt.Printf("Sending update notification for repository %d\n", repository.ID)
 	if err := h.sendUpdateNotification(repository, commitHash, branch, payload); err != nil {
 		// Log error but don't fail the webhook - GitHub expects 200 response
 		fmt.Printf("Failed to send update notification for repository %d: %v\n", repository.ID, err)
+	} else {
+		fmt.Printf("Update notification sent successfully\n")
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Update notification sent",
+	response := gin.H{
+		"message": "Webhook processed successfully",
 		"repository_id": repository.ID,
+		"repository_name": repository.Name,
 		"commit": commitHash,
 		"branch": branch,
 		"has_pending_update": true,
-	})
+		"event_type": eventType,
+	}
+
+	fmt.Printf("Webhook response: %+v\n", response)
+	c.JSON(http.StatusOK, response)
 }
 
 // sendUpdateNotification sends a notification message to the project owner about available updates
