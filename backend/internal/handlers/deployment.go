@@ -616,10 +616,11 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 	fmt.Printf("X-Hub-Signature-256: %s\n", c.GetHeader("X-Hub-Signature-256"))
 	fmt.Printf("User-Agent: %s\n", c.GetHeader("User-Agent"))
 
-	// Check if this is a push event first (before parsing JSON)
+	// Check if this is a push or ping event first (before parsing JSON)
 	eventType := c.GetHeader("X-GitHub-Event")
-	if eventType != "push" {
-		// Only handle push events for now
+	if eventType != "push" && eventType != "ping" {
+		// Only handle push and ping events for now
+		fmt.Printf("Event ignored: %s\n", eventType)
 		c.JSON(http.StatusOK, gin.H{"message": "Event ignored", "event": eventType})
 		return
 	}
@@ -662,7 +663,29 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 		fmt.Printf("Webhook signature provided but not verified\n")
 	}
 
-	// Extract commit information from payload with fallbacks
+	// Handle ping events specially (for webhook testing)
+	if eventType == "ping" {
+		fmt.Printf("Handling ping event - creating test notification\n")
+		commitHash := "ping-test-" + fmt.Sprintf("%d", time.Now().Unix())
+		branch := repository.Branch
+		
+		// Create a test notification for ping events
+		if err := h.sendUpdateNotification(repository, commitHash, branch, payload); err != nil {
+			fmt.Printf("❌ PING NOTIFICATION FAILED: %v\n", err)
+		} else {
+			fmt.Printf("✅ PING NOTIFICATION SENT SUCCESSFULLY\n")
+		}
+		
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Ping webhook processed successfully",
+			"repository_id": repository.ID,
+			"repository_name": repository.Name,
+			"event_type": "ping",
+		})
+		return
+	}
+	
+	// Extract commit information from payload with fallbacks (for push events)
 	commitHash := "unknown"
 	branch := repository.Branch // Default to repository's configured branch
 	
