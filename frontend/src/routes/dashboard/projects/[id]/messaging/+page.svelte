@@ -811,7 +811,10 @@
                   variant="ghost"
                   size="sm"
                   class="w-8 h-8 p-0"
-                  on:click|stopPropagation={() => toggleNotificationExpansion(notification.id)}
+                  on:click={(e) => {
+                    e.stopPropagation();
+                    toggleNotificationExpansion(notification.id);
+                  }}
                 >
                   <Icon 
                     name={expandedNotifications.has(notification.id) ? 'arrow-down' : 'arrow-right'} 
@@ -823,7 +826,10 @@
                 {#if notification.metadata?.type === 'github_update' && notification.metadata?.can_deploy}
                   <Button
                     size="sm"
-                    on:click|stopPropagation={() => deployFromNotification(notification)}
+                    on:click={(e) => {
+                      e.stopPropagation();
+                      deployFromNotification(notification);
+                    }}
                     class="bg-orange-600 text-white hover:bg-orange-700"
                   >
                     <Icon name="rocket" size={14} className="mr-1" />
@@ -835,7 +841,10 @@
                   <Button
                     variant="outline"
                     size="sm"
-                    on:click|stopPropagation={() => window.open(notification.metadata.github_url, '_blank')}
+                    on:click={(e) => {
+                      e.stopPropagation();
+                      window.open(notification.metadata.github_url, '_blank');
+                    }}
                   >
                     <Icon name="github" size={14} className="mr-1" />
                     Bekijk op GitHub
@@ -845,7 +854,10 @@
                 <Button
                   variant="ghost"
                   size="sm"
-                  on:click|stopPropagation={() => deleteNotification(notification.id)}
+                  on:click={(e) => {
+                    e.stopPropagation();
+                    deleteNotification(notification.id);
+                  }}
                   class="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Icon name="backup" size={14} className="mr-1" />
