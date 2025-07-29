@@ -79,7 +79,7 @@ func (h *MessagingHandler) ListChannels(c *gin.Context) {
 	
 	// Get total count
 	var total int64
-	countQuery := h.db.Model(&models.Channel{}).Where("project_id = ?", project.ID)
+	countQuery := h.db.Model(&models.Channel{}).Where("project_id = ?", uint(projectID))
 	if channelType := c.Query("type"); channelType != "" {
 		countQuery = countQuery.Where("type = ?", channelType)
 	}

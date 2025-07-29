@@ -153,29 +153,11 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/functions/:function_id/execute", functionHandler.ExecuteFunction)
 				projects.GET("/:id/functions/:function_id/logs", functionHandler.GetFunctionLogs)
 				
-				// Messaging API
-				projects.GET("/:id/messaging/channels", messagingHandler.ListChannels)
-				projects.POST("/:id/messaging/channels", messagingHandler.CreateChannel)
-				projects.GET("/:id/messaging/channels/:channel_id", messagingHandler.GetChannel)
-				projects.PUT("/:id/messaging/channels/:channel_id", messagingHandler.UpdateChannel)
-				projects.DELETE("/:id/messaging/channels/:channel_id", messagingHandler.DeleteChannel)
-				
-				// Channel membership
-				projects.GET("/:id/messaging/channels/:channel_id/members", messagingHandler.ListChannelMembers)
-				projects.POST("/:id/messaging/channels/:channel_id/members", messagingHandler.JoinChannel)
-				projects.DELETE("/:id/messaging/channels/:channel_id/members/:user_id", messagingHandler.LeaveChannel)
-				
-				// Messages
-				projects.GET("/:id/messaging/channels/:channel_id/messages", messagingHandler.ListMessages)
-				projects.POST("/:id/messaging/channels/:channel_id/messages", messagingHandler.SendMessage)
-				projects.GET("/:id/messaging/channels/:channel_id/messages/:message_id", messagingHandler.GetMessage)
-				projects.PUT("/:id/messaging/channels/:channel_id/messages/:message_id", messagingHandler.UpdateMessage)
-				projects.DELETE("/:id/messaging/channels/:channel_id/messages/:message_id", messagingHandler.DeleteMessage)
-				
-				// Additional messaging endpoints that frontend expects
+				// Messaging API (simplified - only endpoints that frontend uses)
 				projects.GET("/:id/messaging/messages", messagingHandler.ListAllMessages)
 				projects.GET("/:id/messaging/templates", messagingHandler.ListTemplates)
 				projects.GET("/:id/messaging/stats", messagingHandler.GetMessagingStats)
+				projects.GET("/:id/messaging/channels", messagingHandler.ListChannels)
 			}
 
 			// Admin routes (accessible to authenticated users for demo)
