@@ -51,6 +51,7 @@
   let showCreateTemplate = false;
   let systemNotifications: any[] = [];
   let showNotifications = true;
+  let expandedNotifications = new Set(); // Track which notifications are expanded
   let newMessage = {
     subject: '',
     type: 'email' as 'email' | 'sms' | 'push',
@@ -205,7 +206,12 @@
             systemNotifications = messages
               .filter(msg => {
                 console.log('Message metadata:', msg.metadata);
-                return msg.metadata?.type === 'github_update' || msg.metadata?.type === 'deployment_started' || msg.type === 'system';
+                // Include all GitHub webhook-related message types
+                const isGitHubMessage = msg.metadata?.type === 'github_update' || 
+                                      msg.metadata?.type === 'deployment_started' || 
+                                      msg.metadata?.type === 'webhook_test' ||
+                                      msg.type === 'system';
+                return isGitHubMessage;
               })
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
               .slice(0, 10); // Show last 10 notifications
@@ -339,6 +345,15 @@
     if (diffInMinutes < 60) return `${diffInMinutes}m geleden`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}u geleden`;
     return `${Math.floor(diffInMinutes / 1440)}d geleden`;
+  }
+
+  function toggleNotificationExpansion(notificationId: string) {
+    if (expandedNotifications.has(notificationId)) {
+      expandedNotifications.delete(notificationId);
+    } else {
+      expandedNotifications.add(notificationId);
+    }
+    expandedNotifications = expandedNotifications; // Trigger reactivity
   }
 </script>
 
@@ -671,7 +686,10 @@
     <div class="space-y-4">
       {#if systemNotifications.length > 0}
         {#each systemNotifications as notification}
-          <Card class="p-6">
+          <Card 
+            class="p-6 cursor-pointer hover:bg-muted/30 hover:border-muted-foreground/20 transition-colors"
+            on:click={() => toggleNotificationExpansion(notification.id)}
+          >
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center space-x-3">
@@ -691,25 +709,57 @@
                         <Badge class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                           Deployment Gestart
                         </Badge>
+                      {:else if notification.metadata?.type === 'webhook_test'}
+                        <Badge class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                          Webhook Test
+                        </Badge>
                       {/if}
                     </div>
                     <div class="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                      <span>Commit: {notification.metadata?.commit_hash?.substring(0, 8) || 'Unknown'}</span>
+                      {#if notification.metadata?.type === 'webhook_test'}
+                        <span>Hook ID: #{notification.metadata?.hook_id || 'Unknown'}</span>
+                      {:else}
+                        <span>Commit: {notification.metadata?.commit_hash?.substring(0, 8) || 'Unknown'}</span>
+                      {/if}
                       <span>{formatNotificationTime(notification.created_at)}</span>
                     </div>
                   </div>
                 </div>
                 
                 <div class="mt-3 text-sm text-foreground">
-                  {@html notification.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`(.*?)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>').replace(/\n/g, '<br>')}
+                  {#if expandedNotifications.has(notification.id)}
+                    {@html notification.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`(.*?)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>').replace(/\n/g, '<br>')}
+                  {:else}
+                    <!-- Show preview of content -->
+                    <div class="line-clamp-2">
+                      {@html notification.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`(.*?)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>').replace(/\n/g, '<br>')}
+                    </div>
+                    <div class="mt-2 text-xs text-muted-foreground">
+                      Klik om volledig bericht te bekijken
+                    </div>
+                  {/if}
                 </div>
               </div>
 
               <div class="flex items-center space-x-3 ml-4">
+                <!-- Expand/Collapse icon -->
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="w-8 h-8 p-0"
+                  on:click|stopPropagation={() => toggleNotificationExpansion(notification.id)}
+                >
+                  <Icon 
+                    name={expandedNotifications.has(notification.id) ? 'arrow-down' : 'arrow-right'} 
+                    size={14} 
+                    className="text-muted-foreground"
+                  />
+                </Button>
+                
                 {#if notification.metadata?.type === 'github_update' && notification.metadata?.can_deploy}
                   <Button
                     size="sm"
-                    on:click={() => deployFromNotification(notification)}
+                    on:click|stopPropagation={() => deployFromNotification(notification)}
                     class="bg-orange-600 text-white hover:bg-orange-700"
                   >
                     <Icon name="rocket" size={14} className="mr-1" />
@@ -721,7 +771,7 @@
                   <Button
                     variant="outline"
                     size="sm"
-                    on:click={() => window.open(notification.metadata.github_url, '_blank')}
+                    on:click|stopPropagation={() => window.open(notification.metadata.github_url, '_blank')}
                   >
                     <Icon name="github" size={14} className="mr-1" />
                     Bekijk op GitHub
