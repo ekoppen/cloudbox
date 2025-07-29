@@ -471,7 +471,7 @@
         }"
       >
         <Icon name="backup" size={16} />
-        <span>Templates ({templates.length})</span>
+        <span>Templates ({templates?.length || 0})</span>
       </button>
       <button
         on:click={() => activeTab = 'notifications'}

@@ -666,11 +666,9 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 	// Handle ping events specially (for webhook testing)
 	if eventType == "ping" {
 		fmt.Printf("Handling ping event - creating test notification\n")
-		commitHash := "ping-test-" + fmt.Sprintf("%d", time.Now().Unix())
-		branch := repository.Branch
 		
-		// Create a test notification for ping events
-		if err := h.sendUpdateNotification(repository, commitHash, branch, payload); err != nil {
+		// Create a ping notification with actual GitHub data
+		if err := h.sendPingNotification(repository, payload); err != nil {
 			fmt.Printf("❌ PING NOTIFICATION FAILED: %v\n", err)
 		} else {
 			fmt.Printf("✅ PING NOTIFICATION SENT SUCCESSFULLY\n")
@@ -879,6 +877,81 @@ func (h *DeploymentHandler) getOrCreateNotificationChannel(projectID uint) (stri
 }
 
 // generateUUID generates a UUID string
+// sendPingNotification sends a specific notification for GitHub ping events
+func (h *DeploymentHandler) sendPingNotification(repository models.GitHubRepository, payload map[string]interface{}) error {
+	fmt.Printf("📧 Starting sendPingNotification for project %d\n", repository.ProjectID)
+	
+	// Extract information from ping payload
+	hookID := ""
+	zenMessage := ""
+	
+	if id, ok := payload["hook_id"].(float64); ok {
+		hookID = fmt.Sprintf("%.0f", id)
+	}
+	if zen, ok := payload["zen"].(string); ok {
+		zenMessage = zen
+	}
+	
+	// Find or create a system notifications channel for this project
+	fmt.Printf("📁 Getting notification channel for project %d\n", repository.ProjectID)
+	channelID, err := h.getOrCreateNotificationChannel(repository.ProjectID)
+	if err != nil {
+		fmt.Printf("❌ Failed to get notification channel: %v\n", err)
+		return fmt.Errorf("failed to get notification channel: %v", err)
+	}
+	fmt.Printf("📁 Got channel ID: %s\n", channelID)
+	
+	// Create ping notification message
+	messageContent := fmt.Sprintf("🏓 **GitHub Webhook Test for %s**\n\n", repository.Name)
+	messageContent += fmt.Sprintf("✅ **Webhook Status:** Successfully connected\n")
+	messageContent += fmt.Sprintf("**Repository:** %s\n", repository.FullName)
+	if hookID != "" {
+		messageContent += fmt.Sprintf("**Hook ID:** #%s\n", hookID)
+	}
+	if zenMessage != "" {
+		messageContent += fmt.Sprintf("**GitHub Zen:** _\"%s\"_\n", zenMessage)
+	}
+	messageContent += "\n🎯 Your webhook is now ready to receive push notifications!"
+	
+	// Create message record
+	message := models.Message{
+		ID:        generateUUID(),
+		Content:   messageContent,
+		Type:      "system",
+		ChannelID: channelID,
+		UserID:    "system",
+		ProjectID: repository.ProjectID,
+		Metadata: map[string]interface{}{
+			"type":              "webhook_test",
+			"repository_id":     repository.ID,
+			"repository_name":   repository.Name,
+			"event_type":        "ping",
+			"hook_id":          hookID,
+			"zen":              zenMessage,
+			"github_url":       fmt.Sprintf("https://github.com/%s", repository.FullName),
+		},
+	}
+	
+	fmt.Printf("💬 Creating ping message: %s\n", message.ID)
+	fmt.Printf("💬 Message content: %s\n", messageContent[:100]+"...")
+	if err := h.db.Create(&message).Error; err != nil {
+		fmt.Printf("❌ Failed to create message: %v\n", err)
+		return fmt.Errorf("failed to create ping notification message: %v", err)
+	}
+	fmt.Printf("✅ Ping message created successfully: %s\n", message.ID)
+	
+	// Update channel activity
+	if err := h.db.Model(&models.Channel{}).Where("id = ?", channelID).Updates(map[string]interface{}{
+		"last_activity":   time.Now(),
+		"message_count":   gorm.Expr("message_count + 1"),
+	}).Error; err != nil {
+		fmt.Printf("⚠️ Failed to update channel activity: %v\n", err)
+		// Not a critical error, continue
+	}
+	
+	return nil
+}
+
 func generateUUID() string {
 	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), time.Now().Unix())
 }
