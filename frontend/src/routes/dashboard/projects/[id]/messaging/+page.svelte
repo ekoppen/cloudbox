@@ -23,17 +23,8 @@
     content: string;
   }
 
-  interface MessageTemplate {
-    id: string;
-    name: string;
-    type: 'email' | 'sms' | 'push';
-    subject: string;
-    content: string;
-    variables: string[];
-  }
 
   let messages: Message[] = [];
-  let templates: MessageTemplate[] = [];
   let messagingStats = {
     total_sent: 0,
     total_delivered: 0,
@@ -48,7 +39,6 @@
 
   let activeTab = 'messages';
   let showCreateMessage = false;
-  let showCreateTemplate = false;
   let systemNotifications: any[] = [];
   let showNotifications = true;
   let expandedNotifications = new Set(); // Track which notifications are expanded
@@ -62,18 +52,11 @@
     recipients: 'all',
     schedule_at: ''
   };
-  let newTemplate = {
-    name: '',
-    type: 'email' as 'email' | 'sms' | 'push',
-    subject: '',
-    content: ''
-  };
 
   $: projectId = $page.params.id;
 
   onMount(() => {
     loadMessages();
-    loadTemplates();
     loadMessagingStats();
     loadSystemNotifications();
     
@@ -122,33 +105,6 @@
     }
   }
 
-  async function loadTemplates() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/templates`, {
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        templates = Array.isArray(data) ? data : [];
-      } else {
-        console.error('Failed to load templates:', response.status);
-        templates = [];
-        if (response.status === 404) {
-          backendAvailable = false;
-        }
-      }
-    } catch (error) {
-      console.error('Error loading templates:', error);
-      templates = [];
-      if (error.message.includes('Failed to fetch')) {
-        backendAvailable = false;
-      }
-    }
-  }
 
   async function loadMessagingStats() {
     try {
@@ -292,40 +248,18 @@
     toast.error('Bericht verwijderen is nog niet geïmplementeerd');
   }
 
-  async function deleteTemplate(templateId: string) {
-    toast.error('Template verwijderen is nog niet geïmplementeerd');
-  }
 
   async function createMessage() {
     toast.error('Bericht aanmaken is nog niet geïmplementeerd');
     showCreateMessage = false;
   }
 
-  async function createTemplate() {
-    toast.error('Template aanmaken is nog niet geïmplementeerd');
-    showCreateTemplate = false;
-  }
 
-  function extractVariables(text: string): string[] {
-    const matches = text.match(/\{\{([^}]+)\}\}/g);
-    if (!matches) return [];
-    return [...new Set(matches.map(match => match.slice(2, -2).trim()))];
-  }
 
   async function sendMessage(messageId: string) {
     toast.error('Bericht versturen is nog niet geïmplementeerd');
   }
 
-  function useTemplate(template: MessageTemplate) {
-    newMessage = {
-      subject: template.subject,
-      type: template.type,
-      content: template.content,
-      recipients: 'all',
-      schedule_at: ''
-    };
-    showCreateMessage = true;
-  }
 
   async function deployFromNotification(notification) {
     if (!notification.metadata?.repository_id) return;
@@ -446,14 +380,6 @@
     </div>
     <div class="flex space-x-3">
       <Button
-        variant="outline"
-        on:click={() => showCreateTemplate = true}
-        class="flex items-center space-x-2"
-      >
-        <Icon name="backup" size={16} />
-        <span>Nieuwe Template</span>
-      </Button>
-      <Button
         on:click={() => showCreateMessage = true}
         class="flex items-center space-x-2"
       >
@@ -530,17 +456,6 @@
       >
         <Icon name="messaging" size={16} />
         <span>Berichten ({messages.length})</span>
-      </button>
-      <button
-        on:click={() => activeTab = 'templates'}
-        class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
-          activeTab === 'templates' 
-            ? 'border-primary text-primary' 
-            : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-        }"
-      >
-        <Icon name="backup" size={16} />
-        <span>Templates ({templates?.length || 0})</span>
       </button>
       <button
         on:click={() => {
@@ -662,88 +577,6 @@
     </div>
   {/if}
 
-  <!-- Templates Tab -->
-  {#if activeTab === 'templates'}
-    <div class="space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {#each templates as template}
-          <Card class="p-6">
-            <div class="flex items-start justify-between">
-              <div class="flex-1">
-                <div class="flex items-center space-x-2 mb-2">
-                  <div class="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
-                    <Icon name="messaging" size={12} className="text-primary" />
-                  </div>
-                  <h3 class="text-lg font-medium text-foreground">{template.name}</h3>
-                </div>
-                
-                <p class="text-sm text-muted-foreground mb-3">{template.subject}</p>
-                
-                <div class="text-xs text-muted-foreground mb-3">
-                  <p class="line-clamp-3">{template.content}</p>
-                </div>
-
-                {#if template.variables.length > 0}
-                  <div class="mb-3">
-                    <p class="text-xs text-muted-foreground mb-1">Variabelen:</p>
-                    <div class="flex flex-wrap gap-1">
-                      {#each template.variables as variable}
-                        <Badge variant="outline" class="text-xs">
-                          {variable}
-                        </Badge>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
-              </div>
-            </div>
-
-            <div class="flex space-x-2">
-              <Button
-                size="sm"
-                on:click={() => useTemplate(template)}
-                class="flex-1"
-              >
-                Gebruiken
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                class="w-8 h-8 p-0"
-              >
-                <Icon name="settings" size={14} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                class="w-8 h-8 p-0 text-destructive hover:text-destructive"
-                on:click={() => deleteTemplate(template.id)}
-              >
-                <Icon name="backup" size={14} />
-              </Button>
-            </div>
-          </Card>
-        {/each}
-      </div>
-
-      {#if templates.length === 0}
-        <Card class="p-12 text-center">
-          <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Icon name="backup" size={32} className="text-muted-foreground" />
-          </div>
-          <h3 class="text-lg font-medium text-foreground mb-2">Geen templates</h3>
-          <p class="text-muted-foreground mb-4">Maak herbruikbare templates voor berichten</p>
-          <Button
-            on:click={() => showCreateTemplate = true}
-            class="flex items-center space-x-2"
-          >
-            <Icon name="backup" size={16} />
-            <span>Nieuwe Template</span>
-          </Button>
-        </Card>
-      {/if}
-    </div>
-  {/if}
 
   <!-- GitHub Notifications Tab -->
   {#if activeTab === 'notifications'}
@@ -1104,89 +937,3 @@
   </div>
 {/if}
 
-<!-- Create Template Modal -->
-{#if showCreateTemplate}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-2xl w-full p-6 max-h-screen overflow-y-auto border-2 shadow-2xl">
-      <div class="flex items-center space-x-3 mb-4">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-          <Icon name="backup" size={20} className="text-primary" />
-        </div>
-        <h2 class="text-xl font-bold text-foreground">Nieuwe Template</h2>
-      </div>
-      
-      <form on:submit|preventDefault={createTemplate} class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label for="template-name">Template naam</Label>
-            <Input
-              id="template-name"
-              type="text"
-              bind:value={newTemplate.name}
-              required
-              class="mt-1"
-              placeholder="bijv. Welkom Email"
-            />
-          </div>
-
-          <div>
-            <Label for="template-type">Type</Label>
-            <select
-              id="template-type"
-              bind:value={newTemplate.type}
-              class="w-full p-2 border border-border rounded-md bg-background text-foreground mt-1 focus:ring-2 focus:ring-primary"
-            >
-              <option value="email">✉️ Email</option>
-              <option value="sms">💬 SMS</option>
-              <option value="push">🔔 Push Notificatie</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <Label for="template-subject">Onderwerp</Label>
-          <Input
-            id="template-subject"
-            type="text"
-            bind:value={newTemplate.subject}
-            class="mt-1"
-            placeholder="Gebruik {{variabele}} voor dynamische content"
-          />
-        </div>
-
-        <div>
-          <Label for="template-content">Template inhoud</Label>
-          <Textarea
-            id="template-content"
-            bind:value={newTemplate.content}
-            required
-            class="mt-1"
-            rows={8}
-            placeholder="Gebruik {{variabele}} voor dynamische content, bijv: Hallo {{user_name}}, welkom bij {{app_name}}!"
-          />
-          <p class="mt-1 text-xs text-muted-foreground">
-            Gebruik &#123;&#123;variabele_naam&#125;&#125; voor dynamische waarden
-          </p>
-        </div>
-        
-        <div class="flex space-x-3 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            on:click={() => { showCreateTemplate = false; }}
-            class="flex-1"
-          >
-            Annuleren
-          </Button>
-          <Button
-            type="submit"
-            disabled={!newTemplate.name || !newTemplate.content}
-            class="flex-1"
-          >
-            Template Aanmaken
-          </Button>
-        </div>
-      </form>
-    </Card>
-  </div>
-{/if}
