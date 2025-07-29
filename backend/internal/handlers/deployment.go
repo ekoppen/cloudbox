@@ -654,33 +654,270 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	// Find deployments that use this repository and have auto-deploy enabled
+	// Update repository with pending commit information
+	updates := map[string]interface{}{
+		"pending_commit_hash":   commitHash,
+		"pending_commit_branch": branch,
+		"has_pending_update":    true,
+		"last_sync_at":          time.Now(),
+	}
+	
+	if err := h.db.Model(&repository).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update repository status"})
+		return
+	}
+
+	// Send notification to project owner about available update
+	if err := h.sendUpdateNotification(repository, commitHash, branch, payload); err != nil {
+		// Log error but don't fail the webhook - GitHub expects 200 response
+		fmt.Printf("Failed to send update notification for repository %d: %v\n", repository.ID, err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Update notification sent",
+		"repository_id": repository.ID,
+		"commit": commitHash,
+		"branch": branch,
+		"has_pending_update": true,
+	})
+}
+
+// sendUpdateNotification sends a notification message to the project owner about available updates
+func (h *DeploymentHandler) sendUpdateNotification(repository models.GitHubRepository, commitHash, branch string, payload map[string]interface{}) error {
+	// Extract commit information from payload
+	commitMessage := ""
+	commitAuthor := ""
+	
+	if headCommit, ok := payload["head_commit"].(map[string]interface{}); ok {
+		if message, ok := headCommit["message"].(string); ok {
+			commitMessage = message
+		}
+		if author, ok := headCommit["author"].(map[string]interface{}); ok {
+			if name, ok := author["name"].(string); ok {
+				commitAuthor = name
+			}
+		}
+	}
+	
+	// Truncate commit message if too long
+	if len(commitMessage) > 100 {
+		commitMessage = commitMessage[:97] + "..."
+	}
+	
+	// Find or create a system notifications channel for this project
+	channelID, err := h.getOrCreateNotificationChannel(repository.ProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get notification channel: %v", err)
+	}
+	
+	// Create notification message
+	messageContent := fmt.Sprintf("🔄 **Update Available for %s**\n\n", repository.Name)
+	messageContent += fmt.Sprintf("**Branch:** %s\n", branch)
+	messageContent += fmt.Sprintf("**Commit:** `%s`\n", commitHash[:8])
+	if commitAuthor != "" {
+		messageContent += fmt.Sprintf("**Author:** %s\n", commitAuthor)
+	}
+	if commitMessage != "" {
+		messageContent += fmt.Sprintf("**Message:** %s\n", commitMessage)
+	}
+	messageContent += "\n✨ Ready to deploy when you are!"
+	
+	// Create message record
+	message := models.Message{
+		ID:        generateUUID(),
+		Content:   messageContent,
+		Type:      "system",
+		ChannelID: channelID,
+		UserID:    "system",
+		ProjectID: repository.ProjectID,
+		Metadata: map[string]interface{}{
+			"type":              "github_update",
+			"repository_id":     repository.ID,
+			"repository_name":   repository.Name,
+			"commit_hash":       commitHash,
+			"branch":           branch,
+			"can_deploy":       true,
+			"github_url":       fmt.Sprintf("https://github.com/%s/commit/%s", repository.FullName, commitHash),
+		},
+	}
+	
+	if err := h.db.Create(&message).Error; err != nil {
+		return fmt.Errorf("failed to create notification message: %v", err)
+	}
+	
+	// Update channel activity
+	if err := h.db.Model(&models.Channel{}).Where("id = ?", channelID).Updates(map[string]interface{}{
+		"last_activity":  time.Now(),
+		"message_count":  gorm.Expr("message_count + 1"),
+	}).Error; err != nil {
+		return fmt.Errorf("failed to update channel activity: %v", err)
+	}
+	
+	return nil
+}
+
+// getOrCreateNotificationChannel finds or creates a system notification channel for the project
+func (h *DeploymentHandler) getOrCreateNotificationChannel(projectID uint) (string, error) {
+	// Look for existing notifications channel
+	var channel models.Channel
+	err := h.db.Where("project_id = ? AND name = ? AND type = ?", projectID, "System Notifications", "system").First(&channel).Error
+	
+	if err == nil {
+		return channel.ID, nil
+	}
+	
+	if err != gorm.ErrRecordNotFound {
+		return "", fmt.Errorf("failed to query notification channel: %v", err)
+	}
+	
+	// Create new notifications channel
+	channel = models.Channel{
+		ID:          generateUUID(),
+		Name:        "System Notifications",
+		Description: "Automatic notifications from CloudBox system",
+		Type:        "system",
+		ProjectID:   projectID,
+		CreatedBy:   "system",
+		IsActive:    true,
+		Settings: map[string]interface{}{
+			"read_only": true,
+			"system_channel": true,
+		},
+		LastActivity: time.Now(),
+	}
+	
+	if err := h.db.Create(&channel).Error; err != nil {
+		return "", fmt.Errorf("failed to create notification channel: %v", err)
+	}
+	
+	return channel.ID, nil
+}
+
+// generateUUID generates a UUID string
+func generateUUID() string {
+	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), time.Now().Unix())
+}
+
+// DeployPendingUpdate deploys a pending update for a repository
+func (h *DeploymentHandler) DeployPendingUpdate(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Find the GitHub repository
+	var repository models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", uint(repoID), uint(projectID)).First(&repository).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch repository"})
+		}
+		return
+	}
+
+	// Check if there's a pending update
+	if !repository.HasPendingUpdate || repository.PendingCommitHash == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No pending updates available"})
+		return
+	}
+
+	// Find deployments that use this repository
 	var deployments []models.Deployment
-	if err := h.db.Where("github_repository_id = ? AND is_auto_deploy_enabled = ?", repository.ID, true).
+	if err := h.db.Where("github_repository_id = ?", repository.ID).
 		Preload("GitHubRepository").Preload("WebServer").Find(&deployments).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deployments"})
 		return
 	}
 
 	if len(deployments) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "No auto-deploy enabled deployments found for this repository",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No deployments found for this repository"})
 		return
 	}
 
-	// Trigger deployments
+	// Update repository to mark update as deployed
+	updates := map[string]interface{}{
+		"last_commit_hash":      repository.PendingCommitHash,
+		"pending_commit_hash":   "",
+		"pending_commit_branch": "",
+		"has_pending_update":    false,
+		"last_sync_at":          time.Now(),
+	}
+	
+	if err := h.db.Model(&repository).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update repository status"})
+		return
+	}
+
+	// Start deployments for all associated deployments
 	deployedCount := 0
 	for _, deployment := range deployments {
 		// Start deployment in background
-		go h.executeRealDeployment(deployment, commitHash, branch)
+		go h.executeRealDeployment(deployment, repository.PendingCommitHash, repository.PendingCommitBranch)
 		deployedCount++
 	}
 
+	// Send deployment started notification
+	if err := h.sendDeploymentStartedNotification(repository, repository.PendingCommitHash, deployedCount); err != nil {
+		fmt.Printf("Failed to send deployment notification for repository %d: %v\n", repository.ID, err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Triggered %d deployments", deployedCount),
-		"deployments_triggered": deployedCount,
-		"commit": commitHash,
-		"branch": branch,
+		"message": fmt.Sprintf("Started %d deployments", deployedCount),
+		"deployments_started": deployedCount,
+		"commit": repository.PendingCommitHash,
+		"repository_id": repository.ID,
 	})
+}
+
+// sendDeploymentStartedNotification sends a notification when deployment is manually started
+func (h *DeploymentHandler) sendDeploymentStartedNotification(repository models.GitHubRepository, commitHash string, deploymentCount int) error {
+	// Find the system notifications channel
+	channelID, err := h.getOrCreateNotificationChannel(repository.ProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get notification channel: %v", err)
+	}
+	
+	// Create deployment started message
+	messageContent := fmt.Sprintf("🚀 **Deployment Started for %s**\n\n", repository.Name)
+	messageContent += fmt.Sprintf("**Commit:** `%s`\n", commitHash[:8])
+	messageContent += fmt.Sprintf("**Deployments:** %d environment(s)\n", deploymentCount)
+	messageContent += "\n⏳ Deployment in progress..."
+	
+	message := models.Message{
+		ID:        generateUUID(),
+		Content:   messageContent,
+		Type:      "system",
+		ChannelID: channelID,
+		UserID:    "system",
+		ProjectID: repository.ProjectID,
+		Metadata: map[string]interface{}{
+			"type":              "deployment_started",
+			"repository_id":     repository.ID,
+			"repository_name":   repository.Name,
+			"commit_hash":       commitHash,
+			"deployment_count":  deploymentCount,
+		},
+	}
+	
+	if err := h.db.Create(&message).Error; err != nil {
+		return fmt.Errorf("failed to create deployment notification: %v", err)
+	}
+	
+	// Update channel activity
+	if err := h.db.Model(&models.Channel{}).Where("id = ?", channelID).Updates(map[string]interface{}{
+		"last_activity":  time.Now(),
+		"message_count":  gorm.Expr("message_count + 1"),
+	}).Error; err != nil {
+		return fmt.Errorf("failed to update channel activity: %v", err)
+	}
+	
+	return nil
 }

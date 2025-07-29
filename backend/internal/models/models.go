@@ -242,9 +242,12 @@ type GitHubRepository struct {
 	ForksCount      int        `json:"forks_count"`
 	
 	// Status
-	IsActive       bool       `json:"is_active" gorm:"default:true"`
-	LastSyncAt     *time.Time `json:"last_sync_at"`
-	LastCommitHash string     `json:"last_commit_hash"`
+	IsActive            bool       `json:"is_active" gorm:"default:true"`
+	LastSyncAt          *time.Time `json:"last_sync_at"`
+	LastCommitHash      string     `json:"last_commit_hash"`
+	PendingCommitHash   string     `json:"pending_commit_hash"`   // New commit available for deployment
+	PendingCommitBranch string     `json:"pending_commit_branch"` // Branch of pending commit
+	HasPendingUpdate    bool       `json:"has_pending_update" gorm:"default:false"` // Badge indicator
 }
 
 // WebServer represents a target deployment server
