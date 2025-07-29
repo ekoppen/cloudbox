@@ -288,6 +288,7 @@ MASTER_KEY=${MASTER_KEY}
 # Server Configuration
 SERVER_PORT=${BACKEND_PORT}
 API_URL=http://localhost:${BACKEND_PORT}
+BASE_URL=${PUBLIC_API_URL}
 
 # Docker Configuration
 FRONTEND_PORT=${FRONTEND_PORT}
