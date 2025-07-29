@@ -53,6 +53,8 @@
   let showNotifications = true;
   let expandedNotifications = new Set(); // Track which notifications are expanded
   let refreshInterval: number;
+  let lastViewedTime = Date.now(); // Track when user last viewed notifications
+  let unreadCount = 0;
   let newMessage = {
     subject: '',
     type: 'email' as 'email' | 'sms' | 'push',
@@ -228,6 +230,14 @@
               })
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
               .slice(0, 10); // Show last 10 notifications
+              
+            // Calculate unread count (messages newer than last viewed time)
+            if (activeTab !== 'notifications') {
+              unreadCount = systemNotifications.filter(msg => 
+                new Date(msg.created_at).getTime() > lastViewedTime
+              ).length;
+            }
+            
             console.log('Filtered system notifications:', systemNotifications);
           } else {
             systemNotifications = [];
@@ -368,6 +378,11 @@
     }
     expandedNotifications = expandedNotifications; // Trigger reactivity
   }
+
+  function markNotificationsAsRead() {
+    lastViewedTime = Date.now();
+    unreadCount = 0;
+  }
 </script>
 
 <svelte:head>
@@ -502,7 +517,10 @@
         <span>Templates ({templates?.length || 0})</span>
       </button>
       <button
-        on:click={() => activeTab = 'notifications'}
+        on:click={() => {
+          activeTab = 'notifications';
+          markNotificationsAsRead();
+        }}
         class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
           activeTab === 'notifications' 
             ? 'border-primary text-primary' 
@@ -510,7 +528,14 @@
         }"
       >
         <Icon name="github" size={16} />
-        <span>GitHub Meldingen ({systemNotifications.length})</span>
+        <span class="flex items-center space-x-2">
+          <span>GitHub Meldingen ({systemNotifications.length})</span>
+          {#if unreadCount > 0}
+            <Badge class="bg-red-500 text-white text-xs px-2 py-0.5 min-w-[20px] h-5 flex items-center justify-center">
+              {unreadCount}
+            </Badge>
+          {/if}
+        </span>
       </button>
       <button
         on:click={() => activeTab = 'settings'}
