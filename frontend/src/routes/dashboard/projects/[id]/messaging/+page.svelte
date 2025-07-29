@@ -49,7 +49,7 @@
   let activeTab = 'messages';
   let showCreateMessage = false;
   let showCreateTemplate = false;
-  let systemNotifications = [];
+  let systemNotifications: any[] = [];
   let showNotifications = true;
   let newMessage = {
     subject: '',
@@ -84,9 +84,11 @@
       });
 
       if (response.ok) {
-        messages = await response.json();
+        const data = await response.json();
+        messages = Array.isArray(data) ? data : [];
       } else {
         console.error('Failed to load messages:', response.status);
+        messages = [];
         if (response.status === 404) {
           backendAvailable = false;
         } else {
@@ -95,6 +97,7 @@
       }
     } catch (error) {
       console.error('Error loading messages:', error);
+      messages = [];
       if (error.message.includes('Failed to fetch')) {
         backendAvailable = false;
       } else {
@@ -113,15 +116,18 @@
       });
 
       if (response.ok) {
-        templates = await response.json();
+        const data = await response.json();
+        templates = Array.isArray(data) ? data : [];
       } else {
         console.error('Failed to load templates:', response.status);
+        templates = [];
         if (response.status === 404) {
           backendAvailable = false;
         }
       }
     } catch (error) {
       console.error('Error loading templates:', error);
+      templates = [];
       if (error.message.includes('Failed to fetch')) {
         backendAvailable = false;
       }
@@ -140,8 +146,8 @@
       if (response.ok) {
         const data = await response.json();
         messagingStats = {
-          total_sent: data.total_sent || 0,
-          total_delivered: data.total_delivered || 0,
+          total_sent: data.total_sent || data.total_messages || 0,
+          total_delivered: data.total_delivered || data.total_messages || 0,
           total_opened: data.total_opened || 0,
           total_clicked: data.total_clicked || 0,
           bounce_rate: data.bounce_rate || 0,
@@ -175,14 +181,16 @@
       });
 
       if (channelsResponse.ok) {
-        const channels = await channelsResponse.json();
+        const channelsData = await channelsResponse.json();
+        const channels = Array.isArray(channelsData) ? channelsData : [];
         const systemChannel = channels.find(channel => 
           channel.type === 'system' && channel.name === 'System Notifications'
         );
 
         if (systemChannel) {
-          // Load messages from the system channel
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/channels/${systemChannel.id}/messages`, {
+          // Load messages from the system channel - but this endpoint doesn't exist in admin API
+          // So we'll use the all messages endpoint and filter
+          const messagesResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/messages`, {
             headers: {
               'Authorization': `Bearer ${$auth.token}`,
               'Content-Type': 'application/json',
@@ -190,19 +198,26 @@
           });
 
           if (messagesResponse.ok) {
-            const messages = await messagesResponse.json();
+            const messagesData = await messagesResponse.json();
+            const messages = Array.isArray(messagesData) ? messagesData : [];
             // Filter for GitHub-related notifications and sort by newest first
             systemNotifications = messages
               .filter(msg => msg.metadata?.type === 'github_update' || msg.metadata?.type === 'deployment_started')
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
               .slice(0, 10); // Show last 10 notifications
+          } else {
+            systemNotifications = [];
           }
+        } else {
+          systemNotifications = [];
         }
       } else {
         console.error('Failed to load system notifications:', channelsResponse.status);
+        systemNotifications = [];
       }
     } catch (error) {
       console.error('Error loading system notifications:', error);
+      systemNotifications = [];
     }
   }
 
