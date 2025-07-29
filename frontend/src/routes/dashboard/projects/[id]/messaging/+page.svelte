@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
   import { API_BASE_URL } from '$lib/config';
@@ -52,6 +52,7 @@
   let systemNotifications: any[] = [];
   let showNotifications = true;
   let expandedNotifications = new Set(); // Track which notifications are expanded
+  let refreshInterval: number;
   let newMessage = {
     subject: '',
     type: 'email' as 'email' | 'sms' | 'push',
@@ -73,6 +74,18 @@
     loadTemplates();
     loadMessagingStats();
     loadSystemNotifications();
+    
+    // Set up auto-refresh for real-time updates every 30 seconds
+    refreshInterval = setInterval(() => {
+      loadSystemNotifications();
+      loadMessages();
+    }, 30000);
+  });
+
+  onDestroy(() => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
   });
 
   async function loadMessages() {
