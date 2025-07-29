@@ -45,6 +45,7 @@
   };
   let loading = true;
   let backendAvailable = true;
+  let projectSlug = '';
 
   let activeTab = 'messages';
   let showCreateMessage = false;
@@ -68,15 +69,45 @@
   $: projectId = $page.params.id;
 
   onMount(() => {
-    loadMessages();
-    loadTemplates();
-    loadMessagingStats();
-    loadSystemNotifications();
+    loadProjectData();
   });
 
-  async function loadMessages() {
+  async function loadProjectData() {
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages`, {
+      // First get project details to get the slug
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}`, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const project = await response.json();
+        projectSlug = project.slug;
+        
+        // Now load messaging data with the correct slug
+        loadMessages();
+        loadTemplates();
+        loadMessagingStats();
+        loadSystemNotifications();
+      } else {
+        console.error('Failed to load project:', response.status);
+        backendAvailable = false;
+        loading = false;
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      backendAvailable = false;
+      loading = false;
+    }
+  }
+
+  async function loadMessages() {
+    if (!projectSlug) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -104,8 +135,10 @@
   }
 
   async function loadTemplates() {
+    if (!projectSlug) return;
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/templates`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/templates`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -129,8 +162,10 @@
   }
 
   async function loadMessagingStats() {
+    if (!projectSlug) return;
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/stats`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/stats`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -165,9 +200,11 @@
   }
 
   async function loadSystemNotifications() {
+    if (!projectSlug) return;
+    
     try {
       // First load channels to find the system notifications channel
-      const channelsResponse = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/channels`, {
+      const channelsResponse = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/channels`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -182,7 +219,7 @@
 
         if (systemChannel) {
           // Load messages from the system channel
-          const messagesResponse = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/channels/${systemChannel.id}/messages`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/channels/${systemChannel.id}/messages`, {
             headers: {
               'Authorization': `Bearer ${$auth.token}`,
               'Content-Type': 'application/json',
@@ -237,10 +274,10 @@
 
   async function duplicateMessage(messageId: string) {
     const message = messages.find(m => m.id === messageId);
-    if (!message) return;
+    if (!message || !projectSlug) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -268,10 +305,10 @@
   }
 
   async function deleteMessage(messageId: string) {
-    if (!confirm('Weet je zeker dat je dit bericht wilt verwijderen?')) return;
+    if (!confirm('Weet je zeker dat je dit bericht wilt verwijderen?') || !projectSlug) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages/${messageId}`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages/${messageId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -292,10 +329,10 @@
   }
 
   async function deleteTemplate(templateId: string) {
-    if (!confirm('Weet je zeker dat je deze template wilt verwijderen?')) return;
+    if (!confirm('Weet je zeker dat je deze template wilt verwijderen?') || !projectSlug) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/templates/${templateId}`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/templates/${templateId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -316,10 +353,10 @@
   }
 
   async function createMessage() {
-    if (!newMessage.subject || !newMessage.content) return;
+    if (!newMessage.subject || !newMessage.content || !projectSlug) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -358,10 +395,10 @@
   }
 
   async function createTemplate() {
-    if (!newTemplate.name || !newTemplate.content) return;
+    if (!newTemplate.name || !newTemplate.content || !projectSlug) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/templates`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/templates`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -404,10 +441,10 @@
   }
 
   async function sendMessage(messageId: string) {
-    if (!confirm('Weet je zeker dat je dit bericht wilt versturen?')) return;
+    if (!confirm('Weet je zeker dat je dit bericht wilt versturen?') || !projectSlug) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/messaging/messages/${messageId}/send`, {
+      const response = await fetch(`${API_BASE_URL}/p/${projectSlug}/api/messaging/messages/${messageId}/send`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
