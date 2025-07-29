@@ -158,6 +158,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.GET("/:id/messaging/templates", messagingHandler.ListTemplates)
 				projects.GET("/:id/messaging/stats", messagingHandler.GetMessagingStats)
 				projects.GET("/:id/messaging/channels", messagingHandler.ListChannels)
+				projects.DELETE("/:id/messaging/messages/:message_id", messagingHandler.DeleteMessage)
 			}
 
 			// Admin routes (accessible to authenticated users for demo)

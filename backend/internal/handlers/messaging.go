@@ -711,14 +711,17 @@ func (h *MessagingHandler) UpdateMessage(c *gin.Context) {
 
 // DeleteMessage deletes a message (soft delete)
 func (h *MessagingHandler) DeleteMessage(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	channelID := c.Param("channel_id")
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+	
 	messageID := c.Param("message_id")
 	
 	// Find message
 	var message models.Message
-	if err := h.db.Where("project_id = ? AND channel_id = ? AND id = ? AND is_deleted = ?", 
-		project.ID, channelID, messageID, false).First(&message).Error; err != nil {
+	if err := h.db.Where("project_id = ? AND id = ?", uint(projectID), messageID).First(&message).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
 		return
 	}

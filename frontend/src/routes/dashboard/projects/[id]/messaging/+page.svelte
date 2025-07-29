@@ -383,6 +383,32 @@
     lastViewedTime = Date.now();
     unreadCount = 0;
   }
+
+  async function deleteNotification(messageId: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/messaging/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Bericht verwijderd');
+        // Remove from local array immediately for better UX
+        systemNotifications = systemNotifications.filter(n => n.id !== messageId);
+        // Reload to ensure consistency
+        await loadSystemNotifications();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Kon bericht niet verwijderen');
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast.error('Netwerkfout bij verwijderen bericht');
+    }
+  }
 </script>
 
 <svelte:head>
@@ -815,6 +841,16 @@
                     Bekijk op GitHub
                   </Button>
                 {/if}
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  on:click|stopPropagation={() => deleteNotification(notification.id)}
+                  class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Icon name="backup" size={14} className="mr-1" />
+                  Verwijder
+                </Button>
               </div>
             </div>
           </Card>
@@ -844,86 +880,110 @@
     <div class="space-y-6">
       <div>
         <h2 class="text-lg font-medium text-foreground">Berichten Instellingen</h2>
-        <p class="text-sm text-muted-foreground">Configureer email, SMS en push instellingen</p>
+        <p class="text-sm text-muted-foreground">Configureer Gmail en Discord notificaties</p>
       </div>
 
-      <!-- Email Settings -->
+      <!-- Gmail Settings -->
       <Card class="p-6">
         <div class="flex items-center space-x-2 mb-4">
           <Icon name="messaging" size={20} className="text-primary" />
-          <h3 class="text-lg font-medium text-foreground">Email Instellingen</h3>
+          <h3 class="text-lg font-medium text-foreground">Gmail Instellingen</h3>
         </div>
         <div class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Afzender naam</Label>
-              <Input type="text" value="CloudBox" class="mt-1" />
+              <Label>Gmail adres</Label>
+              <Input type="email" placeholder="je-gmail@gmail.com" class="mt-1" />
             </div>
             <div>
-              <Label>Afzender email</Label>
-              <Input type="email" value="noreply@cloudbox.nl" class="mt-1" />
+              <Label>App wachtwoord</Label>
+              <Input type="password" placeholder="xxxx-xxxx-xxxx-xxxx" class="mt-1" />
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>SMTP Server</Label>
-              <Input type="text" value="smtp.mailgun.org" class="mt-1" />
-            </div>
-            <div>
-              <Label>SMTP Poort</Label>
-              <Input type="number" value="587" class="mt-1" />
-            </div>
+          <div class="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+            <p><strong>💡 Hoe Gmail App Wachtwoord instellen:</strong></p>
+            <ol class="mt-2 space-y-1 list-decimal list-inside">
+              <li>Ga naar Google Account instellingen</li>
+              <li>Activeer 2-staps verificatie</li>
+              <li>Ga naar "App wachtwoorden"</li>
+              <li>Genereer een nieuw wachtwoord voor "Mail"</li>
+              <li>Gebruik dit wachtwoord hier (niet je gewone Gmail wachtwoord)</li>
+            </ol>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded border-border" />
+            <Label class="text-sm">Gmail notificaties inschakelen voor GitHub webhooks</Label>
           </div>
         </div>
       </Card>
 
-      <!-- SMS Settings -->
+      <!-- Discord Settings -->
       <Card class="p-6">
         <div class="flex items-center space-x-2 mb-4">
           <Icon name="cloud" size={20} className="text-primary" />
-          <h3 class="text-lg font-medium text-foreground">SMS Instellingen</h3>
+          <h3 class="text-lg font-medium text-foreground">Discord Instellingen</h3>
         </div>
         <div class="space-y-4">
+          <div>
+            <Label>Discord Webhook URL</Label>
+            <Input type="url" placeholder="https://discord.com/api/webhooks/..." class="mt-1" />
+          </div>
+          <div class="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+            <p><strong>💬 Hoe Discord Webhook instellen:</strong></p>
+            <ol class="mt-2 space-y-1 list-decimal list-inside">
+              <li>Ga naar je Discord server</li>
+              <li>Klik op "Server Settings" → "Integrations" → "Webhooks"</li>
+              <li>Klik "Create Webhook" of bewerk een bestaande</li>
+              <li>Kies het kanaal waar berichten moeten komen</li>
+              <li>Kopieer de Webhook URL en plak deze hier</li>
+            </ol>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded border-border" />
+            <Label class="text-sm">Discord notificaties inschakelen voor GitHub webhooks</Label>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>SMS Provider</Label>
-              <select class="w-full p-2 border border-border rounded-md bg-background text-foreground mt-1 focus:ring-2 focus:ring-primary">
-                <option>Twilio</option>
-                <option>MessageBird</option>
-                <option>CM.com</option>
-              </select>
+              <Label>Bot naam</Label>
+              <Input type="text" value="CloudBox Bot" class="mt-1" />
             </div>
             <div>
-              <Label>Afzender ID</Label>
-              <Input type="text" value="CloudBox" class="mt-1" />
+              <Label>Kanaal voor notificaties</Label>
+              <Input type="text" placeholder="#deployments" class="mt-1" />
             </div>
           </div>
         </div>
       </Card>
 
-      <!-- Push Settings -->
+      <!-- Push Notifications Info -->
       <Card class="p-6">
         <div class="flex items-center space-x-2 mb-4">
           <Icon name="functions" size={20} className="text-primary" />
-          <h3 class="text-lg font-medium text-foreground">Push Notificatie Instellingen</h3>
+          <h3 class="text-lg font-medium text-foreground">Browser Push Notificaties</h3>
         </div>
         <div class="space-y-4">
-          <div>
-            <label class="flex items-center">
-              <input type="checkbox" checked class="rounded border-border text-primary focus:ring-primary" />
-              <span class="ml-2 text-sm text-foreground">Push notificaties inschakelen</span>
-            </label>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>FCM Server Key</Label>
-              <Input type="password" value="••••••••••••••••" class="mt-1" />
-            </div>
-            <div>
-              <Label>APNs Certificate</Label>
-              <input type="file" class="w-full p-2 border border-border rounded-md bg-background text-foreground mt-1 focus:ring-2 focus:ring-primary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+          <div class="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+            <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-2">📱 Hoe werken Push Notificaties?</h4>
+            <div class="space-y-2 text-blue-800 dark:text-blue-200">
+              <p><strong>Browser Notificaties:</strong> CloudBox gebruikt de Web Push API om berichten rechtstreeks naar je browser te sturen, zelfs als de pagina niet open is.</p>
+              
+              <p><strong>Service Worker:</strong> Een achtergrond script verwerkt en toont notificaties, zelfs wanneer CloudBox niet actief is in je browser.</p>
+              
+              <p><strong>Permission vereist:</strong> Je browser vraagt eerst toestemming om notificaties te mogen tonen. Klik "Toestaan" voor de beste ervaring.</p>
+              
+              <p><strong>Cross-platform:</strong> Werkt op desktop (Chrome, Firefox, Safari) en mobiel (Android Chrome, iOS Safari 16.4+).</p>
             </div>
           </div>
+          
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" class="rounded border-border" />
+            <Label class="text-sm">Browser push notificaties inschakelen voor GitHub webhooks</Label>
+          </div>
+          
+          <Button variant="outline" class="w-full">
+            <Icon name="functions" size={16} className="mr-2" />
+            Test Push Notificatie
+          </Button>
         </div>
       </Card>
 
