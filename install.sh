@@ -248,9 +248,9 @@ generate_env_file() {
         print_info "Using API subdomain: $API_HOST"
     elif [[ -n "$ALLOWED_HOST" ]]; then
         if [[ "$USE_SSL" == "true" ]]; then
-            # With SSL/reverse proxy, don't include port in URL
-            PUBLIC_API_URL="${protocol}://${ALLOWED_HOST}/api"
-            print_info "Using SSL with reverse proxy API path: $ALLOWED_HOST/api"
+            # With SSL/reverse proxy, don't include port in URL, no /api path since frontend config adds it
+            PUBLIC_API_URL="${protocol}://${ALLOWED_HOST}"
+            print_info "Using SSL with reverse proxy: $ALLOWED_HOST"
         else
             PUBLIC_API_URL="${protocol}://${ALLOWED_HOST}:${BACKEND_PORT}"
             print_info "Using main domain with backend port: $ALLOWED_HOST:$BACKEND_PORT"
@@ -595,7 +595,7 @@ prompt_for_configuration() {
         
         if [[ "$USE_SSL" == "true" ]]; then
             echo "   Frontend URL: ${display_protocol}://${ALLOWED_HOST}"
-            echo "   API URL:      ${display_protocol}://${ALLOWED_HOST}/api"
+            echo "   API URL:      ${display_protocol}://${ALLOWED_HOST}"
             echo "   Admin URL:    ${display_protocol}://${ALLOWED_HOST}/admin"
         else
             echo "   Frontend URL: ${display_protocol}://${ALLOWED_HOST}:$FRONTEND_PORT"
