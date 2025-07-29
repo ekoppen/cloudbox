@@ -607,10 +607,14 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 	}
 
 	// Log webhook details for debugging
-	fmt.Printf("Webhook received for repo %d\n", repoID)
+	fmt.Printf("=== WEBHOOK RECEIVED ===\n")
+	fmt.Printf("Repository ID: %d\n", repoID)
+	fmt.Printf("Repository Name: %s\n", repository.Name)
+	fmt.Printf("Project ID: %d\n", repository.ProjectID)
 	fmt.Printf("Content-Type: %s\n", c.GetHeader("Content-Type"))
 	fmt.Printf("X-GitHub-Event: %s\n", c.GetHeader("X-GitHub-Event"))
 	fmt.Printf("X-Hub-Signature-256: %s\n", c.GetHeader("X-Hub-Signature-256"))
+	fmt.Printf("User-Agent: %s\n", c.GetHeader("User-Agent"))
 
 	// Check if this is a push event first (before parsing JSON)
 	eventType := c.GetHeader("X-GitHub-Event")
@@ -708,12 +712,14 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 	}
 
 	// Send notification to project owner about available update
-	fmt.Printf("Sending update notification for repository %d\n", repository.ID)
+	fmt.Printf("=== SENDING NOTIFICATION ===\n")
+	fmt.Printf("Repository ID: %d, Project ID: %d\n", repository.ID, repository.ProjectID)
+	fmt.Printf("Commit: %s, Branch: %s\n", commitHash, branch)
 	if err := h.sendUpdateNotification(repository, commitHash, branch, payload); err != nil {
 		// Log error but don't fail the webhook - GitHub expects 200 response
-		fmt.Printf("Failed to send update notification for repository %d: %v\n", repository.ID, err)
+		fmt.Printf("❌ NOTIFICATION FAILED: %v\n", err)
 	} else {
-		fmt.Printf("Update notification sent successfully\n")
+		fmt.Printf("✅ NOTIFICATION SENT SUCCESSFULLY\n")
 	}
 
 	response := gin.H{
@@ -732,6 +738,7 @@ func (h *DeploymentHandler) HandleWebhook(c *gin.Context) {
 
 // sendUpdateNotification sends a notification message to the project owner about available updates
 func (h *DeploymentHandler) sendUpdateNotification(repository models.GitHubRepository, commitHash, branch string, payload map[string]interface{}) error {
+	fmt.Printf("📧 Starting sendUpdateNotification for project %d\n", repository.ProjectID)
 	// Extract commit information from payload
 	commitMessage := ""
 	commitAuthor := ""
@@ -753,10 +760,13 @@ func (h *DeploymentHandler) sendUpdateNotification(repository models.GitHubRepos
 	}
 	
 	// Find or create a system notifications channel for this project
+	fmt.Printf("📁 Getting notification channel for project %d\n", repository.ProjectID)
 	channelID, err := h.getOrCreateNotificationChannel(repository.ProjectID)
 	if err != nil {
+		fmt.Printf("❌ Failed to get notification channel: %v\n", err)
 		return fmt.Errorf("failed to get notification channel: %v", err)
 	}
+	fmt.Printf("📁 Got channel ID: %s\n", channelID)
 	
 	// Create notification message
 	messageContent := fmt.Sprintf("🔄 **Update Available for %s**\n\n", repository.Name)
@@ -789,9 +799,13 @@ func (h *DeploymentHandler) sendUpdateNotification(repository models.GitHubRepos
 		},
 	}
 	
+	fmt.Printf("💬 Creating message: %s\n", message.ID)
+	fmt.Printf("💬 Message content: %s\n", messageContent[:100]+"...")
 	if err := h.db.Create(&message).Error; err != nil {
+		fmt.Printf("❌ Failed to create message: %v\n", err)
 		return fmt.Errorf("failed to create notification message: %v", err)
 	}
+	fmt.Printf("✅ Message created successfully: %s\n", message.ID)
 	
 	// Update channel activity
 	if err := h.db.Model(&models.Channel{}).Where("id = ?", channelID).Updates(map[string]interface{}{
