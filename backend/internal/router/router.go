@@ -243,7 +243,6 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				
 				// Super admin can see all projects (already handled in ListProjects)
 				superAdmin.GET("/projects", projectHandler.ListProjects)
-				superAdmin.GET("/projects/:id", projectHandler.GetProject)
 			}
 
 			// Deployments
