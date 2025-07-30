@@ -670,22 +670,30 @@ func (h *StorageHandler) CreateFolder(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	bucketName := c.Param("bucket")
 	
+	log.Printf("DEBUG: CreateFolder called for project %d, bucket '%s'", project.ID, bucketName)
+	
 	var req struct {
 		Name string `json:"name" binding:"required"`
 		Path string `json:"path"` // Parent path, empty for root
 	}
 	
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("DEBUG: Failed to bind JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	
+	log.Printf("DEBUG: Folder request - Name: '%s', Path: '%s'", req.Name, req.Path)
+	
 	// Verify bucket exists
 	var bucket models.Bucket
 	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		log.Printf("DEBUG: Bucket not found - project_id: %d, bucket_name: '%s', error: %v", project.ID, bucketName, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
 		return
 	}
+	
+	log.Printf("DEBUG: Bucket found - ID: %d, Name: '%s'", bucket.ID, bucket.Name)
 	
 	// Validate folder name
 	if !isValidFolderName(req.Name) {
@@ -716,10 +724,14 @@ func (h *StorageHandler) CreateFolder(c *gin.Context) {
 	}
 	
 	// Create the folder
+	log.Printf("DEBUG: Creating folder at path: '%s'", folderPath)
 	if err := os.MkdirAll(folderPath, 0755); err != nil {
+		log.Printf("DEBUG: Failed to create folder: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create folder"})
 		return
 	}
+	
+	log.Printf("DEBUG: Folder created successfully at: '%s'", folderPath)
 	
 	// Return success response
 	relativePath := req.Path
