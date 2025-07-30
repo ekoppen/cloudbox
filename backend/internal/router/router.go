@@ -1,9 +1,12 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/handlers"
 	"github.com/cloudbox/backend/internal/middleware"
+	"github.com/cloudbox/backend/internal/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -182,7 +185,26 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 				// Admin project storage endpoints
 				adminProjects := admin.Group("/projects/:id")
-				adminProjects.Use(middleware.ProjectMiddleware()) // Ensure project exists and user has access
+				adminProjects.Use(func(c *gin.Context) {
+					// Simple middleware to load project by ID for admin routes
+					projectID := c.Param("id")
+					if projectID == "" {
+						c.JSON(http.StatusBadRequest, gin.H{"error": "Project ID required"})
+						c.Abort()
+						return
+					}
+					
+					var project models.Project
+					if err := db.Where("id = ?", projectID).First(&project).Error; err != nil {
+						c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+						c.Abort()
+						return
+					}
+					
+					// Store project in context for handlers
+					c.Set("project", project)
+					c.Next()
+				})
 				{
 					// Storage management
 					adminProjects.GET("/storage/buckets", storageHandler.ListBuckets)
