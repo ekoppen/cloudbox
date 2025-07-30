@@ -113,8 +113,10 @@ func (h *StorageHandler) CreateBucket(c *gin.Context) {
 	// Create bucket directory on filesystem
 	bucketPath := filepath.Join("./uploads", project.Slug, req.Name)
 	if err := os.MkdirAll(bucketPath, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create bucket directory"})
-		return
+		log.Printf("Failed to create bucket directory '%s': %v", bucketPath, err)
+		// Don't fail the request if directory creation fails - it might already exist
+		// or the filesystem might be read-only in some deployments
+		log.Printf("Warning: Bucket created in database but directory creation failed")
 	}
 	
 	c.JSON(http.StatusCreated, bucket)

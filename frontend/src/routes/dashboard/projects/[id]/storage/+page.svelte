@@ -488,6 +488,44 @@
     }
   }
 
+  async function deleteBucket(bucket: StorageBucket) {
+    const confirmMessage = `Weet je zeker dat je bucket "${bucket.name}" wilt verwijderen?\n\nDit verwijdert alle bestanden en mappen in deze bucket permanent.`;
+    
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.buckets.delete(projectId, bucket.name), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        buckets = buckets.filter(b => b.id !== bucket.id);
+        
+        // If we deleted the current bucket, select another one or clear
+        if (currentBucket?.id === bucket.id) {
+          if (buckets.length > 0) {
+            await selectBucket(buckets[0]);
+          } else {
+            currentBucket = null;
+            files = [];
+            treeData = [];
+          }
+        }
+        
+        toast.success(`Bucket "${bucket.name}" succesvol verwijderd`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij verwijderen bucket');
+      }
+    } catch (error) {
+      console.error('Delete bucket error:', error);
+      toast.error('Netwerkfout bij verwijderen bucket');
+    }
+  }
+
   async function createNewFolder() {
     if (!newFolderName.trim() || !currentBucket) {
       toast.error('Map naam is verplicht');
@@ -891,18 +929,33 @@
             <div class="flex items-center space-x-2">
               <Label class="text-sm font-medium">Bucket:</Label>
               {#each buckets as bucket}
-                <Button
-                  variant={currentBucket?.id === bucket.id ? 'default' : 'outline'}
-                  size="sm"
-                  on:click={() => selectBucket(bucket)}
-                  class="flex items-center space-x-2"
-                >
-                  <Icon name="folder" size={14} />
-                  <span>{bucket.name}</span>
-                  <Badge variant="secondary" class="ml-2" title={`${totalFilesInTree} bestanden zichtbaar van ${bucket.file_count} totaal`}>
-                    {currentBucket?.id === bucket.id ? totalFilesInTree : bucket.file_count}
-                  </Badge>
-                </Button>
+                <div class="flex items-center space-x-1">
+                  <Button
+                    variant={currentBucket?.id === bucket.id ? 'default' : 'outline'}
+                    size="sm"
+                    on:click={() => selectBucket(bucket)}
+                    class="flex items-center space-x-2"
+                  >
+                    <Icon name="folder" size={14} />
+                    <span>{bucket.name}</span>
+                    <Badge variant="secondary" class="ml-2" title={`${totalFilesInTree} bestanden zichtbaar van ${bucket.file_count} totaal`}>
+                      {currentBucket?.id === bucket.id ? totalFilesInTree : bucket.file_count}
+                    </Badge>
+                  </Button>
+                  
+                  <!-- Delete bucket button (only show if more than 1 bucket) -->
+                  {#if buckets.length > 1}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      on:click={() => deleteBucket(bucket)}
+                      class="flex items-center justify-center w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      title={`Bucket "${bucket.name}" verwijderen`}
+                    >
+                      <Icon name="trash" size={14} />
+                    </Button>
+                  {/if}
+                </div>
               {/each}
             </div>
             
