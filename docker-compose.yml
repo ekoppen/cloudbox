@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: cloudbox
       POSTGRES_USER: cloudbox
-      POSTGRES_PASSWORD: cloudbox_dev_password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -25,7 +25,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgres://cloudbox:cloudbox_dev_password@postgres:5432/cloudbox?sslmode=disable
+      - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=your-super-secret-jwt-key-change-in-production
       - PORT=8080
       - ENVIRONMENT=development
@@ -48,7 +48,7 @@ services:
     container_name: cloudbox-frontend
     working_dir: /app
     environment:
-      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://api.cloudbox.doorkoppen.nl}
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://cloudbox.doorkoppen.nl}
       - NODE_ENV=development
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
