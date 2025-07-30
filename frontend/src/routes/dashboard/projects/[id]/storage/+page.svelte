@@ -3,13 +3,22 @@
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
-  import { API_BASE_URL } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+
+  interface Project {
+    id: number;
+    name: string;
+    description: string;
+    slug: string;
+    created_at: string;
+    is_active: boolean;
+  }
 
   interface StorageBucket {
     id: string;
@@ -94,6 +103,10 @@
   let totalFilesInTree = 0;
   let draggedFile: StorageFile | null = null;
   let dropTarget: string | null = null;
+  
+  // Get project data from parent layout context (for display purposes)
+  let project: Project | null = null;
+  let projectLoading = true;
 
   $: projectId = $page.params.id;
   $: sortedFiles = sortFiles(files, sortBy, sortOrder);
@@ -102,14 +115,39 @@
     buildTreeView();
   }
 
-  onMount(() => {
+  onMount(async () => {
+    // Load project data for display and buckets in parallel
+    loadProject();
     loadBuckets();
   });
+
+  async function loadProject() {
+    projectLoading = true;
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.get(projectId), {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        project = await response.json();
+      } else {
+        console.error('Failed to load project:', response.status);
+        toast.error('Fout bij laden van project gegevens');
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast.error('Netwerkfout bij laden van project gegevens');
+    } finally {
+      projectLoading = false;
+    }
+  }
 
   async function loadBuckets() {
     loading = true;
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/buckets`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.buckets.list(projectId), {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -142,7 +180,7 @@
     
     loadingFiles = true;
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${bucketName}/files?path=${encodeURIComponent(path)}`, {
+      const response = await createApiRequest(`${API_ENDPOINTS.admin.projects.storage.files.list(projectId, bucketName)}?path=${encodeURIComponent(path)}`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -169,7 +207,7 @@
     if (!currentBucket) return;
     
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket.name}/folders?path=${encodeURIComponent(path)}`, {
+      const response = await createApiRequest(`${API_ENDPOINTS.admin.projects.storage.folders.list(projectId, currentBucket.name)}?path=${encodeURIComponent(path)}`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -220,7 +258,7 @@
         .map(type => type.trim())
         .filter(type => type.length > 0);
         
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/buckets/${currentBucket.name}`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.buckets.update(projectId, currentBucket.name), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -387,7 +425,7 @@
 
     try {
       for (const fileId of selectedFiles) {
-        const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket?.name}/files/${fileId}`, {
+        const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.files.delete(projectId, currentBucket?.name || '', fileId), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${$auth.token}`,
@@ -418,7 +456,7 @@
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/buckets`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.buckets.create(projectId), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -457,7 +495,7 @@
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket.name}/folders`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.folders.create(projectId, currentBucket.name), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -513,7 +551,7 @@
         }
         
         try {
-          const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket.name}/files`, {
+          const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.files.upload(projectId, currentBucket.name), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${$auth.token}`,
@@ -586,7 +624,7 @@
     if (!currentBucket) return [];
     
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket.name}/files?limit=1000`, {
+      const response = await createApiRequest(`${API_ENDPOINTS.admin.projects.storage.files.list(projectId, currentBucket.name)}?limit=1000`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -608,7 +646,7 @@
     if (!currentBucket) return [];
     
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket.name}/folders`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.folders.list(projectId, currentBucket.name), {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -753,7 +791,7 @@
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/storage/${currentBucket.name}/files/${draggedFile.id}/move`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.files.move(projectId, currentBucket.name, draggedFile.id), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -801,6 +839,21 @@
   </div>
 {:else}
   <div class="h-full flex flex-col space-y-4">
+    <!-- Project Error Notice -->
+    {#if !projectLoading && !project}
+      <Card class="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 p-4">
+        <div class="flex items-center space-x-3">
+          <Icon name="warning" size={20} className="text-red-600 dark:text-red-400" />
+          <div>
+            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Project Niet Gevonden</h3>
+            <p class="text-xs text-red-700 dark:text-red-300 mt-1">
+              Kan project gegevens niet laden. Controleer of het project bestaat en je toegang hebt.
+            </p>
+          </div>
+        </div>
+      </Card>
+    {/if}
+
     <!-- Backend Status Notice -->
     {#if !backendAvailable}
       <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
