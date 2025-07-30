@@ -111,7 +111,7 @@ func (h *StorageHandler) CreateBucket(c *gin.Context) {
 	}
 	
 	// Create bucket directory on filesystem
-	bucketPath := filepath.Join("./uploads", project.Slug, req.Name)
+	bucketPath := filepath.Join("./uploads", strconv.Itoa(int(project.ID)), req.Name)
 	if err := os.MkdirAll(bucketPath, 0755); err != nil {
 		log.Printf("Failed to create bucket directory '%s': %v", bucketPath, err)
 		// Don't fail the request if directory creation fails - it might already exist
@@ -229,7 +229,7 @@ func (h *StorageHandler) DeleteBucket(c *gin.Context) {
 	tx.Commit()
 	
 	// Remove bucket directory from filesystem
-	bucketPath := filepath.Join("./uploads", project.Slug, bucketName)
+	bucketPath := filepath.Join("./uploads", strconv.Itoa(int(project.ID)), bucketName)
 	os.RemoveAll(bucketPath)
 	
 	c.JSON(http.StatusOK, gin.H{"message": "Bucket deleted successfully"})
@@ -406,7 +406,7 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 	
 	// Secure file path construction with validation
 	baseDir := filepath.Clean("./uploads")
-	projectDir := filepath.Clean(project.Slug)
+	projectDir := filepath.Clean(strconv.Itoa(int(project.ID)))
 	bucketDir := filepath.Clean(bucketName)
 	
 	// Prevent directory traversal
@@ -495,10 +495,10 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 	baseURL := fmt.Sprintf("%s://%s", scheme, host)
 	
 	publicURL := ""
-	privateURL := fmt.Sprintf("%s/p/%s/api/storage/%s/files/%s", baseURL, project.Slug, bucketName, fileID)
+	privateURL := fmt.Sprintf("%s/p/%s/api/storage/%s/files/%s", baseURL, strconv.Itoa(int(project.ID)), bucketName, fileID)
 	
 	if bucket.IsPublic {
-		publicURL = fmt.Sprintf("%s/storage/%s/%s/%s", baseURL, project.Slug, bucketName, fileName)
+		publicURL = fmt.Sprintf("%s/storage/%s/%s/%s", baseURL, strconv.Itoa(int(project.ID)), bucketName, fileName)
 	}
 	
 	// Create file record
@@ -598,7 +598,7 @@ func (h *StorageHandler) MoveFile(c *gin.Context) {
 	}
 
 	// Construct the new file path on disk
-	baseDir := filepath.Join("./uploads", project.Slug, bucketName)
+	baseDir := filepath.Join("./uploads", strconv.Itoa(int(project.ID)), bucketName)
 	oldFilePath := file.FilePath
 	
 	var newFilePath string
@@ -694,7 +694,7 @@ func (h *StorageHandler) CreateFolder(c *gin.Context) {
 	}
 	
 	// Construct folder path
-	basePath := filepath.Join("./uploads", project.Slug, bucketName)
+	basePath := filepath.Join("./uploads", strconv.Itoa(int(project.ID)), bucketName)
 	var folderPath string
 	
 	if req.Path != "" {
@@ -749,7 +749,7 @@ func (h *StorageHandler) ListFolders(c *gin.Context) {
 	}
 	
 	// Construct directory path
-	basePath := filepath.Join("./uploads", project.Slug, bucketName)
+	basePath := filepath.Join("./uploads", strconv.Itoa(int(project.ID)), bucketName)
 	var targetPath string
 	
 	if path != "" {
@@ -833,7 +833,7 @@ func (h *StorageHandler) DeleteFolder(c *gin.Context) {
 	}
 	
 	// Construct full path
-	basePath := filepath.Join("./uploads", project.Slug, bucketName)
+	basePath := filepath.Join("./uploads", strconv.Itoa(int(project.ID)), bucketName)
 	fullPath := filepath.Join(basePath, cleanPath)
 	
 	// Check if folder exists
