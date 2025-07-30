@@ -35,13 +35,14 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./backend:/app
+      - ./uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
-    command: ["sh", "-c", "go mod tidy && ./wait-for-services.sh && go run main.go"]
+    command: ["sh", "-c", "mkdir -p /app/uploads && go mod tidy && ./wait-for-services.sh && go run main.go"]
 
   frontend:
     image: node:20-alpine
