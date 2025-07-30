@@ -115,7 +115,7 @@
     buildTreeView();
   }
 
-  onMount(async () => {
+  onMount(() => {
     // Load project data for display and buckets in parallel
     loadProject();
     loadBuckets();
@@ -841,13 +841,13 @@
   <div class="h-full flex flex-col space-y-4">
     <!-- Project Error Notice -->
     {#if !projectLoading && !project}
-      <Card class="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 p-4">
+      <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
         <div class="flex items-center space-x-3">
-          <Icon name="warning" size={20} className="text-red-600 dark:text-red-400" />
+          <Icon name="info" size={20} className="text-yellow-600 dark:text-yellow-400" />
           <div>
-            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Project Niet Gevonden</h3>
-            <p class="text-xs text-red-700 dark:text-red-300 mt-1">
-              Kan project gegevens niet laden. Controleer of het project bestaat en je toegang hebt.
+            <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Project Info Niet Beschikbaar</h3>
+            <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+              Storage functionaliteit werkt nog steeds, maar project details kunnen niet worden getoond.
             </p>
           </div>
         </div>

@@ -179,6 +179,30 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				admin.POST("/system/restart", adminHandler.RestartSystem)
 				admin.POST("/system/clear-cache", adminHandler.ClearCache)
 				admin.POST("/system/backup", adminHandler.CreateBackup)
+
+				// Admin project storage endpoints
+				adminProjects := admin.Group("/projects/:id")
+				adminProjects.Use(middleware.ProjectMiddleware()) // Ensure project exists and user has access
+				{
+					// Storage management
+					adminProjects.GET("/storage/buckets", storageHandler.ListBuckets)
+					adminProjects.POST("/storage/buckets", storageHandler.CreateBucket)
+					adminProjects.GET("/storage/buckets/:bucket", storageHandler.GetBucket)
+					adminProjects.PUT("/storage/buckets/:bucket", storageHandler.UpdateBucket)
+					adminProjects.DELETE("/storage/buckets/:bucket", storageHandler.DeleteBucket)
+					
+					// File management
+					adminProjects.GET("/storage/:bucket/files", storageHandler.ListFiles)
+					adminProjects.POST("/storage/:bucket/files", storageHandler.UploadFile)
+					adminProjects.GET("/storage/:bucket/files/:file_id", storageHandler.GetFile)
+					adminProjects.PUT("/storage/:bucket/files/:file_id/move", storageHandler.MoveFile)
+					adminProjects.DELETE("/storage/:bucket/files/:file_id", storageHandler.DeleteFile)
+					
+					// Folder management
+					adminProjects.GET("/storage/:bucket/folders", storageHandler.ListFolders)
+					adminProjects.POST("/storage/:bucket/folders", storageHandler.CreateFolder)
+					adminProjects.DELETE("/storage/:bucket/folders", storageHandler.DeleteFolder)
+				}
 			}
 
 			// Super Admin only routes

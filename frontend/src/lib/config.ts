@@ -53,7 +53,7 @@ export const API_ENDPOINTS = {
       get: (id: string) => `${API_BASE_URL}/api/v1/admin/projects/${id}`,
       update: (id: string) => `${API_BASE_URL}/api/v1/admin/projects/${id}`,
       delete: (id: string) => `${API_BASE_URL}/api/v1/admin/projects/${id}`,
-      // Storage endpoints for project admin
+      // Storage endpoints for project admin - consistent with project ID approach
       storage: {
         buckets: {
           list: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets`,
@@ -63,15 +63,16 @@ export const API_ENDPOINTS = {
           delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}`,
         },
         files: {
-          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files`,
-          upload: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files`,
-          get: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}`,
-          delete: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}`,
-          move: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}/move`,
+          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/files`,
+          upload: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/files`,
+          get: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/files/${fileId}`,
+          delete: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/files/${fileId}`,
+          move: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/files/${fileId}/move`,
         },
         folders: {
-          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
-          create: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
+          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/folders`,
+          create: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/folders`,
+          delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/${bucketName}/folders`,
         }
       }
     },
