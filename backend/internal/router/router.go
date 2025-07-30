@@ -183,6 +183,9 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				admin.POST("/system/clear-cache", adminHandler.ClearCache)
 				admin.POST("/system/backup", adminHandler.CreateBackup)
 
+				// Admin project endpoints (accessible to all authenticated users)
+				admin.GET("/projects/:id", projectHandler.GetProject)
+
 				// Admin project storage endpoints
 				adminProjects := admin.Group("/projects/:id")
 				adminProjects.Use(func(c *gin.Context) {
@@ -214,16 +217,16 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 					adminProjects.DELETE("/storage/buckets/:bucket", storageHandler.DeleteBucket)
 					
 					// File management
-					adminProjects.GET("/storage/:bucket/files", storageHandler.ListFiles)
-					adminProjects.POST("/storage/:bucket/files", storageHandler.UploadFile)
-					adminProjects.GET("/storage/:bucket/files/:file_id", storageHandler.GetFile)
-					adminProjects.PUT("/storage/:bucket/files/:file_id/move", storageHandler.MoveFile)
-					adminProjects.DELETE("/storage/:bucket/files/:file_id", storageHandler.DeleteFile)
+					adminProjects.GET("/storage/buckets/:bucket/files", storageHandler.ListFiles)
+					adminProjects.POST("/storage/buckets/:bucket/files", storageHandler.UploadFile)
+					adminProjects.GET("/storage/buckets/:bucket/files/:file_id", storageHandler.GetFile)
+					adminProjects.PUT("/storage/buckets/:bucket/files/:file_id/move", storageHandler.MoveFile)
+					adminProjects.DELETE("/storage/buckets/:bucket/files/:file_id", storageHandler.DeleteFile)
 					
 					// Folder management
-					adminProjects.GET("/storage/:bucket/folders", storageHandler.ListFolders)
-					adminProjects.POST("/storage/:bucket/folders", storageHandler.CreateFolder)
-					adminProjects.DELETE("/storage/:bucket/folders", storageHandler.DeleteFolder)
+					adminProjects.GET("/storage/buckets/:bucket/folders", storageHandler.ListFolders)
+					adminProjects.POST("/storage/buckets/:bucket/folders", storageHandler.CreateFolder)
+					adminProjects.DELETE("/storage/buckets/:bucket/folders", storageHandler.DeleteFolder)
 				}
 			}
 
@@ -240,6 +243,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				
 				// Super admin can see all projects (already handled in ListProjects)
 				superAdmin.GET("/projects", projectHandler.ListProjects)
+				superAdmin.GET("/projects/:id", projectHandler.GetProject)
 			}
 
 			// Deployments
