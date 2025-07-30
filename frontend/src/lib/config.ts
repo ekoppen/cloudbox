@@ -1,7 +1,5 @@
-import { PUBLIC_API_URL } from '$env/static/public';
-
 // API Configuration
-export const API_BASE_URL = PUBLIC_API_URL || 'http://localhost:8080';
+export const API_BASE_URL = 'https://cloudbox.doorkoppen.nl';
 
 // API Endpoints
 export const API_ENDPOINTS = {

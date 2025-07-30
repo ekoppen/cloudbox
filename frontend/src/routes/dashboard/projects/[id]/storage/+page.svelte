@@ -147,7 +147,9 @@
   async function loadBuckets() {
     loading = true;
     try {
-      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.buckets.list(projectId), {
+      const bucketsUrl = API_ENDPOINTS.admin.projects.storage.buckets.list(projectId);
+      console.log('🔍 Loading buckets URL:', bucketsUrl);
+      const response = await createApiRequest(bucketsUrl, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -180,7 +182,9 @@
     
     loadingFiles = true;
     try {
-      const response = await createApiRequest(`${API_ENDPOINTS.admin.projects.storage.files.list(projectId, bucketName)}?path=${encodeURIComponent(path)}`, {
+      const fileUrl = API_ENDPOINTS.admin.projects.storage.files.list(projectId, bucketName);
+      console.log('🔍 Loading files URL:', fileUrl);
+      const response = await createApiRequest(`${fileUrl}?path=${encodeURIComponent(path)}`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -207,7 +211,9 @@
     if (!currentBucket) return;
     
     try {
-      const response = await createApiRequest(`${API_ENDPOINTS.admin.projects.storage.folders.list(projectId, currentBucket.name)}?path=${encodeURIComponent(path)}`, {
+      const folderUrl = API_ENDPOINTS.admin.projects.storage.folders.list(projectId, currentBucket.name);
+      console.log('🔍 Loading folders URL:', folderUrl);
+      const response = await createApiRequest(`${folderUrl}?path=${encodeURIComponent(path)}`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -456,7 +462,9 @@
     }
 
     try {
-      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.buckets.create(projectId), {
+      const createUrl = API_ENDPOINTS.admin.projects.storage.buckets.create(projectId);
+      console.log('🔍 Creating bucket URL:', createUrl);
+      const response = await createApiRequest(createUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -533,7 +541,9 @@
     }
 
     try {
-      const response = await createApiRequest(API_ENDPOINTS.admin.projects.storage.folders.create(projectId, currentBucket.name), {
+      const createFolderUrl = API_ENDPOINTS.admin.projects.storage.folders.create(projectId, currentBucket.name);
+      console.log('🔍 Creating folder URL:', createFolderUrl);
+      const response = await createApiRequest(createFolderUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
