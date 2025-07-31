@@ -117,13 +117,20 @@
 
   async function createDeployment() {
     try {
+      // Convert string IDs to numbers before sending to backend
+      const payload = {
+        ...deploymentForm,
+        github_repository_id: parseInt(deploymentForm.github_repository_id),
+        web_server_id: parseInt(deploymentForm.web_server_id)
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...auth.getAuthHeader()
         },
-        body: JSON.stringify(deploymentForm)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -170,13 +177,26 @@
 
   async function updateDeployment() {
     try {
+      // Convert string IDs to numbers before sending to backend (if they exist and are strings)
+      const payload = {
+        ...editForm
+      };
+      
+      // Only convert IDs if they are being sent (not empty strings)
+      if (editForm.github_repository_id && typeof editForm.github_repository_id === 'string') {
+        payload.github_repository_id = parseInt(editForm.github_repository_id);
+      }
+      if (editForm.web_server_id && typeof editForm.web_server_id === 'string') {
+        payload.web_server_id = parseInt(editForm.web_server_id);
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments/${editingDeployment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...auth.getAuthHeader()
         },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -362,11 +382,11 @@
     {:else}
       <div class="grid gap-4">
         {#each deployments as deployment}
-          <Card class="p-6">
+          <Card class="p-6 hover:shadow-md transition-shadow cursor-pointer group" on:click={() => editDeployment(deployment)}>
             <div class="flex justify-between items-start">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
-                  <h3 class="text-lg font-semibold">{deployment.name}</h3>
+                  <h3 class="text-lg font-semibold group-hover:text-primary transition-colors">{deployment.name}</h3>
                   <span class="px-2 py-1 text-xs font-medium rounded-full border {getStatusColor(deployment.status)}">
                     {deployment.status}
                   </span>
@@ -395,19 +415,20 @@
                 {#if deployment.domain}
                   <div class="mt-3">
                     <span class="font-medium text-muted-foreground text-sm">URL:</span>
-                    <a href="https://{deployment.domain}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm ml-1">
+                    <a href="https://{deployment.domain}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm ml-1" on:click|stopPropagation>
                       {deployment.domain}
                     </a>
                   </div>
                 {/if}
               </div>
 
-              <div class="flex gap-2 ml-4">
+              <div class="flex gap-2 ml-4" on:click|stopPropagation>
                 <Button
                   on:click={() => deploy(deployment.id)}
                   size="sm"
                   disabled={deployment.status === 'deploying' || deployment.status === 'building'}
                   class="bg-green-600 text-white hover:bg-green-700"
+                  title="Deploy uitvoeren"
                 >
                   <Icon name={deployment.status === 'deploying' || deployment.status === 'building' ? "refresh" : "rocket"} size={16} />
                 </Button>
@@ -416,6 +437,7 @@
                   size="sm"
                   variant="outline"
                   class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
+                  title="Bewerken"
                 >
                   <Icon name="edit" size={16} />
                 </Button>
@@ -424,6 +446,7 @@
                   size="sm"
                   variant="outline"
                   class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                  title="Verwijderen"
                 >
                   <Icon name="trash" size={16} />
                 </Button>
@@ -434,64 +457,6 @@
       </div>
     {/if}
 
-    <!-- GitHub Repositories Section -->
-    {#if githubRepos.length > 0}
-      <div class="mt-8">
-        <h2 class="text-xl font-semibold mb-4 text-foreground">GitHub Repositories</h2>
-        <div class="grid gap-4">
-          {#each githubRepos as repo}
-            <Card class="p-4">
-              <div class="flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                  <div class="relative group">
-                    <Icon name="github" size={20} className="text-muted-foreground" />
-                    <UpdateBadge hasPendingUpdate={repo.has_pending_update} size="sm" />
-                  </div>
-                  <div>
-                    <h3 class="font-medium text-foreground">{repo.name}</h3>
-                    <p class="text-sm text-muted-foreground">
-                      Branch: {repo.branch} 
-                      {#if repo.last_commit_hash}
-                        • Last: {repo.last_commit_hash.substring(0, 8)}
-                      {/if}
-                    </p>
-                    {#if repo.has_pending_update && repo.pending_commit_hash}
-                      <p class="text-sm text-orange-600 dark:text-orange-400">
-                        📦 Update beschikbaar: {repo.pending_commit_hash.substring(0, 8)}
-                      </p>
-                    {/if}
-                  </div>
-                </div>
-                
-                <div class="flex gap-2">
-                  {#if repo.has_pending_update}
-                    <Button
-                      on:click={() => deployPendingUpdate(repo.id, repo.name)}
-                      size="sm"
-                      class="bg-orange-600 text-white hover:bg-orange-700"
-                    >
-                      <Icon name="rocket" size={16} className="mr-1" />
-                      Deploy Update
-                    </Button>
-                  {/if}
-                  
-                  <!-- Show associated deployments count -->
-                  {#if deployments.filter(d => d.github_repository_id === repo.id).length > 0}
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                      {deployments.filter(d => d.github_repository_id === repo.id).length} deployment(s)
-                    </span>
-                  {:else}
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                      Geen deployments
-                    </span>
-                  {/if}
-                </div>
-              </div>
-            </Card>
-          {/each}
-        </div>
-      </div>
-    {/if}
   {/if}
 </div>
 
