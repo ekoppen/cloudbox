@@ -424,6 +424,9 @@ update_docker_compose() {
         sed -i.tmp "s/- \"5432:5432\"/- \"\${POSTGRES_PORT:-5432}:5432\"/" "$compose_file"
         sed -i.tmp "s/- \"6379:6379\"/- \"\${REDIS_EXTERNAL_PORT:-6379}:6379\"/" "$compose_file"
         
+        # Update PUBLIC_API_URL to use environment variable without fallback
+        sed -i.tmp "s|PUBLIC_API_URL=\${PUBLIC_API_URL:-[^}]*}|PUBLIC_API_URL=\${PUBLIC_API_URL}|g" "$compose_file"
+        
         rm -f "${compose_file}.tmp"
         print_success "Docker Compose configuration updated"
     else
@@ -626,6 +629,18 @@ prompt_for_configuration() {
     fi
     
     print_success "Container user configured as: $USER_ID:$GROUP_ID"
+    echo
+
+    # API Configuration info
+    echo "🌐 API Configuration:"
+    echo "   Public API URL: $PUBLIC_API_URL"
+    echo "   This URL will be used by the frontend to communicate with the backend"
+    if [[ -z "$ALLOWED_HOST" ]]; then
+        echo "   📝 Note: Using localhost for development. Perfect for testing!"
+        echo "   ⚠️  Frontend will use HTTP (not HTTPS) for local API calls"
+    else
+        echo "   📝 Note: Using hostname $ALLOWED_HOST for remote access"
+    fi
     echo
 
     # Summary
