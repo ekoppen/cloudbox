@@ -22,6 +22,8 @@ API_HOST=""
 INSTALL_MODE="install"
 ENV_FILE=".env"
 USE_SSL=false
+USER_ID="1000"
+GROUP_ID="1000"
 
 # Function to print colored output
 print_info() {
@@ -64,6 +66,8 @@ OPTIONS:
     --api-host             API host/domain (e.g., api.example.com)
     --ssl                  Enable SSL/HTTPS for reverse proxy setups (nginx proxy manager)
     --env-file             Environment file path (default: .env)
+    --user-id              User ID for Docker containers (default: 1000)
+    --group-id             Group ID for Docker containers (default: 1000)
 
 EXAMPLES:
     # Interactive installation (recommended)
@@ -137,6 +141,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --env-file)
             ENV_FILE="$2"
+            shift 2
+            ;;
+        --user-id)
+            USER_ID="$2"
+            shift 2
+            ;;
+        --group-id)
+            GROUP_ID="$2"
             shift 2
             ;;
         *)
@@ -295,6 +307,8 @@ FRONTEND_PORT=${FRONTEND_PORT}
 BACKEND_PORT=${BACKEND_PORT}
 POSTGRES_PORT=${DB_PORT}
 REDIS_EXTERNAL_PORT=${REDIS_PORT}
+USER_ID=${USER_ID}
+GROUP_ID=${GROUP_ID}
 
 # Application Configuration
 APP_ENV=production
@@ -586,6 +600,34 @@ prompt_for_configuration() {
         echo
     fi
     
+    # User ID/Group ID configuration
+    echo "👤 Docker Container User Configuration:"
+    echo "   Docker containers need to run with the correct user permissions"
+    echo "   to avoid file ownership issues. Current system user info:"
+    
+    # Show current user info if available
+    if command -v id &> /dev/null; then
+        local current_uid=$(id -u 2>/dev/null || echo "unknown")
+        local current_gid=$(id -g 2>/dev/null || echo "unknown")
+        echo "   Current user ID:  $current_uid"
+        echo "   Current group ID: $current_gid"
+    fi
+    echo "   Default: 1000:1000 (most Linux systems)"
+    echo
+    
+    read -p "🔧 User ID for containers (default: $USER_ID): " input_user_id
+    if [[ -n "$input_user_id" ]]; then
+        USER_ID="$input_user_id"
+    fi
+    
+    read -p "🔧 Group ID for containers (default: $GROUP_ID): " input_group_id
+    if [[ -n "$input_group_id" ]]; then
+        GROUP_ID="$input_group_id"
+    fi
+    
+    print_success "Container user configured as: $USER_ID:$GROUP_ID"
+    echo
+
     # Summary
     print_info "📝 Installation Summary:"
     if [[ -n "$ALLOWED_HOST" ]]; then
