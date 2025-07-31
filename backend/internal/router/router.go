@@ -18,8 +18,10 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// Global middleware
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
-	// Note: CORS is applied selectively below, not globally
-
+	
+	// Global CORS middleware for all requests
+	r.Use(middleware.CORS(cfg))
+	
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(db, cfg)
 	projectHandler := handlers.NewProjectHandler(db, cfg)
@@ -46,6 +48,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			"service": "cloudbox-api",
 		})
 	})
+	
 
 	// Public webhook endpoint (no authentication required)
 	webhooks := r.Group("/api/v1/deploy")
@@ -53,9 +56,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		webhooks.POST("/webhook/:repo_id", deploymentHandler.HandleWebhook)
 	}
 
-	// API routes (with CORS middleware)
+	// API routes
 	api := r.Group("/api/v1")
-	api.Use(middleware.CORS(cfg))
 	{
 		// Authentication routes
 		auth := api.Group("/auth")
@@ -270,7 +272,6 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// Project API routes (project-specific namespaced APIs)
 	// Protected project routes (authentication required)
 	projectAPI := r.Group("/p/:project_slug/api")
-	projectAPI.Use(middleware.CORS(cfg))
 	projectAPI.Use(middleware.ProjectAuthOrJWT(cfg, db))
 	{
 		// Collections management
@@ -398,7 +399,6 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// Public project routes (no authentication required) - registered AFTER protected routes
 	projectPublic := r.Group("/p/:project_slug/api")
-	projectPublic.Use(middleware.CORS(cfg))
 	projectPublic.Use(middleware.ProjectOnly(cfg, db)) // Only validate project exists
 	{
 		// User authentication (public endpoints)

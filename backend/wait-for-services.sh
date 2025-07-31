@@ -40,7 +40,7 @@ test_database_connection() {
     echo "🗄️  Testing database connection..."
     
     while [ $attempt -le $max_attempts ]; do
-        if PGPASSWORD=cloudbox_dev_password psql -h postgres -U cloudbox -d cloudbox -c "SELECT 1;" >/dev/null 2>&1; then
+        if PGPASSWORD="${DB_PASSWORD}" psql -h postgres -U cloudbox -d cloudbox -c "SELECT 1;" >/dev/null 2>&1; then
             echo "✅ Database connection successful!"
             return 0
         fi

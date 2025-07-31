@@ -84,7 +84,7 @@ func Load() (*Config, error) {
 		BaseURL:     getEnvOrDefault("BASE_URL", "http://localhost:8080"),
 		MasterKey:   getEnvOrDefault("MASTER_KEY", ""),
 		
-		AllowedOrigins: getStringSliceFromEnv("ALLOWED_ORIGINS", []string{"*"}),
+		AllowedOrigins: getCORSOrigins(),
 		AllowedMethods: allowedMethods,
 		AllowedHeaders: getStringSliceFromEnv("ALLOWED_HEADERS", []string{"*"}),
 		
@@ -119,4 +119,34 @@ func getStringSliceFromEnv(key string, defaultValue []string) []string {
 	}
 	fmt.Printf("DEBUG: Using default for %s: %v\n", key, defaultValue)
 	return defaultValue
+}
+
+// getCORSOrigins gets CORS origins from environment variables
+// Tries CORS_ORIGINS first, then ALLOWED_ORIGINS, with sensible defaults
+func getCORSOrigins() []string {
+	// Try CORS_ORIGINS first (used by install script)
+	if value := os.Getenv("CORS_ORIGINS"); value != "" {
+		fmt.Printf("DEBUG: Found CORS_ORIGINS = %s\n", value)
+		result := strings.Split(value, ",")
+		// Trim whitespace from each origin
+		for i, origin := range result {
+			result[i] = strings.TrimSpace(origin)
+		}
+		fmt.Printf("DEBUG: CORS origins: %v\n", result)
+		return result
+	}
+	
+	// Fallback to ALLOWED_ORIGINS
+	if value := os.Getenv("ALLOWED_ORIGINS"); value != "" {
+		fmt.Printf("DEBUG: Found ALLOWED_ORIGINS = %s\n", value)
+		result := strings.Split(value, ",")
+		for i, origin := range result {
+			result[i] = strings.TrimSpace(origin)
+		}
+		return result
+	}
+	
+	// Default: allow all origins (development mode)
+	fmt.Printf("DEBUG: Using default CORS origins: [*]\n")
+	return []string{"*"}
 }

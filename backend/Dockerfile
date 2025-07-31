@@ -32,8 +32,10 @@ RUN adduser -D -s /bin/sh cloudbox
 # Set working directory
 WORKDIR /app
 
-# Copy binary from builder stage
+# Copy binary and wait script from builder stage
 COPY --from=builder /app/main .
+COPY --from=builder /app/wait-for-services.sh .
+RUN chmod +x wait-for-services.sh
 
 # Create uploads directory
 RUN mkdir -p uploads && chown cloudbox:cloudbox uploads
@@ -51,5 +53,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# Run the application
+# Run the application directly (skip wait script for now)
 CMD ["./main"]
