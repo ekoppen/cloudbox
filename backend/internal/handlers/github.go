@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
@@ -587,7 +589,8 @@ func (h *GitHubHandler) AnalyzeRepository(c *gin.Context) {
 		req.Branch = "main"
 	}
 
-	// Analyze repository
+	// For this endpoint, we analyze without a specific repository ID
+	// This is used for analyzing repositories before adding them
 	analysis, err := h.analyzeRepository(uint(projectID), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -602,9 +605,6 @@ func (h *GitHubHandler) AnalyzeRepository(c *gin.Context) {
 
 // analyzeRepository performs the actual repository analysis
 func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisRequest) (*ProjectAnalysisResponse, error) {
-	// For now, we'll create a basic analysis based on common patterns
-	// In a full implementation, this would clone/fetch the repository and analyze files
-	
 	analysis := &ProjectAnalysisResponse{
 		ProjectType:    "unknown",
 		Framework:      "unknown",
@@ -615,10 +615,146 @@ func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisReq
 		Files:          []string{},
 	}
 
-	// Basic analysis based on repository URL and name patterns
+	// Try to analyze repository contents via GitHub API
 	repoName := extractRepoName(req.RepoURL)
 	
-	// Detect common project types based on repository name
+	// If we have actual repository access, analyze the contents
+	if err := h.analyzeRepositoryContents(analysis, req); err != nil {
+		// Fall back to basic analysis based on repository name patterns
+		h.analyzeByName(analysis, repoName)
+	}
+
+	// Check for Docker
+	analysis.HasDocker = false // Would check for Dockerfile in real implementation
+	if analysis.HasDocker {
+		analysis.DockerCommand = "docker build -t " + repoName + " ."
+	}
+
+	return analysis, nil
+}
+
+// analyzeAndSaveRepository performs analysis and saves to database
+func (h *GitHubHandler) analyzeAndSaveRepository(projectID uint, repoID uint, req ProjectAnalysisRequest) (*models.RepositoryAnalysis, error) {
+	// Perform the analysis
+	analysisResp, err := h.analyzeRepository(projectID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate install options
+	installOptions := h.generateInstallOptions(analysisResp)
+
+	// Create repository analysis record
+	repoAnalysis := &models.RepositoryAnalysis{
+		GitHubRepositoryID: repoID,
+		ProjectID:          projectID,
+		AnalyzedAt:         time.Now(),
+		AnalyzedBranch:     req.Branch,
+		AnalysisStatus:     "completed",
+		
+		// Project detection
+		ProjectType:    analysisResp.ProjectType,
+		Framework:      analysisResp.Framework,
+		Language:       analysisResp.Language,
+		PackageManager: analysisResp.PackageManager,
+		
+		// Build configuration
+		BuildCommand:   analysisResp.BuildCommand,
+		StartCommand:   analysisResp.StartCommand,
+		DevCommand:     analysisResp.DevCommand,
+		InstallCommand: analysisResp.InstallCommand,
+		
+		// Runtime configuration
+		Port:        analysisResp.Port,
+		Environment: analysisResp.Environment,
+		
+		// Docker support
+		HasDocker:     analysisResp.HasDocker,
+		DockerCommand: analysisResp.DockerCommand,
+		
+		// File structure
+		ImportantFiles: analysisResp.Files,
+		
+		// Installation options
+		InstallOptions: installOptions,
+		
+		// Analysis insights
+		Insights: h.generateInsights(analysisResp),
+		
+		// Performance metrics
+		Complexity: h.calculateComplexity(analysisResp),
+	}
+
+	// Save or update the analysis
+	var existingAnalysis models.RepositoryAnalysis
+	result := h.db.Where("github_repository_id = ?", repoID).First(&existingAnalysis)
+	
+	if result.Error == gorm.ErrRecordNotFound {
+		// Create new analysis
+		if err := h.db.Create(repoAnalysis).Error; err != nil {
+			return nil, err
+		}
+	} else if result.Error != nil {
+		return nil, result.Error
+	} else {
+		// Update existing analysis
+		repoAnalysis.ID = existingAnalysis.ID
+		if err := h.db.Save(repoAnalysis).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	return repoAnalysis, nil
+}
+
+// analyzeRepositoryContents analyzes repository contents via GitHub API
+func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisResponse, req ProjectAnalysisRequest) error {
+	// Extract owner and repo from URL
+	owner, repo, err := h.parseGitHubURL(req.RepoURL)
+	if err != nil {
+		return err
+	}
+
+	// Try to fetch key files to analyze project structure
+	files := []string{"package.json", "Dockerfile", "docker-compose.yml", "vite.config.ts", "vite.config.js", 
+					  "next.config.js", "nuxt.config.js", "angular.json", "svelte.config.js", ".env.example", "README.md"}
+	
+	fileContents := make(map[string]string)
+	
+	for _, file := range files {
+		content, err := h.fetchFileContent(owner, repo, file, req.Branch)
+		if err == nil && content != "" {
+			fileContents[file] = content
+			analysis.Files = append(analysis.Files, file)
+		}
+	}
+
+	// Analyze package.json if it exists
+	if packageJSON, exists := fileContents["package.json"]; exists {
+		h.analyzePackageJSON(analysis, packageJSON)
+	}
+
+	// Check for Docker
+	if _, hasDockerfile := fileContents["Dockerfile"]; hasDockerfile {
+		analysis.HasDocker = true
+		analysis.DockerCommand = "docker build -t " + repo + " ."
+	}
+
+	// Analyze environment variables from .env.example
+	if envExample, exists := fileContents[".env.example"]; exists {
+		h.analyzeEnvironmentVariables(analysis, envExample)
+	}
+
+	// Analyze README for additional insights
+	if readme, exists := fileContents["README.md"]; exists {
+		h.analyzeReadme(analysis, readme)
+	}
+
+	return nil
+}
+
+// analyzeByName performs basic analysis based on repository name
+func (h *GitHubHandler) analyzeByName(analysis *ProjectAnalysisResponse, repoName string) {
 	switch {
 	case containsIgnoreCase(repoName, "photoportfolio") || containsIgnoreCase(repoName, "portfolio"):
 		analysis.ProjectType = "photoportfolio"
@@ -630,7 +766,6 @@ func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisReq
 		analysis.InstallCommand = "npm install"
 		analysis.Port = 5173
 		analysis.Environment["VITE_API_URL"] = "http://localhost:8080/p/project-slug/api"
-		analysis.Files = []string{"package.json", "vite.config.ts", "src/main.tsx"}
 		
 	case containsIgnoreCase(repoName, "react") || containsIgnoreCase(repoName, "cra"):
 		analysis.ProjectType = "react"
@@ -655,7 +790,7 @@ func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisReq
 		analysis.Framework = "vite"
 		analysis.BuildCommand = "npm run build"
 		analysis.StartCommand = "npm run preview"
-		analysis.DevCommand = "npm run dev"  
+		analysis.DevCommand = "npm run dev"
 		analysis.InstallCommand = "npm install"
 		analysis.Port = 5173
 		
@@ -696,14 +831,6 @@ func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisReq
 		analysis.InstallCommand = "npm install"
 		analysis.Port = 3000
 	}
-
-	// Check for Docker
-	analysis.HasDocker = false // Would check for Dockerfile in real implementation
-	if analysis.HasDocker {
-		analysis.DockerCommand = "docker build -t " + repoName + " ."
-	}
-
-	return analysis, nil
 }
 
 // extractRepoName extracts repository name from URL
@@ -742,4 +869,543 @@ func (h *GitHubHandler) generateWebhookSecret() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// parseGitHubURL extracts owner and repo from GitHub URL
+func (h *GitHubHandler) parseGitHubURL(repoURL string) (owner, repo string, err error) {
+	// Handle various GitHub URL formats:
+	// https://github.com/owner/repo
+	// https://github.com/owner/repo.git
+	// git@github.com:owner/repo.git
+	
+	// Remove .git suffix
+	if strings.HasSuffix(repoURL, ".git") {
+		repoURL = repoURL[:len(repoURL)-4]
+	}
+	
+	// Handle SSH format
+	if strings.HasPrefix(repoURL, "git@github.com:") {
+		repoURL = strings.TrimPrefix(repoURL, "git@github.com:")
+		parts := strings.Split(repoURL, "/")
+		if len(parts) == 2 {
+			return parts[0], parts[1], nil
+		}
+	}
+	
+	// Handle HTTPS format
+	if strings.Contains(repoURL, "github.com/") {
+		parts := strings.Split(repoURL, "github.com/")
+		if len(parts) > 1 {
+			pathParts := strings.Split(parts[1], "/")
+			if len(pathParts) >= 2 {
+				return pathParts[0], pathParts[1], nil
+			}
+		}
+	}
+	
+	return "", "", fmt.Errorf("invalid GitHub URL format")
+}
+
+// fetchFileContent fetches file content from GitHub repository (mock implementation)
+func (h *GitHubHandler) fetchFileContent(owner, repo, file, branch string) (string, error) {
+	// In a real implementation, this would use GitHub API to fetch file contents
+	// For now, return empty string to indicate file not found
+	// This prevents the analysis from failing completely
+	return "", fmt.Errorf("file not found: %s", file)
+}
+
+// analyzePackageJSON analyzes package.json to determine project type and dependencies
+func (h *GitHubHandler) analyzePackageJSON(analysis *ProjectAnalysisResponse, packageJSON string) {
+	// Parse package.json content (basic string matching for now)
+	
+	// Detect React
+	if strings.Contains(packageJSON, "\"react\"") {
+		analysis.ProjectType = "react"
+		analysis.Language = "javascript"
+		if strings.Contains(packageJSON, "\"typescript\"") {
+			analysis.Language = "typescript"
+		}
+	}
+	
+	// Detect Next.js
+	if strings.Contains(packageJSON, "\"next\"") {
+		analysis.ProjectType = "nextjs"
+		analysis.Framework = "nextjs"
+		analysis.Port = 3000
+	}
+	
+	// Detect Vue
+	if strings.Contains(packageJSON, "\"vue\"") {
+		analysis.ProjectType = "vue"
+		analysis.Framework = "vite"
+		analysis.Port = 5173
+	}
+	
+	// Detect Nuxt
+	if strings.Contains(packageJSON, "\"nuxt\"") {
+		analysis.ProjectType = "nuxt"
+		analysis.Framework = "nuxt"
+		analysis.Port = 3000
+	}
+	
+	// Detect Angular
+	if strings.Contains(packageJSON, "\"@angular/core\"") {
+		analysis.ProjectType = "angular"
+		analysis.Framework = "angular-cli"
+		analysis.Port = 4200
+	}
+	
+	// Detect Svelte
+	if strings.Contains(packageJSON, "\"svelte\"") {
+		analysis.ProjectType = "svelte"
+		analysis.Framework = "vite"
+		analysis.Port = 5173
+	}
+	
+	// Detect Vite
+	if strings.Contains(packageJSON, "\"vite\"") {
+		analysis.Framework = "vite"
+	}
+	
+	// Detect package manager
+	if strings.Contains(packageJSON, "\"packageManager\": \"yarn") {
+		analysis.PackageManager = "yarn"
+		analysis.InstallCommand = "yarn install"
+	} else if strings.Contains(packageJSON, "\"packageManager\": \"pnpm") {
+		analysis.PackageManager = "pnpm"
+		analysis.InstallCommand = "pnpm install"
+	}
+	
+	// Extract scripts
+	if strings.Contains(packageJSON, "\"build\":") {
+		analysis.BuildCommand = "npm run build"
+		if analysis.PackageManager == "yarn" {
+			analysis.BuildCommand = "yarn build"
+		} else if analysis.PackageManager == "pnpm" {
+			analysis.BuildCommand = "pnpm build"
+		}
+	}
+	
+	if strings.Contains(packageJSON, "\"start\":") {
+		analysis.StartCommand = "npm start"
+		if analysis.PackageManager == "yarn" {
+			analysis.StartCommand = "yarn start"
+		} else if analysis.PackageManager == "pnpm" {
+			analysis.StartCommand = "pnpm start"
+		}
+	}
+	
+	if strings.Contains(packageJSON, "\"dev\":") {
+		analysis.DevCommand = "npm run dev"
+		if analysis.PackageManager == "yarn" {
+			analysis.DevCommand = "yarn dev"
+		} else if analysis.PackageManager == "pnpm" {
+			analysis.DevCommand = "pnpm dev"
+		}
+	}
+}
+
+// analyzeEnvironmentVariables extracts environment variables from .env.example
+func (h *GitHubHandler) analyzeEnvironmentVariables(analysis *ProjectAnalysisResponse, envContent string) {
+	lines := strings.Split(envContent, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			
+			// Detect common environment variable patterns
+			switch {
+			case strings.Contains(key, "API_URL") || strings.Contains(key, "BACKEND_URL"):
+				analysis.Environment[key] = "http://localhost:8080/p/project-slug/api"
+			case strings.Contains(key, "PORT"):
+				if portStr := strings.Trim(value, "\"'"); portStr != "" {
+					if port, err := strconv.Atoi(portStr); err == nil {
+						analysis.Port = port
+					}
+				}
+				analysis.Environment[key] = value
+			default:
+				analysis.Environment[key] = value
+			}
+		}
+	}
+}
+
+// analyzeReadme extracts insights from README file
+func (h *GitHubHandler) analyzeReadme(analysis *ProjectAnalysisResponse, readme string) {
+	readmeLower := strings.ToLower(readme)
+	
+	// Look for deployment instructions
+	if strings.Contains(readmeLower, "docker") {
+		analysis.HasDocker = true
+	}
+	
+	// Look for framework mentions
+	if strings.Contains(readmeLower, "next.js") || strings.Contains(readmeLower, "nextjs") {
+		analysis.ProjectType = "nextjs"
+		analysis.Framework = "nextjs"
+	} else if strings.Contains(readmeLower, "vue.js") || strings.Contains(readmeLower, "vuejs") {
+		analysis.ProjectType = "vue"
+		analysis.Framework = "vite"
+	} else if strings.Contains(readmeLower, "react") {
+		analysis.ProjectType = "react"
+	}
+	
+	// Look for port mentions
+	portPattern := regexp.MustCompile(`(?i)port\s*:?\s*(\d+)`)
+	if matches := portPattern.FindStringSubmatch(readme); len(matches) > 1 {
+		if port, err := strconv.Atoi(matches[1]); err == nil {
+			analysis.Port = port
+		}
+	}
+}
+
+// generateInstallOptions creates different installation options based on analysis
+func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse) []models.InstallOption {
+	var options []models.InstallOption
+
+	// Docker option (if available)
+	if analysis.HasDocker {
+		options = append(options, models.InstallOption{
+			Name:         "docker",
+			Command:      "docker build -t app .",
+			BuildCommand: "docker build -t app .",
+			StartCommand: "docker run -p " + strconv.Itoa(analysis.Port) + ":" + strconv.Itoa(analysis.Port) + " app",
+			DevCommand:   "docker run -p " + strconv.Itoa(analysis.Port) + ":" + strconv.Itoa(analysis.Port) + " app",
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: true,
+			Description:  "Deploy using Docker container (recommended for production)",
+		})
+	}
+
+	// Package manager options
+	switch analysis.PackageManager {
+	case "npm":
+		options = append(options, models.InstallOption{
+			Name:         "npm",
+			Command:      "npm install",
+			BuildCommand: analysis.BuildCommand,
+			StartCommand: analysis.StartCommand,
+			DevCommand:   analysis.DevCommand,
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: !analysis.HasDocker,
+			Description:  "Standard npm installation",
+		})
+		
+	case "yarn":
+		options = append(options, models.InstallOption{
+			Name:         "yarn",
+			Command:      "yarn install",
+			BuildCommand: strings.Replace(analysis.BuildCommand, "npm run", "yarn", 1),
+			StartCommand: strings.Replace(analysis.StartCommand, "npm", "yarn", 1),
+			DevCommand:   strings.Replace(analysis.DevCommand, "npm run", "yarn", 1),
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: !analysis.HasDocker,
+			Description:  "Fast, reliable, and secure yarn installation",
+		})
+		
+		// Also add npm as alternative
+		options = append(options, models.InstallOption{
+			Name:         "npm",
+			Command:      "npm install",
+			BuildCommand: analysis.BuildCommand,
+			StartCommand: analysis.StartCommand,
+			DevCommand:   analysis.DevCommand,
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: false,
+			Description:  "Alternative npm installation",
+		})
+		
+	case "pnpm":
+		options = append(options, models.InstallOption{
+			Name:         "pnpm",
+			Command:      "pnpm install",
+			BuildCommand: strings.Replace(analysis.BuildCommand, "npm run", "pnpm", 1),
+			StartCommand: strings.Replace(analysis.StartCommand, "npm", "pnpm", 1),
+			DevCommand:   strings.Replace(analysis.DevCommand, "npm run", "pnpm", 1),
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: !analysis.HasDocker,
+			Description:  "Fast, disk space efficient pnpm installation",
+		})
+		
+		// Also add npm and yarn as alternatives
+		options = append(options, 
+			models.InstallOption{
+				Name:         "npm",
+				Command:      "npm install",
+				BuildCommand: analysis.BuildCommand,
+				StartCommand: analysis.StartCommand,
+				DevCommand:   analysis.DevCommand,
+				Port:         analysis.Port,
+				Environment:  analysis.Environment,
+				IsRecommended: false,
+				Description:  "Alternative npm installation",
+			},
+			models.InstallOption{
+				Name:         "yarn",
+				Command:      "yarn install",
+				BuildCommand: strings.Replace(analysis.BuildCommand, "npm run", "yarn", 1),
+				StartCommand: strings.Replace(analysis.StartCommand, "npm", "yarn", 1),
+				DevCommand:   strings.Replace(analysis.DevCommand, "npm run", "yarn", 1),
+				Port:         analysis.Port,
+				Environment:  analysis.Environment,
+				IsRecommended: false,
+				Description:  "Alternative yarn installation",
+			})
+	}
+
+	// Custom deployment option
+	if len(options) > 0 {
+		options = append(options, models.InstallOption{
+			Name:         "custom",
+			Command:      "",
+			BuildCommand: "",
+			StartCommand: "",
+			DevCommand:   "",
+			Port:         analysis.Port,
+			Environment:  make(map[string]interface{}),
+			IsRecommended: false,
+			Description:  "Custom deployment configuration",
+		})
+	}
+
+	return options
+}
+
+// generateInsights creates helpful insights based on analysis
+func (h *GitHubHandler) generateInsights(analysis *ProjectAnalysisResponse) []string {
+	var insights []string
+
+	// Framework-specific insights
+	switch analysis.ProjectType {
+	case "react":
+		insights = append(insights, "React application detected - make sure to set REACT_APP_ environment variables")
+		if analysis.Framework == "vite" {
+			insights = append(insights, "Vite detected - very fast build times expected")
+		}
+	case "vue":
+		insights = append(insights, "Vue.js application detected - configure VITE_ environment variables")
+	case "nextjs":
+		insights = append(insights, "Next.js application detected - supports both SSR and static generation")
+		insights = append(insights, "Make sure to set up proper environment variables for API routes")
+	case "angular":
+		insights = append(insights, "Angular application detected - requires Node.js 16+ for building")
+	case "svelte":
+		insights = append(insights, "Svelte application detected - very lightweight runtime")
+	}
+
+	// Docker insights
+	if analysis.HasDocker {
+		insights = append(insights, "Dockerfile found - container deployment recommended")
+		insights = append(insights, "Make sure to expose the correct port in your Docker configuration")
+	}
+
+	// Package manager insights
+	switch analysis.PackageManager {
+	case "yarn":
+		insights = append(insights, "Yarn detected - faster installation than npm")
+	case "pnpm":
+		insights = append(insights, "pnpm detected - most disk space efficient package manager")
+	}
+
+	// Port insights
+	if analysis.Port != 3000 && analysis.Port != 5173 && analysis.Port != 4200 {
+		insights = append(insights, fmt.Sprintf("Custom port %d detected - make sure to configure your reverse proxy", analysis.Port))
+	}
+
+	// Environment insights
+	if len(analysis.Environment) > 0 {
+		insights = append(insights, "Environment variables detected - review and configure them for your deployment")
+	}
+
+	return insights
+}
+
+// calculateComplexity estimates project complexity (1-10 scale)
+func (h *GitHubHandler) calculateComplexity(analysis *ProjectAnalysisResponse) int {
+	complexity := 1
+
+	// Base complexity by project type
+	switch analysis.ProjectType {
+	case "angular":
+		complexity += 3 // Angular is more complex
+	case "nextjs":
+		complexity += 2 // Next.js has SSR complexity
+	case "react", "vue":
+		complexity += 1 // Modern frameworks
+	}
+
+	// Framework complexity
+	if analysis.Framework == "webpack" {
+		complexity += 1 // Webpack config can be complex
+	}
+
+	// Docker adds complexity
+	if analysis.HasDocker {
+		complexity += 1
+	}
+
+	// Environment variables add complexity
+	if len(analysis.Environment) > 5 {
+		complexity += 1
+	}
+
+	// TypeScript adds slight complexity
+	if analysis.Language == "typescript" {
+		complexity += 1
+	}
+
+	// Cap at 10
+	if complexity > 10 {
+		complexity = 10
+	}
+
+	return complexity
+}
+
+// GetRepositoryAnalysis returns the stored analysis for a repository
+func (h *GitHubHandler) GetRepositoryAnalysis(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Find repository analysis
+	var analysis models.RepositoryAnalysis
+	if err := h.db.Where("github_repository_id = ? AND project_id = ?", uint(repoID), uint(projectID)).First(&analysis).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Repository analysis not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch repository analysis"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, analysis)
+}
+
+// ReAnalyzeRepository performs a fresh analysis of a repository and saves it
+func (h *GitHubHandler) ReAnalyzeRepository(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Find repository
+	var repository models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", uint(repoID), uint(projectID)).First(&repository).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "GitHub repository not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch GitHub repository"})
+		}
+		return
+	}
+
+	// Get branch from query parameter or use repository default
+	branch := c.DefaultQuery("branch", repository.Branch)
+
+	// Create analysis request
+	req := ProjectAnalysisRequest{
+		RepoURL:  repository.CloneURL,
+		Branch:   branch,
+		SSHKeyID: repository.SSHKeyID,
+	}
+
+	// Perform analysis and save to database
+	analysis, err := h.analyzeAndSaveRepository(uint(projectID), uint(repoID), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to analyze repository",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Repository analyzed successfully",
+		"analysis": analysis,
+	})
+}
+
+// AnalyzeAndSaveRepository analyzes a repository for an existing GitHub repository record
+func (h *GitHubHandler) AnalyzeAndSaveRepository(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	var req ProjectAnalysisRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find repository
+	var repository models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", uint(repoID), uint(projectID)).First(&repository).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "GitHub repository not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch GitHub repository"})
+		}
+		return
+	}
+
+	// Use repository URL if not provided
+	if req.RepoURL == "" {
+		req.RepoURL = repository.CloneURL
+	}
+
+	// Set default branch if not provided
+	if req.Branch == "" {
+		req.Branch = repository.Branch
+	}
+
+	// Perform analysis and save to database
+	analysis, err := h.analyzeAndSaveRepository(uint(projectID), uint(repoID), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to analyze repository",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Repository analyzed and saved successfully",
+		"analysis": analysis,
+	})
 }

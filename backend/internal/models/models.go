@@ -248,6 +248,91 @@ type GitHubRepository struct {
 	PendingCommitHash   string     `json:"pending_commit_hash"`   // New commit available for deployment
 	PendingCommitBranch string     `json:"pending_commit_branch"` // Branch of pending commit
 	HasPendingUpdate    bool       `json:"has_pending_update" gorm:"default:false"` // Badge indicator
+
+	// Analysis relation
+	Analysis *RepositoryAnalysis `json:"analysis,omitempty"`
+}
+
+// InstallOption represents different installation methods for a repository
+type InstallOption struct {
+	Name         string                 `json:"name"`          // "npm", "yarn", "pnpm", "docker"
+	Command      string                 `json:"command"`       // "npm install"
+	BuildCommand string                 `json:"build_command"` // "npm run build"
+	StartCommand string                 `json:"start_command"` // "npm start"
+	DevCommand   string                 `json:"dev_command"`   // "npm run dev"
+	Port         int                    `json:"port"`          // Default port
+	Environment  map[string]interface{} `json:"environment"`   // Default environment variables
+	IsRecommended bool                  `json:"is_recommended"` // Recommended option
+	Description  string                 `json:"description"`   // User-friendly description
+}
+
+// RepositoryAnalysis represents the detailed analysis of a repository
+type RepositoryAnalysis struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Repository relation
+	GitHubRepositoryID uint             `json:"github_repository_id" gorm:"uniqueIndex;not null"`
+	GitHubRepository   GitHubRepository `json:"github_repository,omitempty"`
+
+	// Analysis metadata
+	AnalyzedAt     time.Time `json:"analyzed_at" gorm:"not null"`
+	AnalyzedBranch string    `json:"analyzed_branch" gorm:"not null"`
+	AnalysisStatus string    `json:"analysis_status" gorm:"default:'completed'"` // pending, completed, failed
+
+	// Project detection
+	ProjectType    string   `json:"project_type"`    // react, vue, angular, next, nuxt, etc.
+	Framework      string   `json:"framework"`       // vite, webpack, create-react-app, etc.
+	Language       string   `json:"language"`        // javascript, typescript, python, go, etc.
+	PackageManager string   `json:"package_manager"` // npm, yarn, pnpm, pip, go mod, etc.
+	
+	// Build configuration
+	BuildCommand   string `json:"build_command"`
+	StartCommand   string `json:"start_command"`
+	DevCommand     string `json:"dev_command"`
+	InstallCommand string `json:"install_command"`
+	TestCommand    string `json:"test_command"`
+	
+	// Runtime configuration
+	Port        int                    `json:"port"`
+	Environment map[string]interface{} `json:"environment" gorm:"type:jsonb;serializer:json"`
+	
+	// Docker support
+	HasDocker     bool   `json:"has_docker"`
+	DockerCommand string `json:"docker_command"`
+	DockerPort    int    `json:"docker_port"`
+	
+	// Dependencies and features
+	Dependencies    []string `json:"dependencies" gorm:"type:jsonb;serializer:json"`     // Main dependencies found
+	DevDependencies []string `json:"dev_dependencies" gorm:"type:jsonb;serializer:json"` // Dev dependencies found
+	Scripts         []string `json:"scripts" gorm:"type:jsonb;serializer:json"`          // Available npm scripts
+	
+	// File structure
+	ImportantFiles  []string `json:"important_files" gorm:"type:jsonb;serializer:json"`  // package.json, Dockerfile, etc.
+	ConfigFiles     []string `json:"config_files" gorm:"type:jsonb;serializer:json"`     // vite.config.js, next.config.js, etc.
+	EnvironmentFiles []string `json:"environment_files" gorm:"type:jsonb;serializer:json"` // .env.example, .env.local, etc.
+	
+	// Installation options
+	InstallOptions []InstallOption `json:"install_options" gorm:"type:jsonb;serializer:json"`
+	
+	// Analysis insights
+	Insights      []string `json:"insights" gorm:"type:jsonb;serializer:json"`      // Helpful suggestions
+	Warnings      []string `json:"warnings" gorm:"type:jsonb;serializer:json"`      // Potential issues
+	Requirements  []string `json:"requirements" gorm:"type:jsonb;serializer:json"`  // System requirements
+	
+	// Performance metrics
+	EstimatedBuildTime int64 `json:"estimated_build_time"` // seconds
+	EstimatedSize      int64 `json:"estimated_size"`       // bytes
+	Complexity         int   `json:"complexity"`           // 1-10 scale
+	
+	// Analysis errors
+	AnalysisErrors []string `json:"analysis_errors" gorm:"type:jsonb;serializer:json"` // Errors during analysis
+	
+	// Project relation for easier querying
+	ProjectID uint    `json:"project_id" gorm:"not null;index"`
+	Project   Project `json:"project,omitempty"`
 }
 
 // WebServer represents a target deployment server

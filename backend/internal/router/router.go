@@ -137,7 +137,13 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/github-repositories/:repo_id/sync", githubHandler.SyncRepository)
 				projects.GET("/:id/github-repositories/:repo_id/webhook", githubHandler.GetWebhookInfo)
 				projects.GET("/:id/github-repositories/:repo_id/branches", githubHandler.GetRepositoryBranches)
+				
+				// Repository analysis endpoints
 				projects.POST("/:id/github-repositories/analyze", githubHandler.AnalyzeRepository)
+				projects.GET("/:id/github-repositories/:repo_id/analysis", githubHandler.GetRepositoryAnalysis)
+				projects.POST("/:id/github-repositories/:repo_id/analyze", githubHandler.AnalyzeAndSaveRepository)
+				projects.POST("/:id/github-repositories/:repo_id/reanalyze", githubHandler.ReAnalyzeRepository)
+				
 				projects.POST("/:id/github-repositories/:repo_id/deploy-pending", deploymentHandler.DeployPendingUpdate)
 				
 				projects.GET("/:id/deployments", deploymentHandler.ListDeployments)

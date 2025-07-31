@@ -12,6 +12,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  import InstallOptions from '$lib/components/ui/install-options.svelte';
 
   let projectId = $page.params.id;
   let repositories = [];
@@ -19,8 +20,11 @@
   let showCreateModal = false;
   let showWebhookModal = false;
   let showEditModal = false;
+  let showAnalysisModal = false;
   let selectedRepo = null;
   let editingRepo = null;
+  let repoAnalysis = null;
+  let analyzingRepo = null;
 
   // Form data voor nieuwe repository
   let repoForm = {
@@ -254,6 +258,95 @@
   function getRepoIcon(isPrivate: boolean) {
     return isPrivate ? '🔒' : '📂';
   }
+
+  async function getRepositoryAnalysis(repo) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analysis`, {
+        headers: auth.getAuthHeader()
+      });
+
+      if (response.ok) {
+        const analysis = await response.json();
+        selectedRepo = repo;
+        repoAnalysis = analysis;
+        showAnalysisModal = true;
+      } else if (response.status === 404) {
+        // No analysis found, suggest to analyze
+        toast.info('Geen analyse gevonden. Klik op "Analyseren" om de repository te analyseren.');
+      } else {
+        toast.error('Fout bij laden repository analyse');
+      }
+    } catch (error) {
+      console.error('Error loading repository analysis:', error);
+      toast.error('Netwerkfout bij laden repository analyse');
+    }
+  }
+
+  async function analyzeRepository(repo, force = false) {
+    analyzingRepo = repo.id;
+    try {
+      const endpoint = force 
+        ? `${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/reanalyze`
+        : `${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analyze`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        },
+        body: JSON.stringify({
+          repo_url: repo.clone_url,
+          branch: repo.branch
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(force ? 'Repository hergeanalyseerd' : 'Repository geanalyseerd');
+        
+        // Show the analysis result immediately
+        selectedRepo = repo;
+        repoAnalysis = result.analysis;
+        showAnalysisModal = true;
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij analyseren repository');
+      }
+    } catch (error) {
+      console.error('Error analyzing repository:', error);
+      toast.error('Netwerkfout bij analyseren repository');
+    } finally {
+      analyzingRepo = null;
+    }
+  }
+
+  function getProjectTypeIcon(projectType: string) {
+    const icons = {
+      'react': '⚛️',
+      'vue': '💚',
+      'angular': '🅰️',
+      'nextjs': '🔼',
+      'nuxt': '💚',
+      'svelte': '🔶',
+      'nodejs': '💚',
+      'photoportfolio': '📸',
+      'unknown': '❓'
+    };
+    return icons[projectType] || icons.unknown;
+  }
+
+  function getComplexityColor(complexity: number) {
+    if (complexity <= 3) return 'bg-green-100 text-green-800 border-green-200';
+    if (complexity <= 6) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    return 'bg-red-100 text-red-800 border-red-200';
+  }
+
+  function getComplexityLabel(complexity: number) {
+    if (complexity <= 3) return 'Eenvoudig';
+    if (complexity <= 6) return 'Gemiddeld';
+    return 'Complex';
+  }
 </script>
 
 <svelte:head>
@@ -347,10 +440,34 @@
 
               <div class="flex gap-2 ml-4 flex-col">
                 <Button
+                  on:click={() => getRepositoryAnalysis(repo)}
+                  size="sm"
+                  variant="outline"
+                  class="border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400"
+                  title="Bekijk analyse"
+                >
+                  <Icon name="search" size={16} />
+                </Button>
+                <Button
+                  on:click={() => analyzeRepository(repo, false)}
+                  size="sm"
+                  variant="outline"
+                  class="border-cyan-300 text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400"
+                  disabled={analyzingRepo === repo.id}
+                  title={analyzingRepo === repo.id ? 'Analyseren...' : 'Analyseer repository'}
+                >
+                  {#if analyzingRepo === repo.id}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-600"></div>
+                  {:else}
+                    <Icon name="eye" size={16} />
+                  {/if}
+                </Button>
+                <Button
                   on:click={() => syncRepository(repo.id)}
                   size="sm"
                   variant="outline"
                   class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
+                  title="Synchroniseer"
                 >
                   <Icon name="refresh" size={16} />
                 </Button>
@@ -359,6 +476,7 @@
                   size="sm"
                   variant="outline"
                   class="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400"
+                  title="Bewerken"
                 >
                   <Icon name="edit" size={16} />
                 </Button>
@@ -367,6 +485,7 @@
                   size="sm"
                   variant="outline"
                   class="border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400"
+                  title="Webhook info"
                 >
                   <Icon name="link" size={16} />
                 </Button>
@@ -375,6 +494,7 @@
                   size="sm"
                   variant="outline"
                   class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                  title="Verwijderen"
                 >
                   <Icon name="trash" size={16} />
                 </Button>
@@ -708,6 +828,232 @@
           </Button>
         </div>
       </form>
+    </div>
+  </Modal>
+{/if}
+
+<!-- Repository Analysis Modal -->
+{#if showAnalysisModal && selectedRepo && repoAnalysis}
+  <Modal open={showAnalysisModal} on:close={() => showAnalysisModal = false} size="3xl">
+    <div class="p-8 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-semibold flex items-center gap-3">
+            {getProjectTypeIcon(repoAnalysis.project_type)}
+            Repository Analyse: {selectedRepo.name}
+          </h2>
+          <p class="text-muted-foreground mt-1">
+            Geanalyseerd op {new Date(repoAnalysis.analyzed_at).toLocaleString('nl-NL')}
+          </p>
+        </div>
+        <Button
+          on:click={() => analyzeRepository(selectedRepo, true)}
+          size="sm"
+          variant="outline"
+          class="border-orange-300 text-orange-600 hover:bg-orange-50"
+          disabled={analyzingRepo === selectedRepo.id}
+        >
+          {#if analyzingRepo === selectedRepo.id}
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2"></div>
+            Heranalyseren...
+          {:else}
+            <Icon name="refresh" size={16} className="mr-2" />
+            Heranalyseren
+          {/if}
+        </Button>
+      </div>
+
+      <div class="grid gap-6">
+        <!-- Project Info -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Icon name="code" size={20} />
+            Project Informatie
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Type</span>
+              <p class="flex items-center gap-2">
+                {getProjectTypeIcon(repoAnalysis.project_type)}
+                {repoAnalysis.project_type}
+              </p>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Framework</span>
+              <p>{repoAnalysis.framework}</p>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Taal</span>
+              <p>{repoAnalysis.language}</p>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Package Manager</span>
+              <p>{repoAnalysis.package_manager}</p>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex items-center gap-4">
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Port</span>
+              <p class="font-mono text-sm">{repoAnalysis.port}</p>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Complexiteit</span>
+              <span class="px-2 py-1 text-xs font-medium rounded-full border {getComplexityColor(repoAnalysis.complexity)}">
+                {getComplexityLabel(repoAnalysis.complexity)} ({repoAnalysis.complexity}/10)
+              </span>
+            </div>
+            {#if repoAnalysis.has_docker}
+              <div>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  🐳 Docker Support
+                </span>
+              </div>
+            {/if}
+          </div>
+        </Card>
+
+        <!-- Install Options -->
+        {#if repoAnalysis.install_options && repoAnalysis.install_options.length > 0}
+          <Card class="p-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Icon name="package" size={20} />
+              Installatie Opties
+            </h3>
+            <InstallOptions 
+              options={repoAnalysis.install_options} 
+              showSelectButton={false}
+            />
+          </Card>
+        {/if}
+
+        <!-- Build Configuration -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Icon name="settings" size={20} />
+            Build Configuratie
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Install Command</span>
+              <code class="block bg-muted px-3 py-2 rounded text-sm font-mono mt-1">{repoAnalysis.install_command || 'Niet ingesteld'}</code>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Build Command</span>
+              <code class="block bg-muted px-3 py-2 rounded text-sm font-mono mt-1">{repoAnalysis.build_command || 'Niet ingesteld'}</code>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Start Command</span>
+              <code class="block bg-muted px-3 py-2 rounded text-sm font-mono mt-1">{repoAnalysis.start_command || 'Niet ingesteld'}</code>
+            </div>
+            <div>
+              <span class="text-sm font-medium text-muted-foreground">Dev Command</span>
+              <code class="block bg-muted px-3 py-2 rounded text-sm font-mono mt-1">{repoAnalysis.dev_command || 'Niet ingesteld'}</code>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Insights & Warnings -->
+        {#if (repoAnalysis.insights && repoAnalysis.insights.length > 0) || (repoAnalysis.warnings && repoAnalysis.warnings.length > 0)}
+          <Card class="p-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Icon name="lightbulb" size={20} />
+              Inzichten & Aanbevelingen
+            </h3>
+            
+            {#if repoAnalysis.insights && repoAnalysis.insights.length > 0}
+              <div class="mb-4">
+                <h4 class="font-medium text-green-800 mb-2 flex items-center gap-2">
+                  💡 Inzichten
+                </h4>
+                <ul class="space-y-1">
+                  {#each repoAnalysis.insights as insight}
+                    <li class="text-sm text-green-700 flex items-start gap-2">
+                      <Icon name="check" size={16} className="mt-0.5 text-green-600" />
+                      {insight}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
+
+            {#if repoAnalysis.warnings && repoAnalysis.warnings.length > 0}
+              <div>
+                <h4 class="font-medium text-orange-800 mb-2 flex items-center gap-2">
+                  ⚠️ Waarschuwingen
+                </h4>
+                <ul class="space-y-1">
+                  {#each repoAnalysis.warnings as warning}
+                    <li class="text-sm text-orange-700 flex items-start gap-2">
+                      <Icon name="alert-triangle" size={16} className="mt-0.5 text-orange-600" />
+                      {warning}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
+          </Card>
+        {/if}
+
+        <!-- File Structure -->
+        {#if repoAnalysis.important_files && repoAnalysis.important_files.length > 0}
+          <Card class="p-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Icon name="file" size={20} />
+              Belangrijke Bestanden
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {#each repoAnalysis.important_files as file}
+                <code class="text-xs bg-muted px-2 py-1 rounded font-mono">{file}</code>
+              {/each}
+            </div>
+          </Card>
+        {/if}
+
+        <!-- Performance Metrics -->
+        {#if repoAnalysis.estimated_build_time || repoAnalysis.estimated_size}
+          <Card class="p-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Icon name="activity" size={20} />
+              Performance Schattingen
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              {#if repoAnalysis.estimated_build_time}
+                <div>
+                  <span class="text-sm font-medium text-muted-foreground">Geschatte Build Tijd</span>
+                  <p class="text-lg font-semibold">{repoAnalysis.estimated_build_time}s</p>
+                </div>
+              {/if}
+              {#if repoAnalysis.estimated_size}
+                <div>
+                  <span class="text-sm font-medium text-muted-foreground">Geschatte Grootte</span>
+                  <p class="text-lg font-semibold">{Math.round(repoAnalysis.estimated_size / 1024 / 1024)}MB</p>
+                </div>
+              {/if}
+            </div>
+          </Card>
+        {/if}
+      </div>
+
+      <div class="flex justify-end gap-2 pt-6 mt-6 border-t">
+        <Button
+          on:click={() => showAnalysisModal = false}
+          variant="outline"
+        >
+          <Icon name="x" size={16} className="mr-2" />
+          Sluiten
+        </Button>
+        <Button
+          on:click={() => {
+            // TODO: Navigate to deployment with analysis data
+            toast.info('Deployment functionaliteit komt binnenkort');
+          }}
+          class="bg-primary text-primary-foreground"
+        >
+          <Icon name="rocket" size={16} className="mr-2" />
+          Deployment Starten
+        </Button>
+      </div>
     </div>
   </Modal>
 {/if}
