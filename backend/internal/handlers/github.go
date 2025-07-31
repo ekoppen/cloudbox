@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -906,12 +910,384 @@ func (h *GitHubHandler) parseGitHubURL(repoURL string) (owner, repo string, err 
 	return "", "", fmt.Errorf("invalid GitHub URL format")
 }
 
-// fetchFileContent fetches file content from GitHub repository (mock implementation)
+// fetchFileContent fetches file content from GitHub repository via GitHub API
 func (h *GitHubHandler) fetchFileContent(owner, repo, file, branch string) (string, error) {
-	// In a real implementation, this would use GitHub API to fetch file contents
-	// For now, return empty string to indicate file not found
-	// This prevents the analysis from failing completely
-	return "", fmt.Errorf("file not found: %s", file)
+	// Try to get repository-specific access token first
+	var githubRepo models.GitHubRepository
+	if err := h.db.Where("full_name = ?", owner+"/"+repo).First(&githubRepo).Error; err == nil && githubRepo.AccessToken != "" {
+		// Use repository-specific token
+		return h.fetchFileContentWithToken(githubRepo.AccessToken, owner, repo, file, branch)
+	}
+	
+	// Fall back to global token if available
+	globalToken := os.Getenv("GITHUB_TOKEN")
+	if globalToken != "" {
+		return h.fetchFileContentWithToken(globalToken, owner, repo, file, branch)
+	}
+	
+	return "", fmt.Errorf("No GitHub access token available for repository %s/%s. Please authorize repository access.", owner, repo)
+}
+
+// fetchFileContentWithToken fetches file content using a specific GitHub token
+func (h *GitHubHandler) fetchFileContentWithToken(githubToken, owner, repo, file, branch string) (string, error) {
+
+	// Construct GitHub API URL
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s", owner, repo, file, branch)
+	
+	// Create HTTP request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	// Add authorization header
+	req.Header.Set("Authorization", "token "+githubToken)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "CloudBox/1.0")
+	
+	// Make HTTP request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch file: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	// Handle 404 (file not found)
+	if resp.StatusCode == 404 {
+		return "", fmt.Errorf("file not found: %s", file)
+	}
+	
+	// Handle other errors
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("GitHub API error %d: %s", resp.StatusCode, string(body))
+	}
+	
+	// Parse response
+	var response struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+	
+	// Decode base64 content
+	if response.Encoding == "base64" {
+		decoded, err := base64.StdEncoding.DecodeString(response.Content)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		return string(decoded), nil
+	}
+	
+	return response.Content, nil
+}
+
+// GitHubAuthorizeRepository initiates OAuth flow for repository access
+func (h *GitHubHandler) GitHubAuthorizeRepository(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Get repository to validate ownership
+	var repo models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", repoID, projectID).First(&repo).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found"})
+		return
+	}
+
+	// Get OAuth configuration from database
+	clientID := h.getSystemSetting("github_oauth_client_id")
+	enabled := h.getSystemSetting("github_oauth_enabled") == "true"
+	
+	if !enabled || clientID == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth not configured or disabled"})
+		return
+	}
+
+	// Generate state parameter for security
+	state := fmt.Sprintf("%d_%d_%s", projectID, repoID, generateRandomString(16))
+	
+	// Build GitHub OAuth URL
+	scope := "repo" // Full repository access
+	if !repo.IsPrivate {
+		scope = "public_repo" // Only public repositories
+	}
+	
+	// Generate callback URL from system settings
+	callbackURL := h.generateOAuthCallbackURL()
+	
+	authURL := fmt.Sprintf(
+		"https://github.com/login/oauth/authorize?client_id=%s&scope=%s&state=%s&redirect_uri=%s", 
+		clientID,
+		scope,
+		state,
+		callbackURL,
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"auth_url": authURL,
+		"state":    state,
+	})
+}
+
+// GitHubOAuthCallback handles the OAuth callback from GitHub
+func (h *GitHubHandler) GitHubOAuthCallback(c *gin.Context) {
+	code := c.Query("code")
+	state := c.Query("state")
+	
+	if code == "" || state == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code or state parameter"})
+		return
+	}
+
+	// Parse state to get project and repo IDs
+	parts := strings.Split(state, "_")
+	if len(parts) < 3 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state parameter"})
+		return
+	}
+
+	projectID, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID in state"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID in state"})
+		return
+	}
+
+	// Exchange code for access token
+	token, err := h.exchangeCodeForToken(code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange code for token: " + err.Error()})
+		return
+	}
+
+	// Get GitHub user info to verify
+	userInfo, err := h.getGitHubUserInfo(token.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info: " + err.Error()})
+		return
+	}
+
+	// Update repository with OAuth info
+	now := time.Now()
+	updates := map[string]interface{}{
+		"access_token":    token.AccessToken,
+		"refresh_token":   token.RefreshToken,
+		"token_scopes":    token.Scope,
+		"authorized_at":   &now,
+		"authorized_by":   userInfo.Login,
+	}
+
+	if token.ExpiresIn > 0 {
+		expiresAt := now.Add(time.Duration(token.ExpiresIn) * time.Second)
+		updates["token_expires_at"] = &expiresAt
+	}
+
+	if err := h.db.Model(&models.GitHubRepository{}).Where("id = ? AND project_id = ?", repoID, projectID).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save OAuth token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Repository authorized successfully",
+		"authorized_by": userInfo.Login,
+		"scopes":        token.Scope,
+	})
+}
+
+// TestRepositoryAccess tests if we can access the repository with current authorization
+func (h *GitHubHandler) TestRepositoryAccess(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Get repository
+	var repo models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", repoID, projectID).First(&repo).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found"})
+		return
+	}
+
+	// Test access by trying to fetch package.json
+	owner, repoName, err := h.parseGitHubURL("https://github.com/" + repo.FullName)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository URL"})
+		return
+	}
+
+	content, err := h.fetchFileContent(owner, repoName, "package.json", repo.Branch)
+	
+	testResult := map[string]interface{}{
+		"repository":     repo.FullName,
+		"branch":         repo.Branch,
+		"has_auth":       repo.AccessToken != "",
+		"authorized_by":  repo.AuthorizedBy,
+		"authorized_at":  repo.AuthorizedAt,
+		"token_scopes":   repo.TokenScopes,
+	}
+
+	if err != nil {
+		testResult["access_test"] = "failed"
+		testResult["error"] = err.Error()
+		testResult["needs_auth"] = repo.AccessToken == ""
+		c.JSON(http.StatusOK, testResult)
+		return
+	}
+
+	testResult["access_test"] = "success"
+	testResult["sample_file"] = "package.json found"
+	testResult["file_size"] = len(content)
+
+	c.JSON(http.StatusOK, testResult)
+}
+
+// Helper functions for OAuth flow
+
+type GitHubOAuthToken struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	Scope        string `json:"scope"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+type GitHubUser struct {
+	Login string `json:"login"`
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+}
+
+func (h *GitHubHandler) exchangeCodeForToken(code string) (*GitHubOAuthToken, error) {
+	clientID := h.getSystemSetting("github_oauth_client_id")
+	clientSecret := h.getSystemSetting("github_oauth_client_secret")
+	
+	data := map[string]string{
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"code":          code,
+	}
+	
+	jsonData, _ := json.Marshal(data)
+	
+	req, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", strings.NewReader(string(jsonData)))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	var token GitHubOAuthToken
+	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+		return nil, err
+	}
+	
+	if token.AccessToken == "" {
+		return nil, fmt.Errorf("no access token received")
+	}
+	
+	return &token, nil
+}
+
+func (h *GitHubHandler) getGitHubUserInfo(accessToken string) (*GitHubUser, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Authorization", "token "+accessToken)
+	req.Header.Set("Accept", "application/json")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	var user GitHubUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+	
+	return &user, nil
+}
+
+func generateRandomString(length int) string {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(bytes)[:length]
+}
+
+// Helper functions for system settings
+func (h *GitHubHandler) getSystemSetting(key string) string {
+	var setting models.SystemSetting
+	if err := h.db.Where("key = ?", key).First(&setting).Error; err != nil {
+		return ""
+	}
+	return setting.Value
+}
+
+func (h *GitHubHandler) generateOAuthCallbackURL() string {
+	domain := h.getSystemSetting("site_domain")
+	protocol := h.getSystemSetting("site_protocol")
+	
+	if domain == "" {
+		domain = "localhost:3000"
+	}
+	if protocol == "" {
+		protocol = "http"
+	}
+
+	// For development, always use backend port for callback
+	if strings.Contains(domain, "localhost") {
+		domain = strings.Replace(domain, "3000", "8080", 1)
+	} else {
+		// For production, assume backend is on same domain with port 8080 or standard ports
+		if !strings.Contains(domain, ":") {
+			if protocol == "https" {
+				domain = domain + ":443"
+			} else {
+				domain = domain + ":8080"
+			}
+		}
+	}
+
+	return protocol + "://" + domain + "/api/v1/github/oauth/callback"
 }
 
 // analyzePackageJSON analyzes package.json to determine project type and dependencies

@@ -25,6 +25,8 @@
   let editingRepo = null;
   let repoAnalysis = null;
   let analyzingRepo = null;
+  let testingRepo = null;
+  let oauthRepo = null;
 
   // Form data voor nieuwe repository
   let repoForm = {
@@ -342,6 +344,79 @@
     return 'bg-red-100 text-red-800 border-red-200';
   }
 
+  // OAuth functions
+  async function testRepositoryAccess(repo) {
+    testingRepo = repo.id;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/test-access`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.access_test === 'success') {
+          toast.success(`✅ Repository toegang werkt! (${result.authorized_by})`);
+        } else {
+          if (result.needs_auth) {
+            toast.error('❌ Geen autorisatie - klik "Autoriseren" om toegang te verlenen');
+          } else {
+            toast.error(`❌ Toegang gefaald: ${result.error}`);
+          }
+        }
+        console.log('Access test result:', result);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij testen van repository toegang');
+      }
+    } catch (error) {
+      console.error('Error testing repository access:', error);
+      toast.error('Netwerkfout bij testen repository toegang');
+    } finally {
+      testingRepo = null;
+    }
+  }
+
+  async function authorizeRepository(repo) {
+    oauthRepo = repo.id;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/authorize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader()
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Open GitHub OAuth in new window  
+        const authWindow = window.open(result.auth_url, 'github-oauth', 'width=600,height=700');
+        
+        // Listen for OAuth completion (simplified - in production you'd want better handling)
+        const checkClosed = setInterval(() => {
+          if (authWindow?.closed) {
+            clearInterval(checkClosed);
+            toast.success('OAuth venster gesloten - test nu de toegang');
+            oauthRepo = null;
+          }
+        }, 1000);
+        
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Fout bij starten OAuth flow');
+        oauthRepo = null;
+      }
+    } catch (error) {
+      console.error('Error authorizing repository:', error);
+      toast.error('Netwerkfout bij autoriseren repository');
+      oauthRepo = null;
+    }
+  }
+
   function getComplexityLabel(complexity: number) {
     if (complexity <= 3) return 'Eenvoudig';
     if (complexity <= 6) return 'Gemiddeld';
@@ -488,6 +563,34 @@
                   title="Webhook info"
                 >
                   <Icon name="link" size={16} />
+                </Button>
+                <Button
+                  on:click={() => testRepositoryAccess(repo)}
+                  size="sm"
+                  variant="outline"
+                  class="border-teal-300 text-teal-600 hover:bg-teal-50 hover:border-teal-400"
+                  disabled={testingRepo === repo.id}
+                  title={testingRepo === repo.id ? 'Testen...' : 'Test toegang'}
+                >
+                  {#if testingRepo === repo.id}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                  {:else}
+                    <Icon name="shield" size={16} />
+                  {/if}
+                </Button>
+                <Button
+                  on:click={() => authorizeRepository(repo)}
+                  size="sm"
+                  variant="outline"
+                  class="border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400"
+                  disabled={oauthRepo === repo.id}
+                  title={oauthRepo === repo.id ? 'Autoriseren...' : 'Autoriseer toegang'}
+                >
+                  {#if oauthRepo === repo.id}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                  {:else}
+                    <Icon name="key" size={16} />
+                  {/if}
                 </Button>
                 <Button
                   on:click={() => deleteRepository(repo.id)}

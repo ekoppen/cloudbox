@@ -221,6 +221,14 @@ type GitHubRepository struct {
 	// SSH Key for private repository access (optional)
 	SSHKeyID *uint   `json:"ssh_key_id,omitempty"`
 	SSHKey   *SSHKey `json:"ssh_key,omitempty"`
+	
+	// GitHub OAuth for repository access
+	AccessToken      string    `json:"-" gorm:"column:access_token"` // Hidden from JSON for security
+	TokenExpiresAt   *time.Time `json:"token_expires_at"`
+	RefreshToken     string    `json:"-" gorm:"column:refresh_token"` // Hidden from JSON for security  
+	TokenScopes      string    `json:"token_scopes"` // Comma-separated scopes
+	AuthorizedAt     *time.Time `json:"authorized_at"`
+	AuthorizedBy     string    `json:"authorized_by"` // GitHub username who authorized
 
 	// SDK Configuration
 	SDKVersion    string                 `json:"sdk_version"`
@@ -251,6 +259,33 @@ type GitHubRepository struct {
 
 	// Analysis relation
 	Analysis *RepositoryAnalysis `json:"analysis,omitempty"`
+}
+
+// SystemSetting represents a system-wide configuration setting
+type SystemSetting struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	
+	// Setting identification
+	Key      string `json:"key" gorm:"uniqueIndex;not null"`
+	Category string `json:"category" gorm:"not null;default:'general'"`
+	
+	// Setting values
+	Value       string `json:"value"`
+	ValueType   string `json:"value_type" gorm:"not null;default:'string'"` // string, boolean, integer, json
+	
+	// Setting metadata
+	Name            string `json:"name" gorm:"not null"`
+	Description     string `json:"description"`
+	IsSecret        bool   `json:"is_secret" gorm:"default:false"`
+	IsRequired      bool   `json:"is_required" gorm:"default:false"`
+	DefaultValue    string `json:"default_value"`
+	ValidationRules string `json:"validation_rules"` // JSON string
+	
+	// Setting organization
+	SortOrder int  `json:"sort_order" gorm:"default:0"`
+	IsActive  bool `json:"is_active" gorm:"default:true"`
 }
 
 // InstallOption represents different installation methods for a repository

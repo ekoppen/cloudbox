@@ -39,6 +39,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	adminHandler := handlers.NewAdminHandler(db, cfg)
 	portfolioHandler := handlers.NewPortfolioHandler(db, cfg)
 	templateHandler := handlers.NewTemplateHandler(db, cfg)
+	systemSettingsHandler := handlers.NewSystemSettingsHandler(db, cfg)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -78,6 +79,12 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			github.POST("/validate", githubHandler.ValidateRepository)
 			github.GET("/search", githubHandler.SearchRepositories)
 			github.GET("/user/repositories", githubHandler.GetUserRepositories)
+		}
+
+		// GitHub OAuth callback (public, no auth required)
+		githubOAuth := api.Group("/github/oauth")
+		{
+			githubOAuth.GET("/callback", githubHandler.GitHubOAuthCallback)
 		}
 
 		// Protected routes (requires authentication)
@@ -144,6 +151,10 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/github-repositories/:repo_id/analyze", githubHandler.AnalyzeAndSaveRepository)
 				projects.POST("/:id/github-repositories/:repo_id/reanalyze", githubHandler.ReAnalyzeRepository)
 				
+				// OAuth endpoints for repository access
+				projects.POST("/:id/github-repositories/:repo_id/authorize", githubHandler.GitHubAuthorizeRepository)
+				projects.GET("/:id/github-repositories/:repo_id/test-access", githubHandler.TestRepositoryAccess)
+				
 				projects.POST("/:id/github-repositories/:repo_id/deploy-pending", deploymentHandler.DeployPendingUpdate)
 				
 				projects.GET("/:id/deployments", deploymentHandler.ListDeployments)
@@ -186,10 +197,15 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				
 				// Admin system endpoints
 				admin.GET("/system/info", adminHandler.GetSystemInfo)
-				admin.GET("/system/settings", adminHandler.GetSystemSettings)
 				admin.POST("/system/restart", adminHandler.RestartSystem)
 				admin.POST("/system/clear-cache", adminHandler.ClearCache)
 				admin.POST("/system/backup", adminHandler.CreateBackup)
+				
+				// System settings endpoints (configurable settings)
+				admin.GET("/system/settings", systemSettingsHandler.GetSystemSettings)
+				admin.PUT("/system/settings/:key", systemSettingsHandler.UpdateSystemSetting)
+				admin.GET("/system/github-instructions", systemSettingsHandler.GetGitHubInstructions)
+				admin.POST("/system/test-github-oauth", systemSettingsHandler.TestGitHubOAuth)
 
 				// Admin project endpoints (accessible to all authenticated users)
 				admin.GET("/projects/:id", projectHandler.GetProject)
