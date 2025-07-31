@@ -195,13 +195,27 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if ports are available
-    if ss -tlnp | grep -q ":${FRONTEND_PORT} "; then
-        print_warning "Port ${FRONTEND_PORT} is already in use. Frontend might conflict."
-    fi
-    
-    if ss -tlnp | grep -q ":${BACKEND_PORT} "; then
-        print_warning "Port ${BACKEND_PORT} is already in use. Backend might conflict."
+    # Check if ports are available (cross-platform compatible)
+    if command -v netstat &> /dev/null; then
+        # Use netstat (available on macOS and Linux)
+        if netstat -an | grep -q ":${FRONTEND_PORT} "; then
+            print_warning "Port ${FRONTEND_PORT} is already in use. Frontend might conflict."
+        fi
+        
+        if netstat -an | grep -q ":${BACKEND_PORT} "; then
+            print_warning "Port ${BACKEND_PORT} is already in use. Backend might conflict."
+        fi
+    elif command -v ss &> /dev/null; then
+        # Use ss if available (Linux)
+        if ss -tlnp | grep -q ":${FRONTEND_PORT} "; then
+            print_warning "Port ${FRONTEND_PORT} is already in use. Frontend might conflict."
+        fi
+        
+        if ss -tlnp | grep -q ":${BACKEND_PORT} "; then
+            print_warning "Port ${BACKEND_PORT} is already in use. Backend might conflict."
+        fi
+    else
+        print_info "Port checking tools not available, skipping port availability check"
     fi
     
     print_success "Prerequisites check completed"
