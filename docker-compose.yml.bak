@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: cloudbox
       POSTGRES_USER: cloudbox
-      POSTGRES_PASSWORD: cloudbox_dev_password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -22,10 +22,11 @@ services:
     image: golang:1.21-alpine
     container_name: cloudbox-backend
     working_dir: /app
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgres://cloudbox:cloudbox_dev_password@postgres:5432/cloudbox?sslmode=disable
+      - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=your-super-secret-jwt-key-change-in-production
       - PORT=8080
       - ENVIRONMENT=development
@@ -35,20 +36,21 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./backend:/app
+      - ./uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
-    command: ["sh", "-c", "go mod tidy && ./wait-for-services.sh && go run main.go"]
+    command: ["sh", "-c", "mkdir -p /app/uploads && go mod tidy && ./wait-for-services.sh && go run main.go"]
 
   frontend:
     image: node:20-alpine
     container_name: cloudbox-frontend
     working_dir: /app
     environment:
-      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://api.cloudbox.doorkoppen.nl}
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://cloudbox.doorkoppen.nl}
       - NODE_ENV=development
     ports:
       - "${FRONTEND_PORT:-3000}:3000"

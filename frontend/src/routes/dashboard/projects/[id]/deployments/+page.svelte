@@ -12,6 +12,7 @@
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
   import UpdateBadge from '$lib/components/ui/update-badge.svelte';
+  import DeploymentConsole from '$lib/components/deployment/console.svelte';
 
   let projectId = $page.params.id;
   let deployments = [];
@@ -21,6 +22,15 @@
   let showCreateModal = false;
   let showEditModal = false;
   let editingDeployment = null;
+  
+  // Console state
+  let activeDeploymentId = null;
+  let showConsole = false;
+  
+  function closeConsole() {
+    showConsole = false;
+    activeDeploymentId = null;
+  }
 
   // Form data voor nieuwe deployment
   let deploymentForm = {
@@ -150,6 +160,10 @@
 
   async function deploy(deploymentId: number) {
     try {
+      // Show console and set active deployment
+      activeDeploymentId = deploymentId.toString();
+      showConsole = true;
+      
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments/${deploymentId}/deploy`, {
         method: 'POST',
         headers: {
@@ -163,11 +177,12 @@
       });
 
       if (response.ok) {
-        toast.success('Deployment gestart');
+        toast.success('Deployment gestart - Console logs worden getoond');
         await loadData();
       } else {
         const error = await response.json();
         toast.error(error.error || 'Fout bij starten deployment');
+        // Keep console open to show error logs
       }
     } catch (error) {
       console.error('Error deploying:', error);
@@ -341,6 +356,18 @@
       Nieuwe Deployment
     </Button>
   </div>
+
+  <!-- Deployment Console -->
+  {#if showConsole && activeDeploymentId}
+    <div class="mb-6">
+      <DeploymentConsole 
+        deploymentId={activeDeploymentId}
+        projectId={projectId}
+        isVisible={showConsole}
+        onClose={closeConsole}
+      />
+    </div>
+  {/if}
 
   {#if loading}
     <div class="text-center py-8">

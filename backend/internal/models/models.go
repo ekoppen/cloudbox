@@ -234,7 +234,7 @@ type GitHubRepository struct {
 	Project   Project `json:"project,omitempty"`
 
 	// GitHub specific fields
-	GitHubID        int64      `json:"github_id"`
+	GitHubID        int64      `json:"github_id" gorm:"column:git_hub_id"`
 	DefaultBranch   string     `json:"default_branch"`
 	Language        string     `json:"language"`
 	Size            int        `json:"size"`

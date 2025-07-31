@@ -131,7 +131,7 @@ func (s *GitHubService) SyncRepository(repository *models.GitHubRepository, acce
 		"is_private":       repoInfo.Private,
 		"description":      repoInfo.Description,
 		"default_branch":   repoInfo.DefaultBranch,
-		"github_id":        repoInfo.ID,
+		"git_hub_id":       repoInfo.ID,
 		"last_sync_at":     time.Now(),
 		"is_active":        !repoInfo.Archived && !repoInfo.Disabled,
 	}
