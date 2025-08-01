@@ -32,9 +32,18 @@
   let showCreateModal = false;
   let newProject = { name: '', description: '' };
   let creating = false;
+  
+  // Admin stats
+  let adminStats = null;
+  let loadingAdminStats = false;
+  
+  $: isSuperAdmin = $auth.user?.role === 'superadmin';
 
   onMount(() => {
     loadProjects();
+    if (isSuperAdmin) {
+      loadAdminStats();
+    }
   });
 
   async function loadProjects() {
@@ -95,12 +104,43 @@
     }
   }
 
+  async function loadAdminStats() {
+    if (!isSuperAdmin) return;
+    
+    loadingAdminStats = true;
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.admin.stats.system, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+      
+      if (response.ok) {
+        adminStats = await response.json();
+      } else {
+        console.error('Failed to load admin stats');
+      }
+    } catch (err) {
+      console.error('Admin stats error:', err);
+    } finally {
+      loadingAdminStats = false;
+    }
+  }
+  
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('nl-NL', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+  }
+  
+  function formatBytes(bytes: number) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 </script>
 
@@ -162,7 +202,13 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground">Storage Gebruikt</p>
-          <p class="text-2xl font-bold text-foreground">2.4GB</p>
+          <p class="text-2xl font-bold text-foreground">
+            {#if isSuperAdmin && adminStats}
+              {formatBytes(adminStats.storage_used || 0)}
+            {:else}
+              2.4GB
+            {/if}
+          </p>
         </div>
         <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
           <Icon name="storage" size={20} className="text-purple-600 dark:text-purple-400" />
@@ -174,7 +220,13 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground">API Calls (24h)</p>
-          <p class="text-2xl font-bold text-foreground">1,247</p>
+          <p class="text-2xl font-bold text-foreground">
+            {#if isSuperAdmin && adminStats}
+              {adminStats.api_calls_24h || 0}
+            {:else}
+              1,247
+            {/if}
+          </p>
         </div>
         <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
           <Icon name="functions" size={20} className="text-orange-600 dark:text-orange-400" />
@@ -182,10 +234,122 @@
       </div>
     </Card>
   </div>
+  
+  <!-- Admin Stats for Superadmins -->
+  {#if isSuperAdmin}
+    <div class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-foreground">Systeem Statistieken</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          on:click={loadAdminStats}
+          disabled={loadingAdminStats}
+          class="flex items-center space-x-2"
+        >
+          <Icon name="backup" size={14} />
+          <span>Vernieuwen</span>
+        </Button>
+      </div>
+      
+      {#if loadingAdminStats}
+        <Card class="p-6">
+          <div class="text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p class="mt-4 text-muted-foreground">Admin statistieken laden...</p>
+          </div>
+        </Card>
+      {:else if adminStats}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card class="p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">Totaal Gebruikers</p>
+                <p class="text-2xl font-bold text-foreground">{adminStats.total_users || 0}</p>
+              </div>
+              <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                <Icon name="user" size={20} className="text-indigo-600 dark:text-indigo-400" />
+              </div>
+            </div>
+          </Card>
+          
+          <Card class="p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">Systeem Uptime</p>
+                <p class="text-2xl font-bold text-foreground">{adminStats.uptime || '0d'}</p>
+              </div>
+              <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center">
+                <Icon name="shield-check" size={20} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </Card>
+          
+          <Card class="p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-muted-foreground">Database Queries</p>
+                <p class="text-2xl font-bold text-foreground">{adminStats.database_queries || 0}</p>
+              </div>
+              <div class="w-10 h-10 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
+                <Icon name="database" size={20} className="text-cyan-600 dark:text-cyan-400" />
+              </div>
+            </div>
+          </Card>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card class="p-6">
+            <h3 class="text-lg font-semibold text-foreground mb-4">Systeem Informatie</h3>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Server OS:</span>
+                <span class="text-foreground font-medium">{adminStats.os || 'Onbekend'}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">CPU Usage:</span>
+                <span class="text-foreground font-medium">{adminStats.cpu_usage || '0'}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Memory Usage:</span>
+                <span class="text-foreground font-medium">{adminStats.memory_usage || '0'}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Disk Usage:</span>
+                <span class="text-foreground font-medium">{adminStats.disk_usage || '0'}%</span>
+              </div>
+            </div>
+          </Card>
+          
+          <Card class="p-6">
+            <h3 class="text-lg font-semibold text-foreground mb-4">Recente Activiteit</h3>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Deployments (7d):</span>
+                <span class="text-foreground font-medium">{adminStats.deployments_7d || 0}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Functions Executed:</span>
+                <span class="text-foreground font-medium">{adminStats.functions_executed || 0}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Active Sessions:</span>
+                <span class="text-foreground font-medium">{adminStats.active_sessions || 0}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Error Rate (24h):</span>
+                <span class="text-foreground font-medium">{adminStats.error_rate_24h || '0'}%</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Error message -->
   {#if error}
-    <Card class="bg-destructive/10 border-destructive/20 p-4 mb-6">
+    <Card class="bg-destructive/10 border-destructive/20 p-4">
       <div class="flex justify-between items-center">
         <p class="text-destructive text-sm">{error}</p>
         <Button

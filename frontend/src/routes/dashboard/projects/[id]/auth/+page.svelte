@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
-  import { API_BASE_URL } from '$lib/config';
+  import { API_BASE_URL, API_ENDPOINTS } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';

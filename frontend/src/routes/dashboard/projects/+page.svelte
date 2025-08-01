@@ -79,6 +79,7 @@
   async function loadOrganizations() {
     loadingOrganizations = true;
     try {
+      console.log('Loading organizations...');
       const response = await createApiRequest(API_ENDPOINTS.organizations.list, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -87,27 +88,43 @@
 
       if (response.ok) {
         organizations = await response.json();
+        console.log('Loaded organizations:', organizations);
+        
+        // If no organizations exist, auto-select the first one if available
+        if (organizations.length > 0 && newProject.organization_id === 0) {
+          newProject.organization_id = organizations[0].id;
+        }
       } else {
-        console.error('Failed to load organizations');
+        console.error('Failed to load organizations, status:', response.status);
+        const errorData = await response.json().catch(() => null);
+        console.error('Organizations error data:', errorData);
+        error = 'Kon organizations niet laden. Controleer je permissies.';
       }
     } catch (err) {
       console.error('Load organizations error:', err);
+      error = 'Netwerkfout bij laden van organizations';
     } finally {
       loadingOrganizations = false;
     }
   }
 
   async function createProject() {
+    error = ''; // Reset error
+    
     if (!newProject.name.trim()) {
+      error = 'Vul een project naam in';
       return;
     }
     
-    if (!newProject.organization_id) {
+    if (!newProject.organization_id || newProject.organization_id === 0) {
       error = 'Selecteer een organization voor dit project';
+      console.error('Invalid organization_id:', newProject.organization_id);
+      console.error('Available organizations:', organizations);
       return;
     }
 
     creating = true;
+    console.log('Creating project with data:', newProject);
 
     try {
       const response = await createApiRequest(API_ENDPOINTS.projects.create, {
@@ -420,17 +437,28 @@
             <Icon name="package" size={14} />
             <span>Organization *</span>
           </Label>
-          <select
-            id="project-organization"
-            bind:value={newProject.organization_id}
-            required
-            class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value={0}>Selecteer een organization</option>
-            {#each organizations as org}
-              <option value={org.id}>{org.name}</option>
-            {/each}
-          </select>
+          {#if loadingOrganizations}
+            <div class="flex items-center space-x-2 p-3 bg-muted rounded-md">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span class="text-sm text-muted-foreground">Organizations laden...</span>
+            </div>
+          {:else if organizations.length === 0}
+            <div class="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p class="text-sm text-destructive">Geen organizations beschikbaar. Vraag een superadmin om een organization aan te maken.</p>
+            </div>
+          {:else}
+            <select
+              id="project-organization"
+              bind:value={newProject.organization_id}
+              required
+              class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value={0}>Selecteer een organization</option>
+              {#each organizations as org}
+                <option value={org.id}>{org.name}</option>
+              {/each}
+            </select>
+          {/if}
           <p class="text-xs text-muted-foreground">
             Elk project moet gekoppeld zijn aan een organization
           </p>

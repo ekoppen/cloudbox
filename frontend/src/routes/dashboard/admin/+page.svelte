@@ -17,6 +17,7 @@
   let showInstructionsModal = false;
   let testingOAuth = false;
   let oauthTestResult = null;
+  let settingTimeout;
 
   onMount(async () => {
     await loadSystemSettings();
@@ -132,8 +133,8 @@
     }
     
     // Debounced save after user stops typing
-    clearTimeout(window.settingTimeout);
-    window.settingTimeout = setTimeout(() => {
+    clearTimeout(settingTimeout);
+    settingTimeout = setTimeout(() => {
       updateSetting(key, value, settingName);
     }, 1000);
   }
@@ -147,18 +148,7 @@
   <title>Admin Settings - CloudBox</title>
 </svelte:head>
 
-<div class="p-6 space-y-8">
-  <!-- Page Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-3xl font-bold text-foreground">Systeeminstellingen</h1>
-      <p class="text-muted-foreground mt-2">Configureer CloudBox systeem instellingen</p>
-    </div>
-    <Button on:click={showInstructions} variant="outline">
-      <Icon name="info" size={16} className="mr-2" />
-      Setup Instructies
-    </Button>
-  </div>
+<div>
 
   {#if loading}
     <div class="text-center py-8">
