@@ -277,10 +277,53 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }
 
+// ChangePassword allows a user to change their own password
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	
+	var req struct {
+		CurrentPassword string `json:"current_password" binding:"required"`
+		NewPassword     string `json:"new_password" binding:"required,min=6"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Get current user
+	var user models.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Current password is incorrect"})
+		return
+	}
+	
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+		return
+	}
+	
+	// Update password
+	if err := h.db.Model(&user).Update("password_hash", string(hashedPassword)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}
+
 // ListUsers returns all users (superadmin only)
 func (h *AuthHandler) ListUsers(c *gin.Context) {
 	var users []models.User
-	if err := h.db.Find(&users).Error; err != nil {
+	if err := h.db.Preload("OrganizationAdmins.Organization").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
@@ -497,4 +540,142 @@ func (h *AuthHandler) DeleteUser(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
+// AssignOrganizationAdmin assigns a user as admin to an organization (superadmin only)
+func (h *AuthHandler) AssignOrganizationAdmin(c *gin.Context) {
+	var req struct {
+		UserID         uint   `json:"user_id" binding:"required"`
+		OrganizationID uint   `json:"organization_id" binding:"required"`
+		Role           string `json:"role"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	if req.Role == "" {
+		req.Role = "admin"
+	}
+	
+	// Get current user (superadmin)
+	currentUserID := c.GetUint("user_id")
+	
+	// Check if user exists and is admin role
+	var user models.User
+	if err := h.db.First(&user, req.UserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	
+	if user.Role != models.RoleAdmin {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only admin users can be assigned to organizations"})
+		return
+	}
+	
+	// Check if organization exists
+	var org models.Organization
+	if err := h.db.First(&org, req.OrganizationID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
+		return
+	}
+	
+	// Check if assignment already exists
+	var existingAdmin models.OrganizationAdmin
+	err := h.db.Where("user_id = ? AND organization_id = ? AND is_active = true", req.UserID, req.OrganizationID).First(&existingAdmin).Error
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "User is already admin of this organization"})
+		return
+	}
+	
+	// Create organization admin assignment
+	orgAdmin := models.OrganizationAdmin{
+		UserID:         req.UserID,
+		OrganizationID: req.OrganizationID,
+		Role:           req.Role,
+		IsActive:       true,
+		AssignedBy:     currentUserID,
+		AssignedAt:     time.Now(),
+	}
+	
+	if err := h.db.Create(&orgAdmin).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign organization admin"})
+		return
+	}
+	
+	// Load the created assignment with relations
+	if err := h.db.Preload("User").Preload("Organization").First(&orgAdmin, orgAdmin.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load assignment"})
+		return
+	}
+	
+	c.JSON(http.StatusCreated, orgAdmin)
+}
+
+// RevokeOrganizationAdmin revokes a user's admin access to an organization (superadmin only)
+func (h *AuthHandler) RevokeOrganizationAdmin(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	
+	orgID, err := strconv.ParseUint(c.Param("org_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization ID"})
+		return
+	}
+	
+	// Get current user (superadmin)
+	currentUserID := c.GetUint("user_id")
+	
+	// Find active organization admin assignment
+	var orgAdmin models.OrganizationAdmin
+	if err := h.db.Where("user_id = ? AND organization_id = ? AND is_active = true", uint(userID), uint(orgID)).First(&orgAdmin).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Organization admin assignment not found"})
+		return
+	}
+	
+	// Update assignment to revoked
+	now := time.Now()
+	orgAdmin.IsActive = false
+	orgAdmin.RevokedBy = &currentUserID
+	orgAdmin.RevokedAt = &now
+	
+	if err := h.db.Save(&orgAdmin).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke organization admin"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Organization admin access revoked successfully"})
+}
+
+// ListOrganizationAdmins lists all organization admin assignments (superadmin only)
+func (h *AuthHandler) ListOrganizationAdmins(c *gin.Context) {
+	var orgAdmins []models.OrganizationAdmin
+	
+	query := h.db.Preload("User").Preload("Organization")
+	
+	// Optional filtering by organization
+	if orgID := c.Query("organization_id"); orgID != "" {
+		query = query.Where("organization_id = ?", orgID)
+	}
+	
+	// Optional filtering by user
+	if userID := c.Query("user_id"); userID != "" {
+		query = query.Where("user_id = ?", userID)
+	}
+	
+	// Filter by active status (default: only active)
+	if active := c.Query("active"); active != "false" {
+		query = query.Where("is_active = true")
+	}
+	
+	if err := query.Order("created_at DESC").Find(&orgAdmins).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organization admins"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, orgAdmins)
 }

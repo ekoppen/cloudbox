@@ -10,6 +10,7 @@
   let user: User | null = null;
   let isLoading = true;
   let authInitialized = false;
+  let showUserDropdown = false;
 
   // Subscribe to auth state
   $: $auth, handleAuthChange();
@@ -33,6 +34,18 @@
     
     theme.init();
     navigation.init();
+
+    // Close dropdown when clicking outside
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.relative')) {
+        showUserDropdown = false;
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
   });
 
   function handleLogout() {
@@ -79,25 +92,6 @@
               <h1 class="text-xl font-bold text-foreground">CloudBox</h1>
             </div>
             
-            <!-- Navigation controls -->
-            <div class="flex items-center space-x-2">
-              <button
-                on:click={() => navigation.goBack()}
-                disabled={!$navigation.canGoBack}
-                class="p-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Terug"
-              >
-                <Icon name="back" size={16} />
-              </button>
-              <button
-                on:click={() => navigation.goForward()}
-                disabled={!$navigation.canGoForward}
-                class="p-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Vooruit"
-              >
-                <Icon name="forward" size={16} />
-              </button>
-            </div>
           </div>
 
           <!-- Navigation links -->
@@ -126,22 +120,6 @@
               <Icon name="projects" size={16} />
               <span>Projecten</span>
             </a>
-            <a 
-              href="/dashboard/settings" 
-              class="flex items-center space-x-2 text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium"
-              class:text-primary={$page.url.pathname === '/dashboard/settings'}
-            >
-              <Icon name="settings" size={16} />
-              <span>Instellingen</span>
-            </a>
-            <a 
-              href="/dashboard/admin" 
-              class="flex items-center space-x-2 text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium"
-              class:text-primary={$page.url.pathname.startsWith('/dashboard/admin')}
-            >
-              <Icon name="shield-check" size={16} />
-              <span>Admin</span>
-            </a>
           </div>
 
           <!-- User menu -->
@@ -159,36 +137,54 @@
               {/if}
             </button>
             
-            <!-- User Avatar Button with Initials -->
-            <button
-              on:click={() => goto('/dashboard/settings')}
-              class="flex items-center space-x-3 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-lg transition-colors"
-              title="Profiel en instellingen"
-            >
-              <div class="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
-                {getInitials(user.name || 'User')}
-              </div>
-              <span class="text-sm font-medium">{user.name}</span>
-            </button>
-            
-            <!-- Admin Button (Icon Only) -->
-            <button
-              on:click={() => goto('/dashboard/admin')}
-              class="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
-              class:text-primary={$page.url.pathname.startsWith('/dashboard/admin')}
-              title="System Settings"
-            >
-              <Icon name="shield-check" size={16} />
-            </button>
+            <!-- User Dropdown -->
+            <div class="relative">
+              <button
+                on:click={() => showUserDropdown = !showUserDropdown}
+                class="flex items-center space-x-3 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-lg transition-colors"
+                title="User menu"
+              >
+                <div class="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
+                  {getInitials(user.name || 'User')}
+                </div>
+                <span class="text-sm font-medium">{user.name}</span>
+                <Icon name="chevron-down" size={14} className="transition-transform {showUserDropdown ? 'rotate-180' : ''}" />
+              </button>
 
-            <!-- Logout Button (Icon Only) -->
-            <button
-              on:click={handleLogout}
-              class="p-2 text-muted-foreground hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
-              title="Uitloggen"
-            >
-              <Icon name="logout" size={16} />
-            </button>
+              {#if showUserDropdown}
+                <div class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50">
+                  <div class="py-1">
+                    <button
+                      on:click={() => { showUserDropdown = false; goto('/dashboard/settings'); }}
+                      class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Icon name="user" size={16} />
+                      <span>Profiel</span>
+                    </button>
+                    
+                    {#if user.role === 'superadmin'}
+                      <button
+                        on:click={() => { showUserDropdown = false; goto('/dashboard/admin'); }}
+                        class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Icon name="shield-check" size={16} />
+                        <span>Admin</span>
+                      </button>
+                    {/if}
+                    
+                    <div class="border-t border-border my-1"></div>
+                    
+                    <button
+                      on:click={() => { showUserDropdown = false; handleLogout(); }}
+                      class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                    >
+                      <Icon name="logout" size={16} />
+                      <span>Uitloggen</span>
+                    </button>
+                  </div>
+                </div>
+              {/if}
+            </div>
           </div>
         </div>
       </div>

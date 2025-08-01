@@ -16,6 +16,14 @@
   };
   let updatingProfile = false;
   
+  let showChangePasswordModal = false;
+  let changePasswordData = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  };
+  let changingPassword = false;
+  
   const accentColors: { name: AccentColor; label: string; preview: string; darkPreview: string }[] = [
     { name: 'blue', label: 'Blauw', preview: 'bg-blue-500', darkPreview: 'bg-blue-400' },
     { name: 'green', label: 'Groen', preview: 'bg-green-600', darkPreview: 'bg-green-400' },
@@ -74,6 +82,65 @@
     }
   }
 
+  function openChangePasswordModal() {
+    changePasswordData = {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    };
+    showChangePasswordModal = true;
+  }
+
+  async function changePassword() {
+    if (!changePasswordData.currentPassword) {
+      toast.error('Huidig wachtwoord is verplicht');
+      return;
+    }
+    
+    if (!changePasswordData.newPassword) {
+      toast.error('Nieuw wachtwoord is verplicht');
+      return;
+    }
+    
+    if (changePasswordData.newPassword.length < 6) {
+      toast.error('Nieuw wachtwoord moet minimaal 6 karakters lang zijn');
+      return;
+    }
+    
+    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+      toast.error('Wachtwoorden komen niet overeen');
+      return;
+    }
+
+    changingPassword = true;
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.changePassword, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_password: changePasswordData.currentPassword,
+          new_password: changePasswordData.newPassword
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Wachtwoord succesvol gewijzigd');
+        showChangePasswordModal = false;
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Fout bij het wijzigen van wachtwoord');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast.error('Netwerk fout bij het wijzigen van wachtwoord');
+    } finally {
+      changingPassword = false;
+    }
+  }
+
   // Debug function to check current classes
   function debugClasses() {
     if (typeof document !== 'undefined') {
@@ -92,12 +159,16 @@
   }
 </script>
 
+<svelte:head>
+  <title>Profiel - CloudBox</title>
+</svelte:head>
+
 <div class="space-y-8">
   <!-- Page Header -->
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-3xl font-bold text-foreground">Instellingen</h1>
-      <p class="text-muted-foreground mt-2">Pas uw voorkeuren en thema aan</p>
+      <h1 class="text-3xl font-bold text-foreground">Profiel</h1>
+      <p class="text-muted-foreground mt-2">Pas uw profiel, voorkeuren en thema aan</p>
     </div>
   </div>
 
@@ -261,37 +332,19 @@
         </div>
       </div>
 
-      <div class="pt-4">
+      <div class="pt-4 flex space-x-3">
         <Button variant="outline" size="sm" on:click={openEditProfileModal}>
           <Icon name="edit" size={16} class="mr-2" />
           Profiel Bewerken
+        </Button>
+        <Button variant="outline" size="sm" on:click={openChangePasswordModal}>
+          <Icon name="key" size={16} class="mr-2" />
+          Wachtwoord Wijzigen
         </Button>
       </div>
     </div>
   </Card>
 
-  <!-- Application Info -->
-  <Card class="p-6">
-    <div class="flex items-center space-x-3 mb-6">
-      <Icon name="cloud" size={24} />
-      <h2 class="text-xl font-semibold text-card-foreground">Applicatie Info</h2>
-    </div>
-
-    <div class="space-y-3 text-sm">
-      <div class="flex justify-between">
-        <span class="text-muted-foreground">Versie</span>
-        <span class="text-card-foreground font-medium">v1.0.0-alpha</span>
-      </div>
-      <div class="flex justify-between">
-        <span class="text-muted-foreground">Status</span>
-        <span class="text-green-600 font-medium">MVP Development</span>
-      </div>
-      <div class="flex justify-between">
-        <span class="text-muted-foreground">Laatst bijgewerkt</span>
-        <span class="text-card-foreground font-medium">Vandaag</span>
-      </div>
-    </div>
-  </Card>
 </div>
 
 <!-- Edit Profile Modal -->
@@ -354,6 +407,85 @@
             variant="outline"
             on:click={() => showEditProfileModal = false}
             disabled={updatingProfile}
+          >
+            Annuleren
+          </Button>
+        </div>
+      </form>
+    </Card>
+  </div>
+{/if}
+
+<!-- Change Password Modal -->
+{#if showChangePasswordModal}
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+          <Icon name="key" size={20} className="text-primary" />
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-foreground">Wachtwoord Wijzigen</h2>
+          <p class="text-sm text-muted-foreground">Wijzig je account wachtwoord</p>
+        </div>
+      </div>
+      
+      <form on:submit|preventDefault={changePassword} class="space-y-4">
+        <div class="space-y-2">
+          <Label for="current-password">Huidig Wachtwoord</Label>
+          <Input
+            id="current-password"
+            type="password"
+            bind:value={changePasswordData.currentPassword}
+            required
+            placeholder="Voer je huidige wachtwoord in"
+          />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="new-password">Nieuw Wachtwoord</Label>
+          <Input
+            id="new-password"
+            type="password"
+            bind:value={changePasswordData.newPassword}
+            required
+            placeholder="Voer een nieuw wachtwoord in"
+          />
+          <p class="text-xs text-muted-foreground">
+            Minimaal 6 karakters lang
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="confirm-password">Bevestig Nieuw Wachtwoord</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            bind:value={changePasswordData.confirmPassword}
+            required
+            placeholder="Bevestig je nieuwe wachtwoord"
+          />
+        </div>
+
+        <div class="flex space-x-3 pt-4">
+          <Button
+            type="submit"
+            disabled={changingPassword}
+            class="flex-1"
+          >
+            {#if changingPassword}
+              <Icon name="loader" size={16} class="mr-2 animate-spin" />
+              Wijzigen...
+            {:else}
+              <Icon name="key" size={16} class="mr-2" />
+              Wachtwoord Wijzigen
+            {/if}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            on:click={() => showChangePasswordModal = false}
+            disabled={changingPassword}
           >
             Annuleren
           </Button>

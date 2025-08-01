@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     logout: `${API_BASE_URL}/api/v1/auth/logout`,
     refresh: `${API_BASE_URL}/api/v1/auth/refresh`,
     me: `${API_BASE_URL}/api/v1/auth/me`,
+    changePassword: `${API_BASE_URL}/api/v1/auth/change-password`,
   },
   users: {
     list: `${API_BASE_URL}/api/v1/users`,
@@ -47,6 +48,11 @@ export const API_ENDPOINTS = {
       get: (id: string) => `${API_BASE_URL}/api/v1/admin/users/${id}`,
       update: (id: string) => `${API_BASE_URL}/api/v1/admin/users/${id}`,
       delete: (id: string) => `${API_BASE_URL}/api/v1/admin/users/${id}`,
+    },
+    organizationAdmins: {
+      list: `${API_BASE_URL}/api/v1/admin/organization-admins`,
+      assign: `${API_BASE_URL}/api/v1/admin/organization-admins`,
+      revoke: (userId: string, orgId: string) => `${API_BASE_URL}/api/v1/admin/organization-admins/${userId}/${orgId}`,
     },
     projects: {
       list: `${API_BASE_URL}/api/v1/admin/projects`,

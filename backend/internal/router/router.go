@@ -69,6 +69,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			auth.POST("/logout", middleware.RequireAuth(cfg), authHandler.Logout)
 			auth.GET("/me", middleware.RequireAuth(cfg), authHandler.GetProfile)
 			auth.PUT("/me", middleware.RequireAuth(cfg), authHandler.UpdateProfile)
+			auth.PUT("/change-password", middleware.RequireAuth(cfg), authHandler.ChangePassword)
 		}
 
 		// GitHub API routes (global, requires authentication)
@@ -264,6 +265,11 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				superAdmin.PUT("/users/:id", authHandler.UpdateUser)
 				superAdmin.PUT("/users/:id/role", authHandler.UpdateUserRole)
 				superAdmin.DELETE("/users/:id", authHandler.DeleteUser)
+				
+				// Organization admin management
+				superAdmin.GET("/organization-admins", authHandler.ListOrganizationAdmins)
+				superAdmin.POST("/organization-admins", authHandler.AssignOrganizationAdmin)
+				superAdmin.DELETE("/organization-admins/:user_id/:org_id", authHandler.RevokeOrganizationAdmin)
 				
 				// Super admin can see all projects (already handled in ListProjects)
 				superAdmin.GET("/projects", projectHandler.ListProjects)

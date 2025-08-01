@@ -33,6 +33,7 @@ type User struct {
 	// Relationships
 	Projects     []Project      `json:"projects,omitempty"`
 	RefreshTokens []RefreshToken `json:"refresh_tokens,omitempty"`
+	OrganizationAdmins []OrganizationAdmin `json:"organization_admins,omitempty"`
 }
 
 // RefreshToken represents a refresh token for persistent login
@@ -90,6 +91,37 @@ type Organization struct {
 
 	// Statistics
 	ProjectCount int `json:"project_count" gorm:"default:0"`
+	
+	// Organization admins (many-to-many relationship)
+	OrganizationAdmins []OrganizationAdmin `json:"organization_admins,omitempty"`
+}
+
+// OrganizationAdmin represents the many-to-many relationship between users and organizations for admin access
+type OrganizationAdmin struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// User relation
+	UserID uint `json:"user_id" gorm:"not null;index"`
+	User   User `json:"user,omitempty"`
+
+	// Organization relation
+	OrganizationID uint         `json:"organization_id" gorm:"not null;index"`
+	Organization   Organization `json:"organization,omitempty"`
+
+	// Admin permissions level
+	Role string `json:"role" gorm:"default:'admin'"` // admin, owner (future expansion)
+
+	// Status
+	IsActive bool `json:"is_active" gorm:"default:true"`
+
+	// Metadata
+	AssignedBy   uint       `json:"assigned_by" gorm:"not null"` // ID of superadmin who assigned
+	AssignedAt   time.Time  `json:"assigned_at" gorm:"not null"`
+	RevokedBy    *uint      `json:"revoked_by,omitempty"`
+	RevokedAt    *time.Time `json:"revoked_at,omitempty"`
 }
 
 // Project represents a CloudBox project
