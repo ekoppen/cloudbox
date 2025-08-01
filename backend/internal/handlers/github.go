@@ -1239,11 +1239,14 @@ func (h *GitHubHandler) exchangeCodeForTokenWithProjectConfig(code, clientID, cl
 		"code":          code,
 	}
 	
-	jsonData, _ := json.Marshal(data)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request data: %w", err)
+	}
 	
 	req, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", strings.NewReader(string(jsonData)))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	
 	req.Header.Set("Accept", "application/json")
@@ -1252,17 +1255,24 @@ func (h *GitHubHandler) exchangeCodeForTokenWithProjectConfig(code, clientID, cl
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 	
-	var token GitHubOAuthToken
-	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
-		return nil, err
+	// Check for HTTP errors
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GitHub API error (status %d): %s", resp.StatusCode, string(body))
 	}
 	
+	var token GitHubOAuthToken
+	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	
+	// Check for OAuth errors
 	if token.AccessToken == "" {
-		return nil, fmt.Errorf("no access token received")
+		return nil, fmt.Errorf("no access token received from GitHub")
 	}
 	
 	return &token, nil
