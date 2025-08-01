@@ -35,6 +35,7 @@ func Migrate(db *gorm.DB) error {
 		&models.User{},
 		&models.RefreshToken{},
 		&models.Organization{},
+		&models.OrganizationAdmin{},
 		&models.Project{},
 		&models.APIKey{},
 		&models.CORSConfig{},
