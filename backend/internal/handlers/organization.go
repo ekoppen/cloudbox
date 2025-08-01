@@ -34,16 +34,24 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 	userRole := c.GetString("user_role")
 
 	var organizations []models.Organization
-	query := h.db.Model(&models.Organization{})
 
-	// Super admins can see all organizations, others only their own
-	if userRole != "superadmin" {
-		query = query.Where("user_id = ?", userID)
-	}
-
-	if err := query.Find(&organizations).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organizations"})
-		return
+	if userRole == "superadmin" {
+		// Super admins can see all organizations
+		if err := h.db.Find(&organizations).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organizations"})
+			return
+		}
+	} else {
+		// Other users can see organizations they own OR are admin of
+		if err := h.db.Raw(`
+			SELECT DISTINCT o.* FROM organizations o 
+			LEFT JOIN organization_admins oa ON o.id = oa.organization_id 
+			WHERE o.user_id = ? OR (oa.user_id = ? AND oa.is_active = true)
+			ORDER BY o.name
+		`, userID, userID).Scan(&organizations).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch organizations"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, organizations)

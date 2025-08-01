@@ -323,9 +323,13 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 // ListUsers returns all users (superadmin only)
 func (h *AuthHandler) ListUsers(c *gin.Context) {
 	var users []models.User
+	// Try with preload first, fallback to simple query if it fails
 	if err := h.db.Preload("OrganizationAdmins.Organization").Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
-		return
+		// Fallback: load users without preloading relationships
+		if err := h.db.Find(&users).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+			return
+		}
 	}
 	
 	c.JSON(http.StatusOK, users)

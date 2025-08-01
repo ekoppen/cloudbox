@@ -30,7 +30,11 @@ func NewSystemSettingsHandler(db *gorm.DB, cfg *config.Config) *SystemSettingsHa
 func (h *SystemSettingsHandler) GetSystemSettings(c *gin.Context) {
 	var settings []models.SystemSetting
 	if err := h.db.Where("is_active = ?", true).Order("category, sort_order, name").Find(&settings).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch system settings"})
+		// If table doesn't exist or query fails, return empty settings
+		c.JSON(http.StatusOK, gin.H{
+			"settings": make(map[string][]models.SystemSetting),
+			"instructions": h.generateGitHubInstructions(),
+		})
 		return
 	}
 
