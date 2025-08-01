@@ -1007,12 +1007,15 @@ func (h *GitHubHandler) GitHubAuthorizeRepository(c *gin.Context) {
 		return
 	}
 
-	// Get OAuth configuration from database
-	clientID := h.getSystemSetting("github_oauth_client_id")
-	enabled := h.getSystemSetting("github_oauth_enabled") == "true"
+	// Get project-specific OAuth configuration
+	var gitHubConfig models.ProjectGitHubConfig
+	if err := h.db.Where("project_id = ?", projectID).First(&gitHubConfig).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth not configured for this project"})
+		return
+	}
 	
-	if !enabled || clientID == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth not configured or disabled"})
+	if !gitHubConfig.IsEnabled || gitHubConfig.ClientID == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth not enabled or configured for this project"})
 		return
 	}
 
@@ -1025,12 +1028,12 @@ func (h *GitHubHandler) GitHubAuthorizeRepository(c *gin.Context) {
 		scope = "public_repo" // Only public repositories
 	}
 	
-	// Generate callback URL from system settings
-	callbackURL := h.generateOAuthCallbackURL()
+	// Use project-specific callback URL
+	callbackURL := gitHubConfig.CallbackURL
 	
 	authURL := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&scope=%s&state=%s&redirect_uri=%s", 
-		clientID,
+		gitHubConfig.ClientID,
 		scope,
 		state,
 		callbackURL,
@@ -1071,8 +1074,15 @@ func (h *GitHubHandler) GitHubOAuthCallback(c *gin.Context) {
 		return
 	}
 
-	// Exchange code for access token
-	token, err := h.exchangeCodeForToken(code)
+	// Get project-specific OAuth configuration for token exchange
+	var gitHubConfig models.ProjectGitHubConfig
+	if err := h.db.Where("project_id = ?", projectID).First(&gitHubConfig).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth not configured for this project"})
+		return
+	}
+
+	// Exchange code for access token using project-specific credentials
+	token, err := h.exchangeCodeForTokenWithProjectConfig(code, gitHubConfig.ClientID, gitHubConfig.ClientSecret)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange code for token: " + err.Error()})
 		return
@@ -1186,6 +1196,43 @@ func (h *GitHubHandler) exchangeCodeForToken(code string) (*GitHubOAuthToken, er
 	clientID := h.getSystemSetting("github_oauth_client_id")
 	clientSecret := h.getSystemSetting("github_oauth_client_secret")
 	
+	data := map[string]string{
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"code":          code,
+	}
+	
+	jsonData, _ := json.Marshal(data)
+	
+	req, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", strings.NewReader(string(jsonData)))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	var token GitHubOAuthToken
+	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+		return nil, err
+	}
+	
+	if token.AccessToken == "" {
+		return nil, fmt.Errorf("no access token received")
+	}
+	
+	return &token, nil
+}
+
+// exchangeCodeForTokenWithProjectConfig exchanges authorization code for access token using project-specific OAuth config
+func (h *GitHubHandler) exchangeCodeForTokenWithProjectConfig(code, clientID, clientSecret string) (*GitHubOAuthToken, error) {
 	data := map[string]string{
 		"client_id":     clientID,
 		"client_secret": clientSecret,
