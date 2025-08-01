@@ -31,11 +31,23 @@ func Initialize(databaseURL string) (*gorm.DB, error) {
 
 // Migrate runs all database migrations
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	// First, run migrations for tables that don't have foreign key constraints
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.RefreshToken{},
 		&models.Organization{},
 		&models.OrganizationAdmin{},
+	); err != nil {
+		return fmt.Errorf("failed to migrate basic tables: %w", err)
+	}
+
+	// Create default organization and handle project migration
+	if err := MigrateProjectsWithOrganization(db); err != nil {
+		return fmt.Errorf("failed to migrate projects with organization: %w", err)
+	}
+
+	// Continue with the rest of the migrations
+	if err := db.AutoMigrate(
 		&models.Project{},
 		&models.ProjectGitHubConfig{},
 		&models.APIKey{},
@@ -62,7 +74,16 @@ func Migrate(db *gorm.DB) error {
 		&models.AuditLog{},
 		&models.SystemSetting{},
 		&utils.HostKeyEntry{}, // Add host key management
-	)
+	); err != nil {
+		return fmt.Errorf("failed to run auto migrations: %w", err)
+	}
+
+	// Post-migration: Apply NOT NULL constraint after data migration
+	if err := ApplyProjectOrganizationConstraints(db); err != nil {
+		return fmt.Errorf("failed to apply organization constraints: %w", err)
+	}
+
+	return nil
 }
 
 // CreateDefaultSuperAdmin creates a default superadmin user if none exists
@@ -101,5 +122,102 @@ func CreateDefaultSuperAdmin(db *gorm.DB) error {
 	}
 
 	log.Printf("Default SuperAdmin user created: admin@cloudbox.local")
+	return nil
+}
+
+// MigrateProjectsWithOrganization handles the migration of projects to require organizations
+func MigrateProjectsWithOrganization(db *gorm.DB) error {
+	// Check if projects table exists
+	if !db.Migrator().HasTable(&models.Project{}) {
+		log.Printf("Projects table doesn't exist yet, skipping migration")
+		return nil
+	}
+
+	// First, create a default organization if no organizations exist
+	var orgCount int64
+	if err := db.Model(&models.Organization{}).Count(&orgCount).Error; err != nil {
+		return fmt.Errorf("failed to count organizations: %w", err)
+	}
+
+	var defaultOrg models.Organization
+	if orgCount == 0 {
+		// Get the first user to be owner of default organization
+		var firstUser models.User
+		if err := db.First(&firstUser).Error; err != nil {
+			log.Printf("No users exist yet, creating organization without user reference")
+			// Create without user reference initially
+			defaultOrg = models.Organization{
+				Name:        "Default Organization",
+				Description: "Default organization for existing projects",
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			}
+		} else {
+			defaultOrg = models.Organization{
+				Name:        "Default Organization", 
+				Description: "Default organization for existing projects",
+				UserID:      firstUser.ID,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			}
+		}
+
+		if err := db.Create(&defaultOrg).Error; err != nil {
+			return fmt.Errorf("failed to create default organization: %w", err)
+		}
+		log.Printf("Created default organization with ID: %d", defaultOrg.ID)
+	} else {
+		// Get the first organization
+		if err := db.First(&defaultOrg).Error; err != nil {
+			return fmt.Errorf("failed to get default organization: %w", err)
+		}
+	}
+
+	// Check if organization_id column exists
+	if !db.Migrator().HasColumn(&models.Project{}, "organization_id") {
+		log.Printf("organization_id column doesn't exist yet, will be created in main migration")
+		return nil
+	}
+
+	// Count projects without organization
+	var projectCount int64
+	if err := db.Model(&models.Project{}).Where("organization_id IS NULL OR organization_id = 0").Count(&projectCount).Error; err != nil {
+		log.Printf("Could not count projects without organization: %v", err)
+		return nil
+	}
+
+	// Update all projects without organization_id to use the default organization
+	if projectCount > 0 {
+		if err := db.Model(&models.Project{}).Where("organization_id IS NULL OR organization_id = 0").Update("organization_id", defaultOrg.ID).Error; err != nil {
+			return fmt.Errorf("failed to update projects with default organization: %w", err)
+		}
+		log.Printf("Updated %d existing projects to use default organization", projectCount)
+	}
+
+	return nil
+}
+
+// ApplyProjectOrganizationConstraints applies NOT NULL constraint after data migration
+func ApplyProjectOrganizationConstraints(db *gorm.DB) error {
+	// Check if any projects still don't have organization_id
+	var nullOrgCount int64
+	if err := db.Model(&models.Project{}).Where("organization_id IS NULL OR organization_id = 0").Count(&nullOrgCount).Error; err != nil {
+		log.Printf("Could not check for null organization_id: %v", err)
+		return nil // Don't fail the migration
+	}
+
+	if nullOrgCount > 0 {
+		log.Printf("Warning: %d projects still don't have organization_id set", nullOrgCount)
+		return nil // Don't apply constraint yet
+	}
+
+	// Apply NOT NULL constraint using raw SQL
+	if err := db.Exec("ALTER TABLE projects ALTER COLUMN organization_id SET NOT NULL").Error; err != nil {
+		// This might fail if constraint already exists, which is fine
+		log.Printf("Could not apply NOT NULL constraint to organization_id: %v", err)
+	} else {
+		log.Printf("Successfully applied NOT NULL constraint to projects.organization_id")
+	}
+
 	return nil
 }

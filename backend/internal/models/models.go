@@ -141,7 +141,7 @@ type Project struct {
 	User   User `json:"user,omitempty"`
 
 	// Organization (required)
-	OrganizationID uint         `json:"organization_id" gorm:"not null;index"`
+	OrganizationID uint         `json:"organization_id" gorm:"index"`
 	Organization   Organization `json:"organization,omitempty"`
 	
 	// Relationships
