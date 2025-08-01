@@ -40,6 +40,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	portfolioHandler := handlers.NewPortfolioHandler(db, cfg)
 	templateHandler := handlers.NewTemplateHandler(db, cfg)
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(db, cfg)
+	projectGitHubHandler := handlers.NewProjectGitHubHandler(db, cfg)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -86,6 +87,12 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		githubOAuth := api.Group("/github/oauth")
 		{
 			githubOAuth.GET("/callback", githubHandler.GitHubOAuthCallback)
+		}
+		
+		// Project-specific GitHub OAuth callback (public, no auth required)
+		projectGitHubOAuth := api.Group("/projects/:id/github/oauth")
+		{
+			projectGitHubOAuth.GET("/callback", projectGitHubHandler.HandleProjectOAuthCallback)
 		}
 
 		// Protected routes (requires authentication)
@@ -175,6 +182,12 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/functions/:function_id/deploy", functionHandler.DeployFunction)
 				projects.POST("/:id/functions/:function_id/execute", functionHandler.ExecuteFunction)
 				projects.GET("/:id/functions/:function_id/logs", functionHandler.GetFunctionLogs)
+				
+				// Project GitHub configuration
+				projects.GET("/:id/github/config", projectGitHubHandler.GetProjectGitHubConfig)
+				projects.PUT("/:id/github/config", projectGitHubHandler.UpdateProjectGitHubConfig)
+				projects.POST("/:id/github/config/test", projectGitHubHandler.TestProjectGitHubConfig)
+				projects.GET("/:id/github/instructions", projectGitHubHandler.GetProjectGitHubInstructions)
 				
 				// Messaging API (simplified - only endpoints that frontend uses)
 				projects.GET("/:id/messaging/messages", messagingHandler.ListAllMessages)

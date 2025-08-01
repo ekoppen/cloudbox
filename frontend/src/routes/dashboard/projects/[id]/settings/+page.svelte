@@ -31,6 +31,17 @@
     max_age: number;
   }
 
+  interface GitHubConfig {
+    id?: number;
+    project_id: number;
+    client_id: string;
+    client_secret?: string;
+    is_enabled: boolean;
+    callback_url: string;
+    created_at?: string;
+    updated_at?: string;
+  }
+
   let apiKeys: APIKey[] = [];
   let apiKeysLoaded = false;
 
@@ -42,13 +53,27 @@
     max_age: 3600
   };
 
+  let gitHubConfig: GitHubConfig = {
+    project_id: parseInt(projectId),
+    client_id: '',
+    client_secret: '',
+    is_enabled: false,
+    callback_url: ''
+  };
+  
+  let gitHubInstructions = null;
+  let showGitHubInstructions = false;
+  let testingGitHub = false;
+  let gitHubLoaded = false;
+  let savingGitHub = false;
+
   let showCreateKey = false;
   let showKeyDetails: APIKey | null = null;
   let newKeyName = '';
   let newKeyPermissions: string[] = [];
   let loading = false;
   let error = '';
-  let activeTab = 'api-keys';
+  let activeTab = 'github';
   let showDeleteConfirm = false;
 
   // CORS form fields
@@ -80,11 +105,12 @@
     console.log('Reactive update - page url:', $page.url.pathname);
   }
 
-  // Load API keys and CORS config when projectId changes
+  // Load API keys, CORS config, and GitHub config when projectId changes
   $: {
     if (projectId && projectId !== 'undefined' && !apiKeysLoaded) {
       loadAPIKeys();
       loadCORSConfig();
+      loadGitHubConfig();
     }
   }
 
@@ -404,6 +430,154 @@
       default: return 'bg-muted text-muted-foreground';
     }
   }
+
+  async function loadGitHubConfig() {
+    if (!projectId || projectId === 'undefined') return;
+    
+    try {
+      console.log('Loading GitHub config for project:', projectId);
+      const response = await createApiRequest(API_ENDPOINTS.projects.github.config(projectId), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded GitHub config:', data);
+        gitHubConfig = {
+          id: data.id,
+          project_id: data.project_id || parseInt(projectId),
+          client_id: data.client_id || '',
+          client_secret: '', // Never show client secret
+          is_enabled: data.is_enabled || false,
+          callback_url: data.callback_url || '',
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+        gitHubLoaded = true;
+      } else {
+        console.error('Failed to load GitHub config:', response.status, response.statusText);
+        // Use defaults if no GitHub config exists yet
+        gitHubConfig.project_id = parseInt(projectId);
+        gitHubLoaded = true;
+      }
+    } catch (err) {
+      console.error('Error loading GitHub config:', err);
+      gitHubLoaded = true;
+    }
+  }
+
+  async function saveGitHubConfig() {
+    if (!projectId || projectId === 'undefined') {
+      toastStore.error('Ongeldige project ID');
+      return;
+    }
+
+    savingGitHub = true;
+    try {
+      console.log('Saving GitHub config for project:', projectId);
+      const response = await createApiRequest(API_ENDPOINTS.projects.github.config(projectId), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: gitHubConfig.client_id,
+          client_secret: gitHubConfig.client_secret || undefined,
+          is_enabled: gitHubConfig.is_enabled
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('GitHub config saved successfully:', data);
+        gitHubConfig = {
+          ...gitHubConfig,
+          id: data.id,
+          callback_url: data.callback_url,
+          updated_at: data.updated_at
+        };
+        // Clear client secret field after save
+        gitHubConfig.client_secret = '';
+        toastStore.success('GitHub configuratie succesvol opgeslagen!');
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to save GitHub config:', errorData);
+        toastStore.error(errorData.error || 'Fout bij opslaan van GitHub configuratie');
+      }
+    } catch (err) {
+      console.error('Error saving GitHub config:', err);
+      toastStore.error('Netwerkfout bij opslaan van GitHub configuratie');
+    } finally {
+      savingGitHub = false;
+    }
+  }
+
+  async function testGitHubConfig() {
+    if (!projectId || projectId === 'undefined') {
+      toastStore.error('Ongeldige project ID');
+      return;
+    }
+
+    testingGitHub = true;
+    try {
+      console.log('Testing GitHub config for project:', projectId);
+      const response = await createApiRequest(API_ENDPOINTS.projects.github.test(projectId), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('GitHub test successful:', data);
+        toastStore.success('GitHub OAuth configuratie is geldig!');
+        
+        if (data.test_url) {
+          if (confirm('Wil je de OAuth flow testen in een nieuw venster?')) {
+            window.open(data.test_url, '_blank');
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('GitHub test failed:', errorData);
+        toastStore.error(errorData.error || 'GitHub OAuth test mislukt');
+      }
+    } catch (err) {
+      console.error('Error testing GitHub config:', err);
+      toastStore.error('Netwerkfout bij testen van GitHub configuratie');
+    } finally {
+      testingGitHub = false;
+    }
+  }
+
+  async function loadGitHubInstructions() {
+    if (!projectId || projectId === 'undefined') return;
+    
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.projects.github.instructions(projectId), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        gitHubInstructions = await response.json();
+        showGitHubInstructions = true;
+      } else {
+        console.error('Failed to load GitHub instructions');
+        toastStore.error('Fout bij laden van GitHub instructies');
+      }
+    } catch (err) {
+      console.error('Error loading GitHub instructions:', err);
+      toastStore.error('Netwerkfout bij laden van GitHub instructies');
+    }
+  }
 </script>
 
 <svelte:head>
@@ -448,6 +622,17 @@
       >
         <Icon name="cloud" size={16} />
         <span>CORS</span>
+      </button>
+      <button
+        on:click={() => activeTab = 'github'}
+        class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
+          activeTab === 'github' 
+            ? 'border-primary text-primary' 
+            : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+        }"
+      >
+        <Icon name="package" size={16} />
+        <span>GitHub OAuth</span>
       </button>
       <button
         on:click={() => activeTab = 'general'}
@@ -682,6 +867,156 @@
     </div>
   {/if}
 
+  <!-- GitHub OAuth Tab -->
+  {#if activeTab === 'github'}
+    <div class="space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-lg font-medium text-foreground">GitHub OAuth</h2>
+          <p class="text-sm text-muted-foreground">Configureer GitHub OAuth voor dit project</p>
+        </div>
+        <Button
+          variant="outline"
+          on:click={loadGitHubInstructions}
+          class="flex items-center space-x-2"
+        >
+          <Icon name="backup" size={16} />
+          <span>Instructies</span>
+        </Button>
+      </div>
+
+      <Card class="p-6">
+        {#if !gitHubLoaded}
+          <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mr-2"></div>
+            <p class="text-muted-foreground">GitHub configuratie laden...</p>
+          </div>
+        {:else}
+          <form on:submit|preventDefault={saveGitHubConfig} class="space-y-6">
+            <div class="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="github-enabled"
+                bind:checked={gitHubConfig.is_enabled}
+                class="rounded border-border text-primary focus:ring-primary"
+              />
+              <Label for="github-enabled" class="text-sm font-medium text-foreground">
+                GitHub OAuth ingeschakeld
+              </Label>
+            </div>
+
+            <div>
+              <Label>Client ID</Label>
+              <Input
+                type="text"
+                bind:value={gitHubConfig.client_id}
+                placeholder="Jouw GitHub OAuth App Client ID"
+                class="mt-1 font-mono"
+                disabled={!gitHubConfig.is_enabled}
+              />
+            </div>
+
+            <div>
+              <Label>Client Secret</Label>
+              <Input
+                type="password"
+                bind:value={gitHubConfig.client_secret}
+                placeholder="Alleen invullen om te wijzigen"
+                class="mt-1 font-mono"
+                disabled={!gitHubConfig.is_enabled}
+              />
+              <p class="mt-1 text-xs text-muted-foreground">
+                Laat leeg om de huidige waarde te behouden
+              </p>
+            </div>
+
+            {#if gitHubConfig.callback_url}
+              <div>
+                <Label>Callback URL</Label>
+                <div class="mt-1 flex">
+                  <Input
+                    type="text"
+                    value={gitHubConfig.callback_url}
+                    readonly
+                    class="flex-1 font-mono text-sm bg-muted"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="ml-2"
+                    on:click={() => copyToClipboard(gitHubConfig.callback_url)}
+                  >
+                    <Icon name="backup" size={16} />
+                  </Button>
+                </div>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Gebruik deze URL als Authorization callback URL in je GitHub OAuth App
+                </p>
+              </div>
+            {/if}
+
+            <div class="flex justify-between items-center pt-4">
+              <div class="flex space-x-3">
+                {#if gitHubConfig.is_enabled && gitHubConfig.client_id}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    on:click={testGitHubConfig}
+                    disabled={testingGitHub}
+                    class="flex items-center space-x-2"
+                  >
+                    {#if testingGitHub}
+                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    {:else}
+                      <Icon name="cloud" size={16} />
+                    {/if}
+                    <span>{testingGitHub ? 'Testen...' : 'Test Configuratie'}</span>
+                  </Button>
+                {/if}
+              </div>
+              
+              <Button
+                type="submit"
+                disabled={savingGitHub}
+                class="flex items-center space-x-2"
+              >
+                {#if savingGitHub}
+                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                {:else}
+                  <Icon name="backup" size={16} />
+                {/if}
+                <span>{savingGitHub ? 'Opslaan...' : 'Opslaan'}</span>
+              </Button>
+            </div>
+          </form>
+        {/if}
+      </Card>
+
+      {#if gitHubConfig.id}
+        <Card class="p-4 bg-muted/50">
+          <div class="flex items-start space-x-3">
+            <Icon name="cloud" size={20} className="text-primary mt-0.5" />
+            <div class="flex-1">
+              <h3 class="text-sm font-medium text-foreground mb-1">Configuratie Status</h3>
+              <div class="space-y-1 text-xs text-muted-foreground">
+                <p>Status: <span class="{gitHubConfig.is_enabled ? 'text-green-600' : 'text-red-600'}">
+                  {gitHubConfig.is_enabled ? 'Ingeschakeld' : 'Uitgeschakeld'}
+                </span></p>
+                {#if gitHubConfig.created_at}
+                  <p>Aangemaakt: {formatDate(gitHubConfig.created_at)}</p>
+                {/if}
+                {#if gitHubConfig.updated_at}
+                  <p>Laatst bijgewerkt: {formatDate(gitHubConfig.updated_at)}</p>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </Card>
+      {/if}
+    </div>
+  {/if}
+
   <!-- General Tab -->
   {#if activeTab === 'general'}
     <div class="space-y-6">
@@ -868,6 +1203,106 @@
               <div class="font-medium text-foreground">{formatDate(showKeyDetails.last_used_at)}</div>
             </div>
           {/if}
+        </div>
+      </div>
+    </Card>
+  </div>
+{/if}
+
+<!-- GitHub Instructions Modal -->
+{#if showGitHubInstructions && gitHubInstructions}
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <Card class="max-w-4xl w-full max-h-[90vh] overflow-y-auto border-2 shadow-2xl">
+      <div class="sticky top-0 bg-background border-b border-border px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+            <Icon name="package" size={20} className="text-primary" />
+          </div>
+          <h2 class="text-xl font-bold text-foreground">GitHub OAuth Setup</h2>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          on:click={() => showGitHubInstructions = false}
+        >
+          ×
+        </Button>
+      </div>
+      
+      <div class="p-6">
+        <div class="space-y-8">
+          {#each gitHubInstructions.instructions as instruction}
+            <div class="border border-border rounded-lg p-6">
+              <div class="flex items-start space-x-4">
+                <div class="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                  {instruction.step}
+                </div>
+                <div class="flex-1">
+                  <h3 class="text-lg font-semibold text-foreground mb-2">{instruction.title}</h3>
+                  <p class="text-sm text-muted-foreground mb-4">{instruction.description}</p>
+                  
+                  {#if instruction.action}
+                    <div class="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
+                      <p class="text-sm font-medium text-primary">{instruction.action}</p>
+                    </div>
+                  {/if}
+                  
+                  {#if instruction.details && instruction.details.length > 0}
+                    <div class="bg-muted rounded-lg p-4">
+                      <ul class="space-y-2">
+                        {#each instruction.details as detail}
+                          <li class="text-sm text-foreground flex items-start space-x-2">
+                            <span class="text-primary mt-1">•</span>
+                            <span>{detail}</span>
+                          </li>
+                        {/each}
+                      </ul>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            </div>
+          {/each}
+          
+          {#if gitHubInstructions.callback_url}
+            <div class="bg-muted border border-border rounded-lg p-4">
+              <h4 class="text-sm font-semibold text-foreground mb-2">Belangrijke URLs voor GitHub OAuth App:</h4>
+              <div class="space-y-2">
+                <div>
+                  <span class="text-xs text-muted-foreground">Homepage URL:</span>
+                  <div class="flex items-center space-x-2">
+                    <code class="text-sm bg-background px-2 py-1 rounded font-mono">{gitHubInstructions.base_url}</code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      on:click={() => copyToClipboard(gitHubInstructions.base_url)}
+                    >
+                      <Icon name="backup" size={14} />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground">Authorization callback URL:</span>
+                  <div class="flex items-center space-x-2">
+                    <code class="text-sm bg-background px-2 py-1 rounded font-mono">{gitHubInstructions.callback_url}</code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      on:click={() => copyToClipboard(gitHubInstructions.callback_url)}
+                    >
+                      <Icon name="backup" size={14} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {/if}
+        </div>
+        
+        <div class="flex justify-end pt-6 border-t border-border mt-8">
+          <Button on:click={() => showGitHubInstructions = false}>
+            Sluiten
+          </Button>
         </div>
       </div>
     </Card>

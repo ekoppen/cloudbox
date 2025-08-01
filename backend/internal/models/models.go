@@ -149,6 +149,32 @@ type Project struct {
 	CORSConfig  *CORSConfig  `json:"cors_config,omitempty"`
 	Deployments []Deployment `json:"deployments,omitempty"`
 	Backups     []Backup     `json:"backups,omitempty"`
+	
+	// GitHub configuration per project
+	GitHubConfig *ProjectGitHubConfig `json:"github_config,omitempty"`
+}
+
+// ProjectGitHubConfig stores GitHub OAuth settings per project
+type ProjectGitHubConfig struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	
+	// Project relation
+	ProjectID uint    `json:"project_id" gorm:"not null;uniqueIndex"`
+	Project   Project `json:"project,omitempty"`
+	
+	// GitHub OAuth configuration
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret" gorm:"type:text"` // Should be encrypted
+	IsEnabled    bool   `json:"is_enabled" gorm:"default:false"`
+	
+	// OAuth URLs
+	CallbackURL string `json:"callback_url"`
+	
+	// Metadata
+	CreatedBy uint `json:"created_by" gorm:"not null"`
+	UpdatedBy uint `json:"updated_by"`
 }
 
 // APIKey represents an API key for a project
