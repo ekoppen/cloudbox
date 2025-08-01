@@ -28,15 +28,18 @@
   }
 
   let projects: Project[] = [];
+  let organizations: Organization[] = [];
   let loading = true;
+  let loadingOrganizations = false;
   let error = '';
   let showCreateModal = false;
-  let newProject = { name: '', description: '' };
+  let newProject = { name: '', description: '', organization_id: 0 };
   let creating = false;
   let searchTerm = '';
 
   onMount(() => {
     loadProjects();
+    loadOrganizations();
   });
 
   async function loadProjects() {
@@ -73,8 +76,34 @@
     }
   }
 
+  async function loadOrganizations() {
+    loadingOrganizations = true;
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.organizations.list, {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        organizations = await response.json();
+      } else {
+        console.error('Failed to load organizations');
+      }
+    } catch (err) {
+      console.error('Load organizations error:', err);
+    } finally {
+      loadingOrganizations = false;
+    }
+  }
+
   async function createProject() {
     if (!newProject.name.trim()) {
+      return;
+    }
+    
+    if (!newProject.organization_id) {
+      error = 'Selecteer een organization voor dit project';
       return;
     }
 
@@ -94,7 +123,7 @@
         const project = await response.json();
         projects = [...projects, project];
         showCreateModal = false;
-        newProject = { name: '', description: '' };
+        newProject = { name: '', description: '', organization_id: 0 };
       } else {
         const data = await response.json();
         error = data.error || 'Fout bij aanmaken van project';
@@ -385,6 +414,27 @@
             class="pl-4"
           />
         </div>
+        
+        <div class="space-y-2">
+          <Label for="project-organization" class="flex items-center space-x-2">
+            <Icon name="package" size={14} />
+            <span>Organization *</span>
+          </Label>
+          <select
+            id="project-organization"
+            bind:value={newProject.organization_id}
+            required
+            class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          >
+            <option value={0}>Selecteer een organization</option>
+            {#each organizations as org}
+              <option value={org.id}>{org.name}</option>
+            {/each}
+          </select>
+          <p class="text-xs text-muted-foreground">
+            Elk project moet gekoppeld zijn aan een organization
+          </p>
+        </div>
 
         <!-- Project Features Preview -->
         <div class="bg-muted/50 rounded-lg p-4 space-y-3">
@@ -427,7 +477,7 @@
           </Button>
           <Button
             type="submit"
-            disabled={creating || !newProject.name.trim()}
+            disabled={creating || !newProject.name.trim() || !newProject.organization_id}
             class="flex-1 flex items-center justify-center space-x-2"
           >
             {#if creating}
@@ -437,6 +487,18 @@
               <Icon name="package" size={14} />
               <span>Project Aanmaken</span>
             {/if}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            on:click={() => {
+              showCreateModal = false;
+              newProject = { name: '', description: '', organization_id: 0 };
+            }}
+            disabled={creating}
+            class="flex-1"
+          >
+            Annuleren
           </Button>
         </div>
       </form>

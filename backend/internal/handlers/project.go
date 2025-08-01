@@ -38,7 +38,7 @@ func NewProjectHandler(db *gorm.DB, cfg *config.Config) *ProjectHandler {
 type CreateProjectRequest struct {
 	Name           string `json:"name" binding:"required"`
 	Description    string `json:"description"`
-	OrganizationID *uint  `json:"organization_id"`
+	OrganizationID uint   `json:"organization_id" binding:"required"`
 }
 
 // ListProjects returns all projects for the authenticated user
@@ -86,11 +86,21 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		slug = fmt.Sprintf("%s-%d", slug, count+1)
 	}
 
-	// Validate organization if provided
-	if req.OrganizationID != nil {
-		var organization models.Organization
-		if err := h.db.Where("id = ? AND user_id = ?", *req.OrganizationID, userID).First(&organization).Error; err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization or access denied"})
+	// Validate organization (required)
+	var organization models.Organization
+	if err := h.db.First(&organization, req.OrganizationID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid organization"})
+		return
+	}
+	
+	// Check if user has access to this organization
+	userRole := c.GetString("user_role")
+	if userRole != "superadmin" {
+		// Check if user is admin of this organization
+		var orgAdmin models.OrganizationAdmin
+		err := h.db.Where("user_id = ? AND organization_id = ? AND is_active = true", userID, req.OrganizationID).First(&orgAdmin).Error
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to this organization"})
 			return
 		}
 	}

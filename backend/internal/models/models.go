@@ -140,9 +140,9 @@ type Project struct {
 	UserID uint `json:"user_id" gorm:"not null"`
 	User   User `json:"user,omitempty"`
 
-	// Organization (optional)
-	OrganizationID *uint         `json:"organization_id" gorm:"index"`
-	Organization   *Organization `json:"organization,omitempty"`
+	// Organization (required)
+	OrganizationID uint         `json:"organization_id" gorm:"not null;index"`
+	Organization   Organization `json:"organization,omitempty"`
 	
 	// Relationships
 	APIKeys     []APIKey     `json:"api_keys,omitempty"`
