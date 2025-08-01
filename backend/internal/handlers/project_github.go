@@ -278,7 +278,7 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 	}
 
 	code := c.Query("code")
-	state := c.Query("state")
+	// state := c.Query("state") // TODO: Implement state validation for security
 	
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code required"})
@@ -316,18 +316,18 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 }
 
 // exchangeCodeForToken exchanges authorization code for access token using project config
-func (h *ProjectGitHubHandler) exchangeCodeForToken(code, clientID, clientSecret, callbackURL string) (*GitHubOAuthToken, error) {
+func (h *ProjectGitHubHandler) exchangeCodeForToken(code, clientID, clientSecret, callbackURL string) (*ProjectGitHubOAuthToken, error) {
 	// This would make an HTTP request to GitHub's token endpoint
 	// For now, return a mock token
-	return &GitHubOAuthToken{
+	return &ProjectGitHubOAuthToken{
 		AccessToken: "mock_access_token",
 		TokenType:   "bearer",
 		Scope:       "repo",
 	}, nil
 }
 
-// GitHubOAuthToken represents the OAuth token response from GitHub
-type GitHubOAuthToken struct {
+// ProjectGitHubOAuthToken represents the OAuth token response from GitHub for project-specific OAuth
+type ProjectGitHubOAuthToken struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	Scope       string `json:"scope"`
