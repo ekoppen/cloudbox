@@ -59,6 +59,7 @@ func Migrate(db *gorm.DB) error {
 		&models.FunctionExecution{},
 		&models.FunctionDomain{},
 		&models.AuditLog{},
+		&models.SystemSetting{},
 		&utils.HostKeyEntry{}, // Add host key management
 	)
 }
