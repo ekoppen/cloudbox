@@ -134,6 +134,14 @@
               <Icon name="settings" size={16} />
               <span>Instellingen</span>
             </a>
+            <a 
+              href="/dashboard/admin" 
+              class="flex items-center space-x-2 text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium"
+              class:text-primary={$page.url.pathname.startsWith('/dashboard/admin')}
+            >
+              <Icon name="shield-check" size={16} />
+              <span>Admin</span>
+            </a>
           </div>
 
           <!-- User menu -->
@@ -165,9 +173,10 @@
             
             <!-- Admin Button (Icon Only) -->
             <button
-              on:click={() => goto('/admin')}
+              on:click={() => goto('/dashboard/admin')}
               class="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
-              title="Admin Dashboard"
+              class:text-primary={$page.url.pathname.startsWith('/dashboard/admin')}
+              title="System Settings"
             >
               <Icon name="shield-check" size={16} />
             </button>
