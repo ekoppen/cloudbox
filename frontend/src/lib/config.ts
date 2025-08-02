@@ -1,7 +1,7 @@
 import { PUBLIC_API_URL } from '$env/static/public';
 
-// API Configuration
-export const API_BASE_URL = PUBLIC_API_URL || 'http://localhost:8080';
+// API Configuration - use relative URL for proxy in development, fallback to full URL
+export const API_BASE_URL = PUBLIC_API_URL ? PUBLIC_API_URL : '';
 
 // API Endpoints
 export const API_ENDPOINTS = {
