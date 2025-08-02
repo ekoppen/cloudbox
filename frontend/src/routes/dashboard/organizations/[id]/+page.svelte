@@ -10,6 +10,19 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
 
+  interface User {
+    id: number;
+    name: string;
+    email: string;
+  }
+
+  interface OrganizationAdmin {
+    id: number;
+    user: User;
+    role: string;
+    assigned_at: string;
+  }
+
   interface Organization {
     id: number;
     name: string;
@@ -18,6 +31,8 @@
     is_active: boolean;
     project_count: number;
     created_at: string;
+    owner: User;
+    admins: OrganizationAdmin[];
   }
 
   interface Project {
@@ -151,6 +166,50 @@
                 Aangemaakt op {formatDate(organization.created_at)}
               </span>
             </div>
+          </div>
+        </div>
+        
+        <!-- Admin Information -->
+        <div class="text-right">
+          <div class="bg-muted/50 rounded-lg p-4 max-w-xs">
+            <h3 class="text-sm font-medium text-foreground mb-3 flex items-center justify-end space-x-2">
+              <Icon name="users" size={14} />
+              <span>Beheer</span>
+            </h3>
+            
+            <!-- Owner -->
+            <div class="mb-3">
+              <div class="flex items-center justify-end space-x-2 text-xs text-muted-foreground mb-1">
+                <Icon name="crown" size={12} />
+                <span>Eigenaar</span>
+              </div>
+              <p class="text-sm font-medium text-foreground">{organization.owner.name}</p>
+              <p class="text-xs text-muted-foreground">{organization.owner.email}</p>
+            </div>
+
+            <!-- Admins -->
+            {#if organization.admins && organization.admins.length > 0}
+              <div>
+                <div class="flex items-center justify-end space-x-2 text-xs text-muted-foreground mb-2">
+                  <Icon name="shield" size={12} />
+                  <span>Project Admin{organization.admins.length > 1 ? 's' : ''}</span>
+                </div>
+                {#each organization.admins as admin}
+                  <div class="mb-2 last:mb-0">
+                    <p class="text-sm font-medium text-foreground">{admin.user.name}</p>
+                    <p class="text-xs text-muted-foreground">{admin.user.email}</p>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div>
+                <div class="flex items-center justify-end space-x-2 text-xs text-muted-foreground mb-1">
+                  <Icon name="shield" size={12} />
+                  <span>Project Admin</span>
+                </div>
+                <p class="text-xs text-muted-foreground italic">Geen project admin toegewezen</p>
+              </div>
+            {/if}
           </div>
         </div>
       </div>

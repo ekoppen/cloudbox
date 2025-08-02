@@ -128,7 +128,7 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 	userRole := c.GetString("user_role")
 
 	var organization models.Organization
-	query := h.db.Where("id = ?", orgID)
+	query := h.db.Where("id = ?", orgID).Preload("User") // Load owner info
 
 	// Super admins can see any organization, others only their own
 	if userRole != "superadmin" {
@@ -144,7 +144,30 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, organization)
+	// Get organization admins
+	var orgAdmins []models.OrganizationAdmin
+	if err := h.db.Where("organization_id = ? AND is_active = true", orgID).
+		Preload("User").
+		Find(&orgAdmins).Error; err != nil {
+		// Continue without admin info if query fails
+		orgAdmins = []models.OrganizationAdmin{}
+	}
+
+	// Create response with admin info
+	response := map[string]interface{}{
+		"id":            organization.ID,
+		"name":          organization.Name,
+		"description":   organization.Description,
+		"color":         organization.Color,
+		"is_active":     organization.IsActive,
+		"created_at":    organization.CreatedAt,
+		"updated_at":    organization.UpdatedAt,
+		"project_count": organization.ProjectCount,
+		"owner":         organization.User,
+		"admins":        orgAdmins,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateOrganization updates an organization
