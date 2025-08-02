@@ -382,6 +382,10 @@
 
   async function authorizeRepository(repo) {
     oauthRepo = repo.id;
+    
+    // Open popup immediately to avoid popup blocker (before async call)
+    const authWindow = window.open('about:blank', 'github-oauth', 'width=600,height=700');
+    
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/authorize`, {
         method: 'POST',
@@ -394,8 +398,8 @@
       if (response.ok) {
         const result = await response.json();
         
-        // Open GitHub OAuth in new window  
-        const authWindow = window.open(result.auth_url, 'github-oauth', 'width=600,height=700');
+        // Redirect the already opened popup to GitHub OAuth URL
+        authWindow.location.href = result.auth_url;
         
         // Listen for OAuth result messages from popup
         const messageHandler = (event) => {
@@ -437,11 +441,13 @@
       } else {
         const error = await response.json();
         toast.error(error.error || 'Fout bij starten OAuth flow');
+        authWindow.close();
         oauthRepo = null;
       }
     } catch (error) {
       console.error('Error authorizing repository:', error);
       toast.error('Netwerkfout bij autoriseren repository');
+      authWindow.close();
       oauthRepo = null;
     }
   }
