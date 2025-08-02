@@ -393,15 +393,44 @@
 
       if (response.ok) {
         const result = await response.json();
+        
         // Open GitHub OAuth in new window  
         const authWindow = window.open(result.auth_url, 'github-oauth', 'width=600,height=700');
         
-        // Listen for OAuth completion (simplified - in production you'd want better handling)
+        // Listen for OAuth result messages from popup
+        const messageHandler = (event) => {
+          if (event.data && event.data.type === 'github_oauth_result') {
+            // Remove the message listener
+            window.removeEventListener('message', messageHandler);
+            
+            if (event.data.success) {
+              toast.success('✅ GitHub OAuth autorisatie succesvol! Test nu de toegang.');
+            } else {
+              toast.error(`❌ GitHub OAuth mislukt: ${event.data.message}`);
+            }
+            
+            oauthRepo = null;
+            
+            // Close the window if it's still open
+            if (authWindow && !authWindow.closed) {
+              authWindow.close();
+            }
+          }
+        };
+        
+        // Add message listener
+        window.addEventListener('message', messageHandler);
+        
+        // Fallback: check if window is closed (in case postMessage fails)
         const checkClosed = setInterval(() => {
           if (authWindow?.closed) {
             clearInterval(checkClosed);
-            toast.success('OAuth venster gesloten - test nu de toegang');
-            oauthRepo = null;
+            window.removeEventListener('message', messageHandler);
+            
+            if (oauthRepo === repo.id) { // Still processing
+              toast.info('OAuth venster gesloten - test de toegang om te controleren of autorisatie gelukt is');
+              oauthRepo = null;
+            }
           }
         }, 1000);
         

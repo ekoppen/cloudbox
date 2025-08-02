@@ -3,9 +3,13 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
@@ -273,15 +277,22 @@ func (h *ProjectGitHubHandler) generateCallbackURL(projectID uint) string {
 func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		h.renderOAuthResult(c, false, "Invalid project ID", "")
 		return
 	}
 
 	code := c.Query("code")
-	// state := c.Query("state") // TODO: Implement state validation for security
+	state := c.Query("state") 
+	errorParam := c.Query("error")
+	
+	// Handle OAuth errors (user denied access, etc.)
+	if errorParam != "" {
+		h.renderOAuthResult(c, false, fmt.Sprintf("GitHub OAuth error: %s", errorParam), "")
+		return
+	}
 	
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code required"})
+		h.renderOAuthResult(c, false, "Authorization code required", "")
 		return
 	}
 
@@ -289,40 +300,93 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 	var gitHubConfig models.ProjectGitHubConfig
 	err = h.db.Where("project_id = ?", uint(projectID)).First(&gitHubConfig).Error
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "GitHub configuration not found for this project"})
+		h.renderOAuthResult(c, false, "GitHub configuration not found for this project", "")
 		return
 	}
 
 	if !gitHubConfig.IsEnabled {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "GitHub OAuth is not enabled for this project"})
+		h.renderOAuthResult(c, false, "GitHub OAuth is not enabled for this project", "")
 		return
 	}
 
 	// Exchange code for token using project-specific config
 	token, err := h.exchangeCodeForToken(code, gitHubConfig.ClientID, gitHubConfig.ClientSecret, gitHubConfig.CallbackURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange code for token"})
+		h.renderOAuthResult(c, false, "Failed to exchange code for token: " + err.Error(), "")
 		return
 	}
 
-	// Return success response - in a real app, you'd store the token securely
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "GitHub OAuth authorization successful for project",
-		"project_id": projectID,
-		"token_type": token.TokenType,
-		"scope": token.Scope,
-	})
+	// Store the token in session or database for the repository
+	// For now, we'll just show success - the frontend will need to test access after this
+	message := fmt.Sprintf("GitHub OAuth authorization successful! Token type: %s, Scope: %s", token.TokenType, token.Scope)
+	h.renderOAuthResult(c, true, message, fmt.Sprintf("project_%d", projectID))
 }
 
 // exchangeCodeForToken exchanges authorization code for access token using project config
 func (h *ProjectGitHubHandler) exchangeCodeForToken(code, clientID, clientSecret, callbackURL string) (*ProjectGitHubOAuthToken, error) {
-	// This would make an HTTP request to GitHub's token endpoint
-	// For now, return a mock token
+	// Prepare token exchange request
+	tokenURL := "https://github.com/login/oauth/access_token"
+	
+	// Create form data
+	data := fmt.Sprintf("client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
+		clientID, clientSecret, code, callbackURL)
+		
+	// Create HTTP request
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token request: %w", err)
+	}
+	
+	// Set headers
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "CloudBox-OAuth/1.0")
+	
+	// Execute request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read token response: %w", err)
+	}
+	
+	// Check for HTTP errors
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GitHub token exchange failed with status %d: %s", resp.StatusCode, string(body))
+	}
+	
+	// Parse JSON response
+	var tokenResponse struct {
+		AccessToken  string `json:"access_token"`
+		TokenType    string `json:"token_type"`
+		Scope        string `json:"scope"`
+		Error        string `json:"error"`
+		ErrorDesc    string `json:"error_description"`
+	}
+	
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse token response: %w", err)
+	}
+	
+	// Check for OAuth errors
+	if tokenResponse.Error != "" {
+		return nil, fmt.Errorf("GitHub OAuth error: %s - %s", tokenResponse.Error, tokenResponse.ErrorDesc)
+	}
+	
+	if tokenResponse.AccessToken == "" {
+		return nil, fmt.Errorf("no access token received from GitHub")
+	}
+	
 	return &ProjectGitHubOAuthToken{
-		AccessToken: "mock_access_token",
-		TokenType:   "bearer",
-		Scope:       "repo",
+		AccessToken: tokenResponse.AccessToken,
+		TokenType:   tokenResponse.TokenType,
+		Scope:       tokenResponse.Scope,
 	}, nil
 }
 
@@ -338,4 +402,84 @@ func (h *ProjectGitHubHandler) generateRandomState() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+// renderOAuthResult renders an HTML page that closes the popup and communicates with parent window
+func (h *ProjectGitHubHandler) renderOAuthResult(c *gin.Context, success bool, message, data string) {
+	statusIcon := "❌"
+	statusColor := "#ef4444"
+	if success {
+		statusIcon = "✅"
+		statusColor = "#22c55e"
+	}
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub OAuth Result</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            color: #fff;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+        }
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .message {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+        .closing {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">%s</div>
+        <div class="message">%s</div>
+        <div class="closing">This window will close automatically...</div>
+    </div>
+    
+    <script>
+        // Send result to parent window
+        if (window.opener) {
+            window.opener.postMessage({
+                type: 'github_oauth_result',
+                success: %t,
+                message: '%s',
+                data: '%s'
+            }, '*');
+        }
+        
+        // Close popup after a short delay
+        setTimeout(() => {
+            window.close();
+        }, 2000);
+    </script>
+</body>
+</html>`, statusIcon, message, success, message, data)
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, html)
 }
