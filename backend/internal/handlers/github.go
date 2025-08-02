@@ -1122,6 +1122,63 @@ func (h *GitHubHandler) GitHubOAuthCallback(c *gin.Context) {
 	})
 }
 
+// UpdateRepositoryToken updates the Personal Access Token for a repository
+func (h *GitHubHandler) UpdateRepositoryToken(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.ParseUint(c.Param("repo_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	var req struct {
+		AccessToken string `json:"access_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get repository
+	var repo models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", repoID, projectID).First(&repo).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found"})
+		return
+	}
+
+	// Validate token by testing GitHub API access
+	userInfo, err := h.getGitHubUserInfo(req.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Personal Access Token: " + err.Error()})
+		return
+	}
+
+	// Update repository with PAT info
+	now := time.Now()
+	updates := map[string]interface{}{
+		"access_token":  req.AccessToken,
+		"authorized_at": &now,
+		"authorized_by": userInfo.Login,
+		"token_scopes":  "fine-grained-pat", // PAT identifier
+	}
+
+	if err := h.db.Model(&models.GitHubRepository{}).Where("id = ? AND project_id = ?", repoID, projectID).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save Personal Access Token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Personal Access Token saved successfully",
+		"authorized_by": userInfo.Login,
+	})
+}
+
 // TestRepositoryAccess tests if we can access the repository with current authorization
 func (h *GitHubHandler) TestRepositoryAccess(c *gin.Context) {
 	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)

@@ -159,8 +159,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/github-repositories/:repo_id/analyze", githubHandler.AnalyzeAndSaveRepository)
 				projects.POST("/:id/github-repositories/:repo_id/reanalyze", githubHandler.ReAnalyzeRepository)
 				
-				// OAuth endpoints for repository access
-				projects.POST("/:id/github-repositories/:repo_id/authorize", githubHandler.GitHubAuthorizeRepository)
+				// GitHub authentication endpoints
+				projects.PUT("/:id/github-repositories/:repo_id/token", githubHandler.UpdateRepositoryToken)
 				projects.GET("/:id/github-repositories/:repo_id/test-access", githubHandler.TestRepositoryAccess)
 				
 				projects.POST("/:id/github-repositories/:repo_id/deploy-pending", deploymentHandler.DeployPendingUpdate)

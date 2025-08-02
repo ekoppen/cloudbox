@@ -26,7 +26,7 @@
   let repoAnalysis = null;
   let analyzingRepo = null;
   let testingRepo = null;
-  let oauthRepo = null;
+  let editingToken = null; // Repository ID being edited for PAT
 
   // Form data voor nieuwe repository
   let repoForm = {
@@ -344,7 +344,7 @@
     return 'bg-red-100 text-red-800 border-red-200';
   }
 
-  // OAuth functions
+  // GitHub Access functions
   async function testRepositoryAccess(repo) {
     testingRepo = repo.id;
     try {
@@ -362,7 +362,7 @@
           toast.success(`✅ Repository toegang werkt! (${result.authorized_by})`);
         } else {
           if (result.needs_auth) {
-            toast.error('❌ Geen autorisatie - klik "Autoriseren" om toegang te verlenen');
+            toast.error('❌ Geen toegang - voeg een Personal Access Token toe');
           } else {
             toast.error(`❌ Toegang gefaald: ${result.error}`);
           }
@@ -380,76 +380,34 @@
     }
   }
 
-  async function authorizeRepository(repo) {
-    oauthRepo = repo.id;
-    
-    // Open popup immediately to avoid popup blocker (before async call)
-    const authWindow = window.open('about:blank', 'github-oauth', 'width=600,height=700');
-    
+  // Personal Access Token functions
+  async function updateRepositoryToken(repo, token) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/authorize`, {
-        method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/token`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...auth.getAuthHeader()
-        }
+        },
+        body: JSON.stringify({ access_token: token })
       });
 
       if (response.ok) {
-        const result = await response.json();
-        
-        // Redirect the already opened popup to GitHub OAuth URL
-        authWindow.location.href = result.auth_url;
-        
-        // Listen for OAuth result messages from popup
-        const messageHandler = (event) => {
-          if (event.data && event.data.type === 'github_oauth_result') {
-            // Remove the message listener
-            window.removeEventListener('message', messageHandler);
-            
-            if (event.data.success) {
-              toast.success('✅ GitHub OAuth autorisatie succesvol! Test nu de toegang.');
-            } else {
-              toast.error(`❌ GitHub OAuth mislukt: ${event.data.message}`);
-            }
-            
-            oauthRepo = null;
-            
-            // Close the window if it's still open
-            if (authWindow && !authWindow.closed) {
-              authWindow.close();
-            }
-          }
-        };
-        
-        // Add message listener
-        window.addEventListener('message', messageHandler);
-        
-        // Fallback: check if window is closed (in case postMessage fails)
-        const checkClosed = setInterval(() => {
-          if (authWindow?.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageHandler);
-            
-            if (oauthRepo === repo.id) { // Still processing
-              toast.info('OAuth venster gesloten - test de toegang om te controleren of autorisatie gelukt is');
-              oauthRepo = null;
-            }
-          }
-        }, 1000);
-        
+        toast.success('✅ Personal Access Token opgeslagen!');
+        editingToken = null;
+        await loadRepositories(); // Reload to get updated repository data
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Fout bij starten OAuth flow');
-        authWindow.close();
-        oauthRepo = null;
+        toast.error(error.error || 'Fout bij opslaan Personal Access Token');
       }
     } catch (error) {
-      console.error('Error authorizing repository:', error);
-      toast.error('Netwerkfout bij autoriseren repository');
-      authWindow.close();
-      oauthRepo = null;
+      console.error('Error updating repository token:', error);
+      toast.error('Netwerkfout bij opslaan token');
     }
+  }
+
+  function toggleTokenEdit(repoId) {
+    editingToken = editingToken === repoId ? null : repoId;
   }
 
   function getComplexityLabel(complexity: number) {
@@ -614,18 +572,13 @@
                   {/if}
                 </Button>
                 <Button
-                  on:click={() => authorizeRepository(repo)}
+                  on:click={() => toggleTokenEdit(repo.id)}
                   size="sm"
                   variant="outline"
                   class="border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400"
-                  disabled={oauthRepo === repo.id}
-                  title={oauthRepo === repo.id ? 'Autoriseren...' : 'Autoriseer toegang'}
+                  title="Personal Access Token instellen"
                 >
-                  {#if oauthRepo === repo.id}
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                  {:else}
-                    <Icon name="key" size={16} />
-                  {/if}
+                  <Icon name="key" size={16} />
                 </Button>
                 <Button
                   on:click={() => deleteRepository(repo.id)}
@@ -638,6 +591,60 @@
                 </Button>
               </div>
             </div>
+
+            <!-- Personal Access Token Section -->
+            {#if editingToken === repo.id}
+              <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-sm font-medium text-gray-900">Personal Access Token</h4>
+                    <a 
+                      href="https://github.com/settings/personal-access-tokens/new" 
+                      target="_blank" 
+                      class="text-xs text-blue-600 hover:text-blue-700 underline"
+                    >
+                      ↗ GitHub PAT aanmaken
+                    </a>
+                  </div>
+                  
+                  <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div class="text-xs text-blue-800">
+                      <strong>Fine-grained Token:</strong> Selecteer alleen deze repository ({repo.full_name}) 
+                      voor maximale beveiliging. Geef "Contents" read toegang.
+                    </div>
+                  </div>
+
+                  <form on:submit|preventDefault={(e) => {
+                    const formData = new FormData(e.target);
+                    const token = formData.get('token');
+                    if (token?.trim()) {
+                      updateRepositoryToken(repo, token.trim());
+                    }
+                  }}>
+                    <div class="flex gap-2">
+                      <Input
+                        name="token"
+                        type="password"
+                        placeholder="github_pat_11A..."
+                        class="flex-1 text-sm"
+                        required
+                      />
+                      <Button type="submit" size="sm" class="bg-green-600 hover:bg-green-700 text-white">
+                        Opslaan
+                      </Button>
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        variant="outline"
+                        on:click={() => editingToken = null}
+                      >
+                        Annuleren
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            {/if}
           </Card>
         {/each}
       </div>
