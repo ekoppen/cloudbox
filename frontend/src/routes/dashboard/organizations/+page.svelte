@@ -189,7 +189,7 @@
     {:else}
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {#each organizations as org}
-          <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20 cursor-pointer" on:click={() => window.location.href = `/dashboard/organizations/${org.id}`}>
+          <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20">
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center space-x-3">
                 <div 
@@ -211,7 +211,7 @@
                 <Button
                   variant="ghost"
                   size="sm"
-                  on:click|stopPropagation={() => deleteOrganization(org.id)}
+                  on:click={() => deleteOrganization(org.id)}
                   class="text-destructive hover:text-destructive"
                 >
                   <Icon name="trash" size={14} />
@@ -236,7 +236,6 @@
                   size="sm"
                   variant="outline"
                   class="flex items-center space-x-1"
-                  on:click|stopPropagation
                 >
                   <Icon name="eye" size={14} />
                   <span>Bekijken</span>
