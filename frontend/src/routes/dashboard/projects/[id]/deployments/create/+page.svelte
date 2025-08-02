@@ -170,20 +170,6 @@
     goto(`/dashboard/projects/${projectId}/deployments`);
   }
 
-  function handleSSHKeyChange(event) {
-    console.log('SSH Key selection changed:', event.target.value);
-    deployment.ssh_key_id = event.target.value;
-  }
-
-  function handleWebServerChange(event) {
-    console.log('Web Server selection changed:', event.target.value);
-    deployment.web_server_id = event.target.value;
-  }
-
-  function handleInstallOptionChange(event) {
-    console.log('Install Option selection changed:', event.target.value);
-    deployment.install_option = event.target.value;
-  }
 </script>
 
 <svelte:head>
@@ -248,7 +234,7 @@
 
           <div>
             <Label for="install_option">Deployment Methode</Label>
-            <Select id="install_option" bind:value={deployment.install_option} placeholder="Selecteer deployment methode..." on:change={handleInstallOptionChange}>
+            <Select id="install_option" bind:value={deployment.install_option} placeholder="Selecteer deployment methode...">
               {#each installOptions as option}
                 <option value={option.name} selected={option.is_recommended}>
                   {option.name} {option.is_recommended ? '(aanbevolen)' : ''} - {option.description}
@@ -285,7 +271,7 @@
       <div class="grid gap-4">
         <div>
           <Label for="web_server">Doelserver</Label>
-          <Select id="web_server" bind:value={deployment.web_server_id} placeholder="Selecteer een server..." on:change={handleWebServerChange}>
+          <Select id="web_server" bind:value={deployment.web_server_id} placeholder="Selecteer een server...">
             {#each webServers as server}
               <option value={server.id}>
                 {server.name} ({server.host})
@@ -304,7 +290,7 @@
 
         <div>
           <Label for="ssh_key">SSH Key voor toegang</Label>
-          <Select id="ssh_key" bind:value={deployment.ssh_key_id} placeholder="Selecteer een SSH key..." on:change={handleSSHKeyChange}>
+          <Select id="ssh_key" bind:value={deployment.ssh_key_id} placeholder="Selecteer een SSH key...">
             {#each sshKeys as key}
               <option value={key.id}>
                 {key.name}
