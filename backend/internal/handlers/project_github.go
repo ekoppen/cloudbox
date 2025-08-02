@@ -282,7 +282,7 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 	}
 
 	code := c.Query("code")
-	// state := c.Query("state") // TODO: Implement state validation for security
+	state := c.Query("state")
 	errorParam := c.Query("error")
 	
 	// Handle OAuth errors (user denied access, etc.)
@@ -294,6 +294,17 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 	if code == "" {
 		h.renderOAuthResult(c, false, "Authorization code required", "")
 		return
+	}
+
+	// Parse state to get repository ID (format: projectID_repoID_random)
+	var repoID uint
+	if state != "" {
+		parts := strings.Split(state, "_")
+		if len(parts) >= 2 {
+			if parsedRepoID, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+				repoID = uint(parsedRepoID)
+			}
+		}
 	}
 
 	// Get project GitHub config
@@ -316,10 +327,36 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 		return
 	}
 
-	// Store the token in session or database for the repository
-	// For now, we'll just show success - the frontend will need to test access after this
-	message := fmt.Sprintf("GitHub OAuth authorization successful! Token type: %s, Scope: %s", token.TokenType, token.Scope)
-	h.renderOAuthResult(c, true, message, fmt.Sprintf("project_%d", projectID))
+	// Get GitHub user info to verify
+	userInfo, err := h.getGitHubUserInfo(token.AccessToken)
+	if err != nil {
+		h.renderOAuthResult(c, false, "Failed to get user info: " + err.Error(), "")
+		return
+	}
+
+	// If we have a specific repository ID from state, store the token there
+	if repoID > 0 {
+		// Update repository with OAuth info
+		now := time.Now()
+		updates := map[string]interface{}{
+			"access_token":    token.AccessToken,
+			"token_scopes":    token.Scope,
+			"authorized_at":   &now,
+			"authorized_by":   userInfo.Login,
+		}
+
+		if err := h.db.Model(&models.GitHubRepository{}).Where("id = ? AND project_id = ?", repoID, projectID).Updates(updates).Error; err != nil {
+			h.renderOAuthResult(c, false, "Failed to save OAuth token to repository", "")
+			return
+		}
+
+		message := fmt.Sprintf("GitHub OAuth authorization successful! Repository access granted for %s", userInfo.Login)
+		h.renderOAuthResult(c, true, message, fmt.Sprintf("repo_%d", repoID))
+	} else {
+		// Fallback: just show success without storing token
+		message := fmt.Sprintf("GitHub OAuth authorization successful! Token type: %s, Scope: %s", token.TokenType, token.Scope)
+		h.renderOAuthResult(c, true, message, fmt.Sprintf("project_%d", projectID))
+	}
 }
 
 // exchangeCodeForToken exchanges authorization code for access token using project config
@@ -397,11 +434,49 @@ type ProjectGitHubOAuthToken struct {
 	Scope       string `json:"scope"`
 }
 
+// ProjectGitHubUser represents a GitHub user for project-specific OAuth
+type ProjectGitHubUser struct {
+	Login string `json:"login"`
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+}
+
 // generateRandomState generates a secure random state parameter for OAuth
 func (h *ProjectGitHubHandler) generateRandomState() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+// getGitHubUserInfo gets GitHub user information using an access token
+func (h *ProjectGitHubHandler) getGitHubUserInfo(accessToken string) (*ProjectGitHubUser, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	req.Header.Set("Authorization", "token "+accessToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "CloudBox/1.0")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GitHub API error (status %d): %s", resp.StatusCode, string(body))
+	}
+	
+	var user ProjectGitHubUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	
+	return &user, nil
 }
 
 // renderOAuthResult renders an HTML page that closes the popup and communicates with parent window
