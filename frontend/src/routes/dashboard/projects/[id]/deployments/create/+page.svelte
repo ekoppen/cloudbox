@@ -8,7 +8,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Label from '$lib/components/ui/label.svelte';
-  import Icon from '$lib/components/Icon.svelte';
+  import Icon from '$lib/components/ui/icon.svelte';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
   import { API_BASE_URL } from '$lib/config';
