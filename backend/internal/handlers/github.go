@@ -372,8 +372,8 @@ func (h *GitHubHandler) SyncRepository(c *gin.Context) {
 		return
 	}
 
-	// Get access token from request header (optional for public repos)
-	accessToken := c.GetHeader("X-GitHub-Token")
+	// Use repository's stored access token for GitHub API calls
+	accessToken := repository.AccessToken
 
 	// Sync with GitHub API
 	if err := h.githubService.SyncRepository(&repository, accessToken); err != nil {
@@ -523,8 +523,8 @@ func (h *GitHubHandler) GetRepositoryBranches(c *gin.Context) {
 		return
 	}
 
-	// Get access token from request header (optional for public repos)
-	accessToken := c.GetHeader("X-GitHub-Token")
+	// Use repository's stored access token for GitHub API calls
+	accessToken := repository.AccessToken
 
 	// Get branches from GitHub API
 	branches, err := h.githubService.GetRepositoryBranches(&repository, accessToken)
