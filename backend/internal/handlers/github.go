@@ -1207,7 +1207,13 @@ func (h *GitHubHandler) TestRepositoryAccess(c *gin.Context) {
 		return
 	}
 
-	content, err := h.fetchFileContent(owner, repoName, "package.json", repo.Branch)
+	// Use the repository's stored access token directly if available
+	var content string
+	if repo.AccessToken != "" {
+		content, err = h.fetchFileContentWithToken(repo.AccessToken, owner, repoName, "package.json", repo.Branch)
+	} else {
+		content, err = h.fetchFileContent(owner, repoName, "package.json", repo.Branch)
+	}
 	
 	testResult := map[string]interface{}{
 		"repository":     repo.FullName,
