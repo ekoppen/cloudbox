@@ -415,6 +415,37 @@
     if (complexity <= 6) return 'Gemiddeld';
     return 'Complex';
   }
+
+  async function createDeployment(repo) {
+    try {
+      // First get the latest analysis to ensure we have deployment options
+      const analysisResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analysis`, {
+        headers: auth.getAuthHeader()
+      });
+
+      if (!analysisResponse.ok) {
+        toast.error('Kan repository analyse niet ophalen. Analyseer eerst de repository.');
+        return;
+      }
+
+      const analysisData = await analysisResponse.json();
+      
+      if (!analysisData.analysis || !analysisData.analysis.install_options || analysisData.analysis.install_options.length === 0) {
+        toast.error('Geen deployment opties beschikbaar. Analyseer eerst de repository.');
+        return;
+      }
+
+      // Get the recommended install option
+      const recommendedOption = analysisData.analysis.install_options.find(opt => opt.is_recommended) || analysisData.analysis.install_options[0];
+
+      // Navigate to deployment creation with pre-filled data
+      goto(`/dashboard/projects/${projectId}/deployments/create?repo_id=${repo.id}&repo_name=${encodeURIComponent(repo.name)}&install_option=${encodeURIComponent(recommendedOption.name)}`);
+      
+    } catch (error) {
+      console.error('Error creating deployment:', error);
+      toast.error('Fout bij aanmaken deployment');
+    }
+  }
 </script>
 
 <svelte:head>
@@ -506,89 +537,121 @@
                 {/if}
               </div>
 
-              <div class="flex gap-2 ml-4 flex-col">
-                <Button
-                  on:click={() => getRepositoryAnalysis(repo)}
-                  size="sm"
-                  variant="outline"
-                  class="border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400"
-                  title="Bekijk analyse"
-                >
-                  <Icon name="search" size={16} />
-                </Button>
-                <Button
-                  on:click={() => analyzeRepository(repo, false)}
-                  size="sm"
-                  variant="outline"
-                  class="border-cyan-300 text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400"
-                  disabled={analyzingRepo === repo.id}
-                  title={analyzingRepo === repo.id ? 'Analyseren...' : 'Analyseer repository'}
-                >
-                  {#if analyzingRepo === repo.id}
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-600"></div>
-                  {:else}
-                    <Icon name="eye" size={16} />
-                  {/if}
-                </Button>
-                <Button
-                  on:click={() => syncRepository(repo.id)}
-                  size="sm"
-                  variant="outline"
-                  class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
-                  title="Synchroniseer"
-                >
-                  <Icon name="refresh" size={16} />
-                </Button>
-                <Button
-                  on:click={() => editRepository(repo)}
-                  size="sm"
-                  variant="outline"
-                  class="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400"
-                  title="Bewerken"
-                >
-                  <Icon name="edit" size={16} />
-                </Button>
-                <Button
-                  on:click={() => showWebhookInfo(repo)}
-                  size="sm"
-                  variant="outline"
-                  class="border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400"
-                  title="Webhook info"
-                >
-                  <Icon name="link" size={16} />
-                </Button>
-                <Button
-                  on:click={() => testRepositoryAccess(repo)}
-                  size="sm"
-                  variant="outline"
-                  class="border-teal-300 text-teal-600 hover:bg-teal-50 hover:border-teal-400"
-                  disabled={testingRepo === repo.id}
-                  title={testingRepo === repo.id ? 'Testen...' : 'Test toegang'}
-                >
-                  {#if testingRepo === repo.id}
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
-                  {:else}
-                    <Icon name="shield" size={16} />
-                  {/if}
-                </Button>
-                <Button
-                  on:click={() => toggleTokenEdit(repo.id)}
-                  size="sm"
-                  variant="outline"
-                  class="border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400"
-                  title="Personal Access Token instellen"
-                >
-                  <Icon name="key" size={16} />
-                </Button>
-                <Button
-                  on:click={() => deleteRepository(repo.id)}
-                  size="sm"
-                  variant="outline"
-                  class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
-                  title="Verwijderen"
-                >
-                  <Icon name="trash" size={16} />
-                </Button>
+              <div class="ml-4">
+                <!-- Primaire acties (horizontaal, prominent) -->
+                <div class="flex gap-2 mb-3">
+                  <Button
+                    on:click={() => analyzeRepository(repo, false)}
+                    size="sm"
+                    variant="default"
+                    class="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={analyzingRepo === repo.id}
+                  >
+                    {#if analyzingRepo === repo.id}
+                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Analyseren...
+                    {:else}
+                      <Icon name="eye" size={16} class="mr-2" />
+                      Analyseer
+                    {/if}
+                  </Button>
+                  
+                  <Button
+                    on:click={() => getRepositoryAnalysis(repo)}
+                    size="sm"
+                    variant="outline"
+                    class="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  >
+                    <Icon name="search" size={16} class="mr-2" />
+                    Bekijk Analyse
+                  </Button>
+                  
+                  <!-- Deploy knop -->
+                  <Button
+                    on:click={() => createDeployment(repo)}
+                    size="sm" 
+                    variant="outline"
+                    class="border-green-300 text-green-600 hover:bg-green-50"
+                    title="Nieuwe deployment aanmaken"
+                  >
+                    <Icon name="rocket" size={16} class="mr-2" />
+                    Deploy
+                  </Button>
+                </div>
+                
+                <!-- Secundaire acties (horizontaal, kleiner) -->
+                <div class="flex gap-1 flex-wrap">
+                  <Button
+                    on:click={() => syncRepository(repo.id)}
+                    size="sm"
+                    variant="ghost"
+                    class="text-gray-600 hover:bg-gray-100 text-xs px-2 py-1"
+                    title="Synchroniseer repository"
+                  >
+                    <Icon name="refresh" size={14} class="mr-1" />
+                    Sync
+                  </Button>
+                  
+                  <Button
+                    on:click={() => testRepositoryAccess(repo)}
+                    size="sm"
+                    variant="ghost"
+                    class="text-gray-600 hover:bg-gray-100 text-xs px-2 py-1"
+                    disabled={testingRepo === repo.id}
+                  >
+                    {#if testingRepo === repo.id}
+                      <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600 mr-1"></div>
+                      Test...
+                    {:else}
+                      <Icon name="shield" size={14} class="mr-1" />
+                      Test
+                    {/if}
+                  </Button>
+                  
+                  <Button
+                    on:click={() => toggleTokenEdit(repo.id)}
+                    size="sm"
+                    variant="ghost"
+                    class="text-gray-600 hover:bg-gray-100 text-xs px-2 py-1"
+                    title="Personal Access Token beheren"
+                  >
+                    <Icon name="key" size={14} class="mr-1" />
+                    Token
+                  </Button>
+                  
+                  <Button
+                    on:click={() => editRepository(repo)}
+                    size="sm"
+                    variant="ghost"
+                    class="text-gray-600 hover:bg-gray-100 text-xs px-2 py-1"
+                    title="Repository instellingen bewerken"
+                  >
+                    <Icon name="edit" size={14} class="mr-1" />
+                    Edit
+                  </Button>
+                  
+                  <Button
+                    on:click={() => showWebhookInfo(repo)}
+                    size="sm"
+                    variant="ghost"
+                    class="text-gray-600 hover:bg-gray-100 text-xs px-2 py-1"
+                    title="Webhook configuratie bekijken"
+                  >
+                    <Icon name="link" size={14} class="mr-1" />
+                    Webhook
+                  </Button>
+                  
+                  <Button
+                    on:click={() => deleteRepository(repo.id)}
+                    size="sm"
+                    variant="ghost"
+                    class="text-red-600 hover:bg-red-100 text-xs px-2 py-1"
+                    title="Repository verwijderen"
+                  >
+                    <Icon name="trash" size={14} class="mr-1" />
+                    Delete
+                  </Button>
+                </div>
               </div>
             </div>
 
