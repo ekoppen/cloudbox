@@ -367,7 +367,7 @@ type RepositoryAnalysis struct {
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 
 	// Repository relation
-	GitHubRepositoryID uint             `json:"github_repository_id" gorm:"uniqueIndex;not null"`
+	GitHubRepositoryID uint             `json:"github_repository_id" gorm:"column:github_repository_id;uniqueIndex;not null"`
 	GitHubRepository   GitHubRepository `json:"github_repository,omitempty"`
 
 	// Analysis metadata
