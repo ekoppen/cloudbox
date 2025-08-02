@@ -282,7 +282,7 @@ func (h *ProjectGitHubHandler) HandleProjectOAuthCallback(c *gin.Context) {
 	}
 
 	code := c.Query("code")
-	state := c.Query("state") 
+	// state := c.Query("state") // TODO: Implement state validation for security
 	errorParam := c.Query("error")
 	
 	// Handle OAuth errors (user denied access, etc.)
@@ -407,10 +407,8 @@ func (h *ProjectGitHubHandler) generateRandomState() string {
 // renderOAuthResult renders an HTML page that closes the popup and communicates with parent window
 func (h *ProjectGitHubHandler) renderOAuthResult(c *gin.Context, success bool, message, data string) {
 	statusIcon := "❌"
-	statusColor := "#ef4444"
 	if success {
 		statusIcon = "✅"
-		statusColor = "#22c55e"
 	}
 
 	html := fmt.Sprintf(`<!DOCTYPE html>
