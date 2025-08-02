@@ -24,8 +24,8 @@
     repository_url: '',
     branch: 'main',
     install_option: '',
-    ssh_key_id: null,
-    web_server_id: null,
+    ssh_key_id: '',
+    web_server_id: '',
     deployment_path: '/var/www/',
     port: 3000,
     environment: {}
@@ -38,6 +38,11 @@
   let loading = false;
 
   $: projectId = $page.params.id;
+
+  // Debug reactive statements to track changes
+  $: console.log('SSH Key ID changed:', deployment.ssh_key_id);
+  $: console.log('Web Server ID changed:', deployment.web_server_id);
+  $: console.log('Install Option changed:', deployment.install_option);
 
   onMount(async () => {
     // Get URL parameters
@@ -130,16 +135,20 @@
     loading = true;
     
     try {
+      const deploymentData = {
+        ...deployment,
+        ssh_key_id: deployment.ssh_key_id ? parseInt(deployment.ssh_key_id) : null,
+        web_server_id: deployment.web_server_id ? parseInt(deployment.web_server_id) : null,
+        github_repository_id: repoId ? parseInt(repoId) : null
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...auth.getAuthHeader()
         },
-        body: JSON.stringify({
-          ...deployment,
-          github_repository_id: repoId ? parseInt(repoId) : null
-        })
+        body: JSON.stringify(deploymentData)
       });
 
       if (response.ok) {
@@ -159,6 +168,21 @@
 
   function goBack() {
     goto(`/dashboard/projects/${projectId}/deployments`);
+  }
+
+  function handleSSHKeyChange(event) {
+    console.log('SSH Key selection changed:', event.target.value);
+    deployment.ssh_key_id = event.target.value;
+  }
+
+  function handleWebServerChange(event) {
+    console.log('Web Server selection changed:', event.target.value);
+    deployment.web_server_id = event.target.value;
+  }
+
+  function handleInstallOptionChange(event) {
+    console.log('Install Option selection changed:', event.target.value);
+    deployment.install_option = event.target.value;
   }
 </script>
 
@@ -224,8 +248,7 @@
 
           <div>
             <Label for="install_option">Deployment Methode</Label>
-            <Select id="install_option" bind:value={deployment.install_option}>
-              <option value="">Selecteer deployment methode...</option>
+            <Select id="install_option" bind:value={deployment.install_option} placeholder="Selecteer deployment methode..." on:change={handleInstallOptionChange}>
               {#each installOptions as option}
                 <option value={option.name} selected={option.is_recommended}>
                   {option.name} {option.is_recommended ? '(aanbevolen)' : ''} - {option.description}
@@ -262,8 +285,7 @@
       <div class="grid gap-4">
         <div>
           <Label for="web_server">Doelserver</Label>
-          <Select id="web_server" bind:value={deployment.web_server_id}>
-            <option value={null}>Selecteer een server...</option>
+          <Select id="web_server" bind:value={deployment.web_server_id} placeholder="Selecteer een server..." on:change={handleWebServerChange}>
             {#each webServers as server}
               <option value={server.id}>
                 {server.name} ({server.host})
@@ -282,8 +304,7 @@
 
         <div>
           <Label for="ssh_key">SSH Key voor toegang</Label>
-          <Select id="ssh_key" bind:value={deployment.ssh_key_id}>
-            <option value={null}>Selecteer een SSH key...</option>
+          <Select id="ssh_key" bind:value={deployment.ssh_key_id} placeholder="Selecteer een SSH key..." on:change={handleSSHKeyChange}>
             {#each sshKeys as key}
               <option value={key.id}>
                 {key.name}
