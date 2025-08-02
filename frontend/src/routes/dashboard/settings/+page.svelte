@@ -319,14 +319,14 @@
 
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-card-foreground mb-2">Email</label>
+        <div class="block text-sm font-medium text-card-foreground mb-2">Email</div>
         <div class="p-3 bg-muted rounded-lg text-muted-foreground">
           {$auth.user?.email || 'Niet beschikbaar'}
         </div>
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-card-foreground mb-2">Naam</label>
+        <div class="block text-sm font-medium text-card-foreground mb-2">Naam</div>
         <div class="p-3 bg-muted rounded-lg text-muted-foreground">
           {$auth.user?.name || 'Niet beschikbaar'}
         </div>

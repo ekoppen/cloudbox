@@ -449,7 +449,7 @@
                 {/if}
               </div>
 
-              <div class="flex gap-2 ml-4" on:click|stopPropagation>
+              <div class="flex gap-2 ml-4">
                 <Button
                   on:click={() => deploy(deployment.id)}
                   size="sm"

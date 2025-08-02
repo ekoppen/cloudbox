@@ -1096,9 +1096,10 @@
             <div class="space-y-1">
               {#each treeData as node}
                 <div class="tree-node">
-                  <div 
-                    class="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded cursor-pointer"
+                  <button
+                    class="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded cursor-pointer w-full text-left"
                     on:click={() => toggleTreeNode(node)}
+                    type="button"
                   >
                     {#if node.type === 'folder'}
                       <Icon name={node.expanded ? 'arrow-down' : 'arrow-right'} size={12} />
@@ -1108,15 +1109,16 @@
                       <Icon name={getFileIcon(node.file?.mime_type || '')} size={16} className="text-muted-foreground" />
                     {/if}
                     <span class="text-sm font-medium">{node.name}</span>
-                  </div>
+                  </button>
                   
                   {#if node.type === 'folder' && node.expanded && node.children}
                     <div class="ml-6 border-l border-border pl-4">
                       {#each node.children as child}
                         <div class="tree-node">
-                          <div 
-                            class="flex items-center space-x-2 p-1 hover:bg-muted/30 rounded cursor-pointer"
+                          <button
+                            class="flex items-center space-x-2 p-1 hover:bg-muted/30 rounded cursor-pointer w-full text-left"
                             on:click={() => child.type === 'folder' ? selectTreePath(child.path) : toggleTreeNode(child)}
+                            type="button"
                           >
                             {#if child.type === 'folder'}
                               <Icon name="folder" size={14} className="text-primary" />
@@ -1127,7 +1129,7 @@
                             {#if child.type === 'file' && child.file}
                               <span class="text-xs text-muted-foreground ml-auto">{formatFileSize(child.file.size)}</span>
                             {/if}
-                          </div>
+                          </button>
                         </div>
                       {/each}
                     </div>

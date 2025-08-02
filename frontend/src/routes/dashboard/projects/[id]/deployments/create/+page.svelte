@@ -2,12 +2,12 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import Button from '$lib/components/ui/button/Button.svelte';
-  import Card from '$lib/components/ui/card/Card.svelte';
-  import Input from '$lib/components/ui/input/Input.svelte';
-  import Select from '$lib/components/ui/select/Select.svelte';
-  import Textarea from '$lib/components/ui/textarea/Textarea.svelte';
-  import Label from '$lib/components/ui/label/Label.svelte';
+  import Button from '$lib/components/ui/button.svelte';
+  import Card from '$lib/components/ui/card.svelte';
+  import Input from '$lib/components/ui/input.svelte';
+  import Select from '$lib/components/ui/select.svelte';
+  import Textarea from '$lib/components/ui/textarea.svelte';
+  import Label from '$lib/components/ui/label.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toast';
