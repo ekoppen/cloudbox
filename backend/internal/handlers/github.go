@@ -1874,7 +1874,7 @@ func (h *GitHubHandler) GetRepositoryAnalysis(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, analysis)
+	c.JSON(http.StatusOK, gin.H{"analysis": analysis})
 }
 
 // ReAnalyzeRepository performs a fresh analysis of a repository and saves it

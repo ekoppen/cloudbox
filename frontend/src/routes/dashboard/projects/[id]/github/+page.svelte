@@ -418,17 +418,24 @@
 
   async function createDeployment(repo) {
     try {
-      // First get the latest analysis to ensure we have deployment options
-      const analysisResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analysis`, {
-        headers: auth.getAuthHeader()
-      });
+      let analysisData = null;
+      
+      // If we have analysis data in modal, use that; otherwise fetch it
+      if (repoAnalysis && selectedRepo && selectedRepo.id === repo.id) {
+        analysisData = { analysis: repoAnalysis };
+      } else {
+        // Fetch analysis if not available
+        const analysisResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analysis`, {
+          headers: auth.getAuthHeader()
+        });
 
-      if (!analysisResponse.ok) {
-        toast.error('Kan repository analyse niet ophalen. Analyseer eerst de repository.');
-        return;
+        if (!analysisResponse.ok) {
+          toast.error('Kan repository analyse niet ophalen. Analyseer eerst de repository.');
+          return;
+        }
+
+        analysisData = await analysisResponse.json();
       }
-
-      const analysisData = await analysisResponse.json();
       
       if (!analysisData.analysis || !analysisData.analysis.install_options || analysisData.analysis.install_options.length === 0) {
         toast.error('Geen deployment opties beschikbaar. Analyseer eerst de repository.');
@@ -1253,10 +1260,10 @@
         </Button>
         <Button
           on:click={() => {
-            // TODO: Navigate to deployment with analysis data
-            toast.info('Deployment functionaliteit komt binnenkort');
+            showAnalysisModal = false;
+            createDeployment(selectedRepo);
           }}
-          class="bg-primary text-primary-foreground"
+          class="bg-green-600 text-white hover:bg-green-700"
         >
           <Icon name="rocket" size={16} className="mr-2" />
           Deployment Starten
