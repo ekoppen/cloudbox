@@ -19,10 +19,10 @@ services:
       start_period: 30s
 
   backend:
-    image: golang:1.21-alpine
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: cloudbox-backend
-    working_dir: /app
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     env_file:
       - .env
     environment:
@@ -31,11 +31,11 @@ services:
       - PORT=8080
       - ENVIRONMENT=development
       - ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+      - CORS_ORIGINS=${CORS_ORIGINS}
       - MASTER_KEY=a1b2c3d4e5f6789012345678901234567890abcdef1234567890123456789012
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
-      - ./backend:/app
       - ./uploads:/app/uploads
     depends_on:
       postgres:
@@ -43,14 +43,13 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-    command: ["sh", "-c", "mkdir -p /app/uploads && go mod tidy && ./wait-for-services.sh && go run main.go"]
 
   frontend:
     image: node:20-alpine
     container_name: cloudbox-frontend
     working_dir: /app
     environment:
-      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://cloudbox.doorkoppen.nl}
+      - PUBLIC_API_URL=${PUBLIC_API_URL}
       - NODE_ENV=development
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
