@@ -681,6 +681,7 @@ func (h *GitHubHandler) analyzeAndSaveRepository(projectID uint, repoID uint, re
 		StartCommand:   analysisResp.StartCommand,
 		DevCommand:     analysisResp.DevCommand,
 		InstallCommand: analysisResp.InstallCommand,
+		TestCommand:    "", // Will be detected later
 		
 		// Runtime configuration
 		Port:        analysisResp.Port,
@@ -689,18 +690,33 @@ func (h *GitHubHandler) analyzeAndSaveRepository(projectID uint, repoID uint, re
 		// Docker support
 		HasDocker:     analysisResp.HasDocker,
 		DockerCommand: analysisResp.DockerCommand,
+		DockerPort:    0, // Will be detected later
+		
+		// Dependencies and features
+		Dependencies:    []string{}, // Will be populated from package.json analysis
+		DevDependencies: []string{}, // Will be populated from package.json analysis
+		Scripts:         []string{}, // Will be populated from package.json analysis
 		
 		// File structure
-		ImportantFiles: analysisResp.Files,
+		ImportantFiles:   analysisResp.Files,
+		ConfigFiles:      []string{}, // Will be detected later
+		EnvironmentFiles: []string{}, // Will be detected later
 		
 		// Installation options
 		InstallOptions: installOptions,
 		
 		// Analysis insights
-		Insights: h.generateInsights(analysisResp),
+		Insights:     h.generateInsights(analysisResp),
+		Warnings:     []string{}, // Will be populated later
+		Requirements: []string{}, // Will be populated later
 		
 		// Performance metrics
-		Complexity: h.calculateComplexity(analysisResp),
+		EstimatedBuildTime: 0,    // Will be calculated later
+		EstimatedSize:      0,    // Will be calculated later
+		Complexity:         h.calculateComplexity(analysisResp),
+		
+		// Analysis errors
+		AnalysisErrors: []string{}, // Will store any errors encountered
 	}
 
 	// Save or update the analysis

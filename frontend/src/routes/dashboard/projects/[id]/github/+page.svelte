@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { API_BASE_URL, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
