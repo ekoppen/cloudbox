@@ -76,19 +76,21 @@ type ProjectAnalysisRequest struct {
 
 // ProjectAnalysisResponse represents the analysis result
 type ProjectAnalysisResponse struct {
-	ProjectType    string                 `json:"project_type"`    // react, vue, angular, next, nuxt, etc.
-	Framework      string                 `json:"framework"`       // vite, webpack, etc.
-	Language       string                 `json:"language"`        // javascript, typescript
-	PackageManager string                 `json:"package_manager"` // npm, yarn, pnpm
-	BuildCommand   string                 `json:"build_command"`
-	StartCommand   string                 `json:"start_command"`
-	DevCommand     string                 `json:"dev_command"`
-	InstallCommand string                 `json:"install_command"`
-	Port           int                    `json:"port"`
-	Environment    map[string]interface{} `json:"environment"`
-	HasDocker      bool                   `json:"has_docker"`
-	DockerCommand  string                 `json:"docker_command"`
-	Files          []string               `json:"files"` // Important files found
+	ProjectType       string                 `json:"project_type"`       // react, vue, angular, next, nuxt, etc.
+	Framework         string                 `json:"framework"`          // vite, webpack, etc.
+	Language          string                 `json:"language"`           // javascript, typescript
+	PackageManager    string                 `json:"package_manager"`    // npm, yarn, pnpm
+	BuildCommand      string                 `json:"build_command"`
+	StartCommand      string                 `json:"start_command"`
+	DevCommand        string                 `json:"dev_command"`
+	InstallCommand    string                 `json:"install_command"`
+	Port              int                    `json:"port"`
+	Environment       map[string]interface{} `json:"environment"`
+	HasDocker         bool                   `json:"has_docker"`
+	DockerCommand     string                 `json:"docker_command"`
+	HasScripts        bool                   `json:"has_scripts"`        // Install/deployment scripts available
+	HasDockerCompose  bool                   `json:"has_docker_compose"` // Docker Compose + Dockerfile available
+	Files             []string               `json:"files"`              // Important files found
 }
 
 // ListGitHubRepositories returns all GitHub repositories for a project
@@ -733,7 +735,8 @@ func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisRespo
 
 	// Try to fetch key files to analyze project structure
 	files := []string{"package.json", "Dockerfile", "docker-compose.yml", "vite.config.ts", "vite.config.js", 
-					  "next.config.js", "nuxt.config.js", "angular.json", "svelte.config.js", ".env.example", "README.md"}
+					  "next.config.js", "nuxt.config.js", "angular.json", "svelte.config.js", ".env.example", "README.md",
+					  "scripts/install.sh", "scripts/deploy.sh", "scripts/setup.sh", "install.sh", "deploy.sh"}
 	
 	fileContents := make(map[string]string)
 	
@@ -750,8 +753,21 @@ func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisRespo
 		h.analyzePackageJSON(analysis, packageJSON)
 	}
 
-	// Check for Docker
-	if _, hasDockerfile := fileContents["Dockerfile"]; hasDockerfile {
+	// Check for deployment options (prioritized order)
+	// 1. Scripts folder (highest priority)
+	analysis.HasScripts = h.hasInstallScripts(fileContents)
+	analysis.HasDockerCompose = h.hasDockerCompose(fileContents)
+	
+	if analysis.HasScripts {
+		// Scripts take precedence - set Docker to false
+		analysis.HasDocker = false
+		analysis.DockerCommand = "bash scripts/install.sh" // or appropriate script
+	} else if analysis.HasDockerCompose {
+		// 2. Docker Compose + Dockerfile (second priority)
+		analysis.HasDocker = true
+		analysis.DockerCommand = "docker-compose up -d"
+	} else if _, hasDockerfile := fileContents["Dockerfile"]; hasDockerfile {
+		// 3. Only Dockerfile (third priority)
 		analysis.HasDocker = true
 		analysis.DockerCommand = "docker build -t " + repo + " ."
 	}
@@ -767,6 +783,24 @@ func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisRespo
 	}
 
 	return nil
+}
+
+// hasInstallScripts checks if repository has install/deployment scripts
+func (h *GitHubHandler) hasInstallScripts(fileContents map[string]string) bool {
+	scriptFiles := []string{"scripts/install.sh", "scripts/deploy.sh", "scripts/setup.sh", "install.sh", "deploy.sh"}
+	for _, script := range scriptFiles {
+		if _, exists := fileContents[script]; exists {
+			return true
+		}
+	}
+	return false
+}
+
+// hasDockerCompose checks if repository has both docker-compose.yml and Dockerfile
+func (h *GitHubHandler) hasDockerCompose(fileContents map[string]string) bool {
+	_, hasCompose := fileContents["docker-compose.yml"]
+	_, hasDockerfile := fileContents["Dockerfile"]
+	return hasCompose && hasDockerfile
 }
 
 // analyzeByName performs basic analysis based on repository name
@@ -1575,11 +1609,42 @@ func (h *GitHubHandler) analyzeReadme(analysis *ProjectAnalysisResponse, readme 
 }
 
 // generateInstallOptions creates different installation options based on analysis
+// Priority order: Scripts > Docker Compose > Docker > Package Manager
 func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse) []models.InstallOption {
 	var options []models.InstallOption
 
-	// Docker option (if available)
-	if analysis.HasDocker {
+	// 1. Scripts option (highest priority)
+	if analysis.HasScripts {
+		options = append(options, models.InstallOption{
+			Name:         "scripts",
+			Command:      "bash scripts/install.sh",
+			BuildCommand: "bash scripts/install.sh",
+			StartCommand: "bash scripts/deploy.sh",
+			DevCommand:   "bash scripts/deploy.sh",
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: true,
+			Description:  "Deploy using custom install scripts (recommended - repository provides optimized deployment)",
+		})
+	}
+
+	// 2. Docker Compose option (second priority)
+	if analysis.HasDockerCompose {
+		options = append(options, models.InstallOption{
+			Name:         "docker-compose",
+			Command:      "docker-compose up -d",
+			BuildCommand: "docker-compose build",
+			StartCommand: "docker-compose up -d",
+			DevCommand:   "docker-compose up",
+			Port:         analysis.Port,
+			Environment:  analysis.Environment,
+			IsRecommended: !analysis.HasScripts,
+			Description:  "Deploy using Docker Compose (full stack deployment with services)",
+		})
+	}
+
+	// 3. Docker option (third priority)
+	if analysis.HasDocker && !analysis.HasDockerCompose {
 		options = append(options, models.InstallOption{
 			Name:         "docker",
 			Command:      "docker build -t app .",
@@ -1588,12 +1653,14 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 			DevCommand:   "docker run -p " + strconv.Itoa(analysis.Port) + ":" + strconv.Itoa(analysis.Port) + " app",
 			Port:         analysis.Port,
 			Environment:  analysis.Environment,
-			IsRecommended: true,
-			Description:  "Deploy using Docker container (recommended for production)",
+			IsRecommended: !analysis.HasScripts && !analysis.HasDockerCompose,
+			Description:  "Deploy using Docker container",
 		})
 	}
 
-	// Package manager options
+	// 4. Package manager options (lowest priority)
+	hasHigherPriorityOption := analysis.HasScripts || analysis.HasDockerCompose || analysis.HasDocker
+	
 	switch analysis.PackageManager {
 	case "npm":
 		options = append(options, models.InstallOption{
@@ -1604,8 +1671,8 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 			DevCommand:   analysis.DevCommand,
 			Port:         analysis.Port,
 			Environment:  analysis.Environment,
-			IsRecommended: !analysis.HasDocker,
-			Description:  "Standard npm installation",
+			IsRecommended: !hasHigherPriorityOption,
+			Description:  "Standard npm installation (manual deployment)",
 		})
 		
 	case "yarn":
@@ -1617,8 +1684,8 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 			DevCommand:   strings.Replace(analysis.DevCommand, "npm run", "yarn", 1),
 			Port:         analysis.Port,
 			Environment:  analysis.Environment,
-			IsRecommended: !analysis.HasDocker,
-			Description:  "Fast, reliable, and secure yarn installation",
+			IsRecommended: !hasHigherPriorityOption,
+			Description:  "Fast, reliable, and secure yarn installation (manual deployment)",
 		})
 		
 		// Also add npm as alternative
@@ -1631,7 +1698,7 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 			Port:         analysis.Port,
 			Environment:  analysis.Environment,
 			IsRecommended: false,
-			Description:  "Alternative npm installation",
+			Description:  "Alternative npm installation (manual deployment)",
 		})
 		
 	case "pnpm":
@@ -1643,8 +1710,8 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 			DevCommand:   strings.Replace(analysis.DevCommand, "npm run", "pnpm", 1),
 			Port:         analysis.Port,
 			Environment:  analysis.Environment,
-			IsRecommended: !analysis.HasDocker,
-			Description:  "Fast, disk space efficient pnpm installation",
+			IsRecommended: !hasHigherPriorityOption,
+			Description:  "Fast, disk space efficient pnpm installation (manual deployment)",
 		})
 		
 		// Also add npm and yarn as alternatives
@@ -1658,7 +1725,7 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 				Port:         analysis.Port,
 				Environment:  analysis.Environment,
 				IsRecommended: false,
-				Description:  "Alternative npm installation",
+				Description:  "Alternative npm installation (manual deployment)",
 			},
 			models.InstallOption{
 				Name:         "yarn",
@@ -1669,7 +1736,7 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 				Port:         analysis.Port,
 				Environment:  analysis.Environment,
 				IsRecommended: false,
-				Description:  "Alternative yarn installation",
+				Description:  "Alternative yarn installation (manual deployment)",
 			})
 	}
 
