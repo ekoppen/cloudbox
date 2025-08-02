@@ -438,10 +438,6 @@
             <span>Organization *</span>
           </Label>
           
-          <!-- Debug info - REMOVE AFTER TESTING -->
-          <div class="p-2 bg-yellow-100 border border-yellow-400 rounded text-xs">
-            Debug: loadingOrganizations={loadingOrganizations}, organizations.length={organizations.length}, orgs={JSON.stringify(organizations)}
-          </div>
           
           {#if loadingOrganizations}
             <div class="flex items-center space-x-2 p-3 bg-muted rounded-md">
@@ -502,8 +498,9 @@
             variant="outline"
             on:click={() => {
               showCreateModal = false;
-              newProject = { name: '', description: '' };
+              newProject = { name: '', description: '', organization_id: 0 };
             }}
+            disabled={creating}
             class="flex-1 flex items-center justify-center space-x-2"
           >
             <Icon name="backup" size={14} />
@@ -521,18 +518,6 @@
               <Icon name="package" size={14} />
               <span>Project Aanmaken</span>
             {/if}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            on:click={() => {
-              showCreateModal = false;
-              newProject = { name: '', description: '', organization_id: 0 };
-            }}
-            disabled={creating}
-            class="flex-1"
-          >
-            Annuleren
           </Button>
         </div>
       </form>

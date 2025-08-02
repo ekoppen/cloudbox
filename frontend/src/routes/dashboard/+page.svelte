@@ -29,9 +29,6 @@
   let projects: Project[] = [];
   let loading = true;
   let error = '';
-  let showCreateModal = false;
-  let newProject = { name: '', description: '' };
-  let creating = false;
   
   // Admin stats
   let adminStats = null;
@@ -71,38 +68,6 @@
     }
   }
 
-  async function createProject() {
-    if (!newProject.name.trim()) {
-      return;
-    }
-
-    creating = true;
-
-    try {
-      const response = await createApiRequest(API_ENDPOINTS.projects.create, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${$auth.token}`,
-        },
-        body: JSON.stringify(newProject),
-      });
-
-      if (response.ok) {
-        const project = await response.json();
-        projects = [...projects, project];
-        showCreateModal = false;
-        newProject = { name: '', description: '' };
-      } else {
-        const data = await response.json();
-        error = data.error || 'Fout bij aanmaken van project';
-      }
-    } catch (err) {
-      error = 'Netwerkfout bij aanmaken van project';
-      console.error('Create project error:', err);
-    } finally {
-      creating = false;
-    }
-  }
 
   async function loadAdminStats() {
     if (!isSuperAdmin) return;
@@ -163,7 +128,7 @@
       </div>
     </div>
     <Button
-      on:click={() => showCreateModal = true}
+      href="/dashboard/projects"
       size="lg"
       class="flex items-center space-x-2"
     >
@@ -399,7 +364,7 @@
             Maak je eerste CloudBox project aan om te beginnen met je Backend-as-a-Service
           </p>
           <Button
-            on:click={() => showCreateModal = true}
+            href="/dashboard/projects"
             size="lg"
             class="flex items-center space-x-2"
           >
@@ -474,107 +439,3 @@
   </div>
 </div>
 
-<!-- Create Project Modal -->
-{#if showCreateModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
-      <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-          <Icon name="package" size={20} className="text-primary" />
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-foreground">Nieuw Project</h2>
-          <p class="text-sm text-muted-foreground">Maak een nieuwe CloudBox BaaS project aan</p>
-        </div>
-      </div>
-      
-      <form on:submit|preventDefault={createProject} class="space-y-6">
-        <div class="space-y-2">
-          <Label for="project-name" class="flex items-center space-x-2">
-            <Icon name="user" size={14} />
-            <span>Project naam</span>
-          </Label>
-          <Input
-            id="project-name"
-            type="text"
-            bind:value={newProject.name}
-            required
-            placeholder="Mijn geweldige app"
-            class="pl-4"
-          />
-          <p class="text-xs text-muted-foreground">
-            Deze naam wordt gebruikt voor je project identificatie
-          </p>
-        </div>
-        
-        <div class="space-y-2">
-          <Label for="project-description" class="flex items-center space-x-2">
-            <Icon name="edit" size={14} />
-            <span>Beschrijving (optioneel)</span>
-          </Label>
-          <Textarea
-            id="project-description"
-            bind:value={newProject.description}
-            rows={3}
-            placeholder="Een korte beschrijving van je project..."
-            class="pl-4"
-          />
-        </div>
-
-        <!-- Project Features Preview -->
-        <div class="bg-muted/50 rounded-lg p-4 space-y-3">
-          <div class="flex items-center space-x-2 text-sm font-medium text-foreground">
-            <Icon name="cloud" size={16} className="text-primary" />
-            <span>Jouw project krijgt toegang tot:</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="flex items-center space-x-2">
-              <Icon name="database" size={12} className="text-green-600" />
-              <span class="text-muted-foreground">Database API</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <Icon name="storage" size={12} className="text-purple-600" />
-              <span class="text-muted-foreground">File Storage</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <Icon name="auth" size={12} className="text-blue-600" />
-              <span class="text-muted-foreground">Authentication</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <Icon name="functions" size={12} className="text-orange-600" />
-              <span class="text-muted-foreground">Cloud Functions</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="flex space-x-3 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            on:click={() => {
-              showCreateModal = false;
-              newProject = { name: '', description: '' };
-            }}
-            class="flex-1 flex items-center justify-center space-x-2"
-          >
-            <Icon name="backup" size={14} />
-            <span>Annuleren</span>
-          </Button>
-          <Button
-            type="submit"
-            disabled={creating || !newProject.name.trim()}
-            class="flex-1 flex items-center justify-center space-x-2"
-          >
-            {#if creating}
-              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Aanmaken...</span>
-            {:else}
-              <Icon name="package" size={14} />
-              <span>Project Aanmaken</span>
-            {/if}
-          </Button>
-        </div>
-      </form>
-    </Card>
-  </div>
-{/if}
