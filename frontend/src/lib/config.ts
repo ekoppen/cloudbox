@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
     get: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}`,
     update: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}`,
     delete: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}`,
+    projects: (id: string) => `${API_BASE_URL}/api/v1/organizations/${id}/projects`,
   },
   admin: {
     stats: {

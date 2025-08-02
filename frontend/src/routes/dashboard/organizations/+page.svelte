@@ -142,7 +142,7 @@
   <div class="flex items-center justify-between">
     <div class="flex items-center space-x-4">
       <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-        <Icon name="package" size={20} className="text-primary" />
+        <Icon name="building" size={20} className="text-primary" />
       </div>
       <div>
         <h1 class="text-2xl font-bold text-foreground">Organizations</h1>
@@ -152,7 +152,7 @@
       </div>
     </div>
     <Button on:click={() => showCreateModal = true} class="flex items-center space-x-2">
-      <Icon name="package" size={16} />
+      <Icon name="plus" size={16} />
       <span>Nieuwe Organization</span>
     </Button>
   </div>
@@ -170,7 +170,7 @@
       <Card class="p-12">
         <div class="text-center">
           <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <Icon name="package" size={32} className="text-muted-foreground" />
+            <Icon name="building" size={32} className="text-muted-foreground" />
           </div>
           <h3 class="text-lg font-medium text-foreground mb-2">Nog geen organizations</h3>
           <p class="text-muted-foreground mb-6 max-w-sm mx-auto">
@@ -181,7 +181,7 @@
             size="lg"
             class="flex items-center space-x-2"
           >
-            <Icon name="package" size={16} />
+            <Icon name="plus" size={16} />
             <span>Eerste Organization Aanmaken</span>
           </Button>
         </div>
@@ -189,21 +189,21 @@
     {:else}
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {#each organizations as org}
-          <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20">
+          <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20 cursor-pointer" on:click={() => window.location.href = `/dashboard/organizations/${org.id}`}>
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center space-x-3">
                 <div 
                   class="w-10 h-10 rounded-lg flex items-center justify-center text-white"
                   style="background-color: {org.color}"
                 >
-                  <Icon name="package" size={20} />
+                  <Icon name="building" size={20} />
                 </div>
                 <div>
                   <h3 class="font-semibold text-foreground group-hover:text-primary transition-colors">
                     {org.name}
                   </h3>
                   <p class="text-xs text-muted-foreground">
-                    {org.project_count} project{org.project_count !== 1 ? 'en' : ''}
+                    {org.project_count || 0} project{(org.project_count || 0) !== 1 ? 'en' : ''}
                   </p>
                 </div>
               </div>
@@ -211,29 +211,49 @@
                 <Button
                   variant="ghost"
                   size="sm"
-                  on:click={() => deleteOrganization(org.id)}
+                  on:click|stopPropagation={() => deleteOrganization(org.id)}
                   class="text-destructive hover:text-destructive"
                 >
-                  <Icon name="backup" size={14} />
+                  <Icon name="trash" size={14} />
                 </Button>
               </div>
             </div>
 
-            {#if org.description}
-              <p class="text-sm text-muted-foreground mb-4 line-clamp-2">
-                {org.description}
-              </p>
-            {/if}
+            <div class="flex-1 mb-4">
+              {#if org.description}
+                <p class="text-sm text-muted-foreground line-clamp-2">
+                  {org.description}
+                </p>
+              {:else}
+                <div class="h-10"></div>
+              {/if}
+            </div>
 
-            <div class="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Aangemaakt {formatDate(org.created_at)}</span>
-              <div class="flex items-center space-x-1">
-                <div 
-                  class="w-2 h-2 rounded-full"
-                  style="background-color: {org.color}"
-                ></div>
-                <span class="capitalize">
-                  {org.is_active ? 'Actief' : 'Inactief'}
+            <div class="flex items-center justify-between">
+              <div class="flex space-x-2">
+                <Button
+                  href="/dashboard/organizations/{org.id}"
+                  size="sm"
+                  variant="outline"
+                  class="flex items-center space-x-1"
+                  on:click|stopPropagation
+                >
+                  <Icon name="eye" size={14} />
+                  <span>Bekijken</span>
+                </Button>
+              </div>
+              <div class="text-right">
+                <div class="flex items-center justify-end space-x-1 text-xs text-muted-foreground mb-1">
+                  <div 
+                    class="w-2 h-2 rounded-full"
+                    style="background-color: {org.color}"
+                  ></div>
+                  <span class="capitalize">
+                    {org.is_active ? 'Actief' : 'Inactief'}
+                  </span>
+                </div>
+                <span class="text-xs text-muted-foreground">
+                  {formatDate(org.created_at)}
                 </span>
               </div>
             </div>
@@ -250,7 +270,7 @@
     <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-          <Icon name="package" size={20} className="text-primary" />
+          <Icon name="building" size={20} className="text-primary" />
         </div>
         <h2 class="text-xl font-bold text-foreground">Nieuwe Organization</h2>
       </div>

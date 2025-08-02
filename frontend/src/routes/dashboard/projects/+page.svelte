@@ -194,7 +194,7 @@
         size="lg"
         class="flex items-center space-x-2"
       >
-        <Icon name="backup" size={16} />
+        <Icon name="arrow-left" size={16} />
         <span>Terug naar Dashboard</span>
       </Button>
       <Button
@@ -202,7 +202,7 @@
         size="lg"
         class="flex items-center space-x-2"
       >
-        <Icon name="package" size={16} />
+        <Icon name="plus" size={16} />
         <span>Nieuw Project</span>
       </Button>
     </div>
@@ -279,7 +279,7 @@
           size="lg"
           class="flex items-center space-x-2"
         >
-          <Icon name="backup" size={16} />
+          <Icon name="x" size={16} />
           <span>Zoekterm Wissen</span>
         </Button>
       </div>
@@ -299,7 +299,7 @@
           size="lg"
           class="flex items-center space-x-2"
         >
-          <Icon name="package" size={16} />
+          <Icon name="plus" size={16} />
           <span>Eerste Project Aanmaken</span>
         </Button>
       </div>
@@ -308,7 +308,7 @@
     <!-- Projects Grid -->
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {#each filteredProjects as project}
-        <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20">
+        <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20 flex flex-col">
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center space-x-3">
               <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -328,7 +328,7 @@
                   </div>
                 {:else}
                   <p class="text-xs text-muted-foreground">
-                    Persoonlijk project
+                    Geen organization
                   </p>
                 {/if}
               </div>
@@ -339,9 +339,14 @@
             </Badge>
           </div>
           
-          {#if project.description}
-            <p class="text-muted-foreground text-sm mb-4 line-clamp-2">{project.description}</p>
-          {/if}
+          <!-- Description with fixed height for alignment -->
+          <div class="flex-1 mb-4">
+            {#if project.description}
+              <p class="text-muted-foreground text-sm line-clamp-2">{project.description}</p>
+            {:else}
+              <div class="h-10"></div>
+            {/if}
+          </div>
           
           <div class="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
             <div class="flex items-center justify-between text-xs">
@@ -354,7 +359,7 @@
             </div>
           </div>
           
-          <div class="flex space-x-2">
+          <div class="flex space-x-2 mt-auto">
             <Button
               href="/dashboard/projects/{project.id}"
               size="sm"
@@ -377,7 +382,7 @@
           size="lg"
           class="flex items-center space-x-2"
         >
-          <Icon name="backup" size={16} />
+          <Icon name="refresh" size={16} />
           <span>Vernieuwen</span>
         </Button>
       </div>
@@ -402,7 +407,7 @@
       <form on:submit|preventDefault={createProject} class="space-y-6">
         <div class="space-y-2">
           <Label for="project-name" class="flex items-center space-x-2">
-            <Icon name="user" size={14} />
+            <Icon name="type" size={14} />
             <span>Project naam</span>
           </Label>
           <Input
@@ -434,7 +439,7 @@
         
         <div class="space-y-2">
           <Label for="project-organization" class="flex items-center space-x-2">
-            <Icon name="package" size={14} />
+            <Icon name="building" size={14} />
             <span>Organization *</span>
           </Label>
           
@@ -503,7 +508,7 @@
             disabled={creating}
             class="flex-1 flex items-center justify-center space-x-2"
           >
-            <Icon name="backup" size={14} />
+            <Icon name="x" size={14} />
             <span>Annuleren</span>
           </Button>
           <Button
@@ -515,7 +520,7 @@
               <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               <span>Aanmaken...</span>
             {:else}
-              <Icon name="package" size={14} />
+              <Icon name="plus" size={14} />
               <span>Project Aanmaken</span>
             {/if}
           </Button>
