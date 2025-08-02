@@ -608,7 +608,7 @@ func (h *GitHubHandler) AnalyzeRepository(c *gin.Context) {
 }
 
 // analyzeRepository performs the actual repository analysis
-func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisRequest) (*ProjectAnalysisResponse, error) {
+func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisRequest, repository *models.GitHubRepository) (*ProjectAnalysisResponse, error) {
 	analysis := &ProjectAnalysisResponse{
 		ProjectType:    "unknown",
 		Framework:      "unknown",
@@ -623,7 +623,7 @@ func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisReq
 	repoName := extractRepoName(req.RepoURL)
 	
 	// If we have actual repository access, analyze the contents
-	if err := h.analyzeRepositoryContents(analysis, req); err != nil {
+	if err := h.analyzeRepositoryContents(analysis, req, repository); err != nil {
 		// Fall back to basic analysis based on repository name patterns
 		h.analyzeByName(analysis, repoName)
 	}
@@ -638,9 +638,9 @@ func (h *GitHubHandler) analyzeRepository(projectID uint, req ProjectAnalysisReq
 }
 
 // analyzeAndSaveRepository performs analysis and saves to database
-func (h *GitHubHandler) analyzeAndSaveRepository(projectID uint, repoID uint, req ProjectAnalysisRequest) (*models.RepositoryAnalysis, error) {
+func (h *GitHubHandler) analyzeAndSaveRepository(projectID uint, repoID uint, req ProjectAnalysisRequest, repository *models.GitHubRepository) (*models.RepositoryAnalysis, error) {
 	// Perform the analysis
-	analysisResp, err := h.analyzeRepository(projectID, req)
+	analysisResp, err := h.analyzeRepository(projectID, req, repository)
 	if err != nil {
 		return nil, err
 	}
@@ -712,7 +712,7 @@ func (h *GitHubHandler) analyzeAndSaveRepository(projectID uint, repoID uint, re
 }
 
 // analyzeRepositoryContents analyzes repository contents via GitHub API
-func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisResponse, req ProjectAnalysisRequest) error {
+func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisResponse, req ProjectAnalysisRequest, repository *models.GitHubRepository) error {
 	// Extract owner and repo from URL
 	owner, repo, err := h.parseGitHubURL(req.RepoURL)
 	if err != nil {
@@ -726,7 +726,7 @@ func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisRespo
 	fileContents := make(map[string]string)
 	
 	for _, file := range files {
-		content, err := h.fetchFileContent(owner, repo, file, req.Branch)
+		content, err := h.fetchFileContentWithToken(repository.AccessToken, owner, repo, file, req.Branch)
 		if err == nil && content != "" {
 			fileContents[file] = content
 			analysis.Files = append(analysis.Files, file)
@@ -1834,7 +1834,7 @@ func (h *GitHubHandler) ReAnalyzeRepository(c *gin.Context) {
 	}
 
 	// Perform analysis and save to database
-	analysis, err := h.analyzeAndSaveRepository(uint(projectID), uint(repoID), req)
+	analysis, err := h.analyzeAndSaveRepository(uint(projectID), uint(repoID), req, &repository)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to analyze repository",
@@ -1891,7 +1891,7 @@ func (h *GitHubHandler) AnalyzeAndSaveRepository(c *gin.Context) {
 	}
 
 	// Perform analysis and save to database
-	analysis, err := h.analyzeAndSaveRepository(uint(projectID), uint(repoID), req)
+	analysis, err := h.analyzeAndSaveRepository(uint(projectID), uint(repoID), req, &repository)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to analyze repository",
