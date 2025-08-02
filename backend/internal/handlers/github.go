@@ -595,7 +595,19 @@ func (h *GitHubHandler) AnalyzeRepository(c *gin.Context) {
 
 	// For this endpoint, we analyze without a specific repository ID
 	// This is used for analyzing repositories before adding them
-	analysis, err := h.analyzeRepository(uint(projectID), req)
+	// Get token from header for temporary analysis
+	accessToken := c.GetHeader("X-GitHub-Token")
+	if accessToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "X-GitHub-Token header required for repository analysis"})
+		return
+	}
+	
+	// Create temporary repository object with the token
+	tempRepo := &models.GitHubRepository{
+		AccessToken: accessToken,
+	}
+	
+	analysis, err := h.analyzeRepository(uint(projectID), req, tempRepo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to analyze repository",
