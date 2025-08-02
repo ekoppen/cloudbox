@@ -84,13 +84,20 @@
 
   async function loadSSHKeys() {
     try {
+      console.log('Loading SSH keys for project:', projectId);
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/ssh-keys`, {
         headers: auth.getAuthHeader()
       });
 
+      console.log('SSH Keys response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        sshKeys = data.ssh_keys || [];
+        console.log('SSH Keys data:', data);
+        sshKeys = Array.isArray(data) ? data : (data.ssh_keys || []);
+        console.log('SSH Keys loaded:', sshKeys.length);
+      } else {
+        const errorData = await response.json();
+        console.error('SSH Keys error response:', errorData);
       }
     } catch (error) {
       console.error('Error loading SSH keys:', error);
@@ -99,13 +106,20 @@
 
   async function loadWebServers() {
     try {
+      console.log('Loading web servers for project:', projectId);
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers`, {
         headers: auth.getAuthHeader()
       });
 
+      console.log('Web Servers response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        webServers = data.web_servers || [];
+        console.log('Web Servers data:', data);
+        webServers = Array.isArray(data) ? data : (data.web_servers || []);
+        console.log('Web Servers loaded:', webServers.length);
+      } else {
+        const errorData = await response.json();
+        console.error('Web Servers error response:', errorData);
       }
     } catch (error) {
       console.error('Error loading web servers:', error);
