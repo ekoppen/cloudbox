@@ -23,8 +23,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 # Final stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates tzdata
+# Install ca-certificates, git, and deployment tools
+RUN apk --no-cache add ca-certificates tzdata git curl tar openssh-client
 
 # Create non-root user
 RUN adduser -D -s /bin/sh cloudbox
