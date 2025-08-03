@@ -756,10 +756,12 @@ perform_update() {
     # Backup database
     print_info "Creating database backup..."
     if $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps -q postgres > /dev/null 2>&1; then
+        # Create backups directory if it doesn't exist
+        mkdir -p backups
         $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml up -d postgres
         sleep 5
-        $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml exec -T postgres pg_dump -U cloudbox cloudbox > "backup_$(date +%Y%m%d_%H%M%S).sql"
-        print_success "Database backup created"
+        $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml exec -T postgres pg_dump -U cloudbox cloudbox > "backups/backup_$(date +%Y%m%d_%H%M%S).sql"
+        print_success "Database backup created in backups/ directory"
     fi
     
     # Pull latest images

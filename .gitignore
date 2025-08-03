@@ -97,6 +97,7 @@ go.work
 uploads/
 data/
 backups/
+backup_*.sql
 
 # Database
 *.db
