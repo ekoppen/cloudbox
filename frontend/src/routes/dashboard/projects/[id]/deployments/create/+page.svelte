@@ -5,7 +5,6 @@
   import Button from '$lib/components/ui/button.svelte';
   import Card from '$lib/components/ui/card.svelte';
   import Input from '$lib/components/ui/input.svelte';
-  import Select from '$lib/components/ui/select.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Label from '$lib/components/ui/label.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
@@ -234,13 +233,18 @@
 
           <div>
             <Label for="install_option">Deployment Methode</Label>
-            <Select id="install_option" bind:value={deployment.install_option} placeholder="Selecteer deployment methode...">
+            <select 
+              id="install_option" 
+              bind:value={deployment.install_option}
+              class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Selecteer deployment methode...</option>
               {#each installOptions as option}
                 <option value={option.name} selected={option.is_recommended}>
                   {option.name} {option.is_recommended ? '(aanbevolen)' : ''} - {option.description}
                 </option>
               {/each}
-            </Select>
+            </select>
           </div>
 
           <div>
@@ -271,13 +275,18 @@
       <div class="grid gap-4">
         <div>
           <Label for="web_server">Doelserver</Label>
-          <Select id="web_server" bind:value={deployment.web_server_id} placeholder="Selecteer een server...">
+          <select 
+            id="web_server" 
+            bind:value={deployment.web_server_id}
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Selecteer een server...</option>
             {#each webServers as server}
               <option value={server.id}>
                 {server.name} ({server.host})
               </option>
             {/each}
-          </Select>
+          </select>
           {#if webServers.length === 0}
             <p class="text-sm text-muted-foreground mt-1">
               Geen servers beschikbaar. 
@@ -290,13 +299,18 @@
 
         <div>
           <Label for="ssh_key">SSH Key voor toegang</Label>
-          <Select id="ssh_key" bind:value={deployment.ssh_key_id} placeholder="Selecteer een SSH key...">
+          <select 
+            id="ssh_key" 
+            bind:value={deployment.ssh_key_id}
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Selecteer een SSH key...</option>
             {#each sshKeys as key}
               <option value={key.id}>
                 {key.name}
               </option>
             {/each}
-          </Select>
+          </select>
           {#if sshKeys.length === 0}
             <p class="text-sm text-muted-foreground mt-1">
               Geen SSH keys beschikbaar. 
