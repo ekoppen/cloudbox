@@ -38,10 +38,6 @@
 
   $: projectId = $page.params.id;
 
-  // Debug reactive statements to track changes
-  $: console.log('SSH Key ID changed:', deployment.ssh_key_id);
-  $: console.log('Web Server ID changed:', deployment.web_server_id);
-  $: console.log('Install Option changed:', deployment.install_option);
 
   onMount(async () => {
     // Get URL parameters
@@ -88,20 +84,13 @@
 
   async function loadSSHKeys() {
     try {
-      console.log('Loading SSH keys for project:', projectId);
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/ssh-keys`, {
         headers: auth.getAuthHeader()
       });
 
-      console.log('SSH Keys response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('SSH Keys data:', data);
         sshKeys = Array.isArray(data) ? data : (data.ssh_keys || []);
-        console.log('SSH Keys loaded:', sshKeys.length);
-      } else {
-        const errorData = await response.json();
-        console.error('SSH Keys error response:', errorData);
       }
     } catch (error) {
       console.error('Error loading SSH keys:', error);
@@ -110,20 +99,13 @@
 
   async function loadWebServers() {
     try {
-      console.log('Loading web servers for project:', projectId);
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/web-servers`, {
         headers: auth.getAuthHeader()
       });
 
-      console.log('Web Servers response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('Web Servers data:', data);
         webServers = Array.isArray(data) ? data : (data.web_servers || []);
-        console.log('Web Servers loaded:', webServers.length);
-      } else {
-        const errorData = await response.json();
-        console.error('Web Servers error response:', errorData);
       }
     } catch (error) {
       console.error('Error loading web servers:', error);
@@ -283,7 +265,7 @@
             <option value="">Selecteer een server...</option>
             {#each webServers as server}
               <option value={server.id}>
-                {server.name} ({server.host})
+                {server.name}{#if server.host} ({server.host}){/if}
               </option>
             {/each}
           </select>
