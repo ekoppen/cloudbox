@@ -100,7 +100,7 @@ func (s *DeploymentService) ExecuteDeployment(deployment models.Deployment, comm
 
 // cloneRepository clones the GitHub repository
 func (s *DeploymentService) cloneRepository(deployment models.Deployment, commitHash, branch string, result *DeploymentResult) (string, error) {
-	result.BuildLogs += "Cloning repository...\n"
+	result.BuildLogs += fmt.Sprintf("Cloning repository: %s (branch: %s)\n", deployment.GitHubRepository.Name, branch)
 	
 	// Create temporary directory
 	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("cloudbox-deploy-%d-%d", deployment.ID, time.Now().Unix()))
@@ -110,13 +110,23 @@ func (s *DeploymentService) cloneRepository(deployment models.Deployment, commit
 
 	// Build authenticated clone URL using the stored access token
 	cloneURL := deployment.GitHubRepository.CloneURL
+	
+	// Convert SSH URLs to HTTPS format since we can't use SSH in Docker containers easily
+	if strings.HasPrefix(cloneURL, "git@github.com:") {
+		// Convert git@github.com:owner/repo.git to https://github.com/owner/repo.git
+		cloneURL = strings.Replace(cloneURL, "git@github.com:", "https://github.com/", 1)
+		result.BuildLogs += "Converted SSH URL to HTTPS format\n"
+	}
+	
 	if deployment.GitHubRepository.AccessToken != "" {
 		// Convert HTTPS clone URL to use token authentication
 		// GitHub format: https://github.com/owner/repo.git
 		// Authenticated format: https://token@github.com/owner/repo.git
 		if strings.HasPrefix(cloneURL, "https://github.com/") {
 			cloneURL = strings.Replace(cloneURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", deployment.GitHubRepository.AccessToken), 1)
-			result.BuildLogs += "Using authenticated GitHub access\n"
+			result.BuildLogs += "Using authenticated GitHub access with PAT\n"
+		} else {
+			result.BuildLogs += fmt.Sprintf("Warning: Unsupported URL format: %s\n", cloneURL)
 		}
 	} else {
 		result.BuildLogs += "Warning: No GitHub access token found, attempting public access\n"
@@ -125,9 +135,17 @@ func (s *DeploymentService) cloneRepository(deployment models.Deployment, commit
 	// Clone repository
 	cloneCmd := exec.Command("git", "clone", "--depth", "1", "-b", branch, cloneURL, tempDir)
 	
+	// Set Git environment variables for Docker containers
+	cloneCmd.Env = append(os.Environ(),
+		"GIT_SSL_NO_VERIFY=true",               // Skip SSL verification for corporate proxies
+		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null", // Skip SSH host key verification
+	)
+	
 	var stdout, stderr bytes.Buffer
 	cloneCmd.Stdout = &stdout
 	cloneCmd.Stderr = &stderr
+	
+	result.BuildLogs += fmt.Sprintf("Executing: git clone --depth 1 -b %s [URL] %s\n", branch, tempDir)
 	
 	if err := cloneCmd.Run(); err != nil {
 		result.BuildLogs += fmt.Sprintf("Clone failed: %s\n", stderr.String())
