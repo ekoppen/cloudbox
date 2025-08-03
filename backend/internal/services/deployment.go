@@ -108,18 +108,18 @@ func (s *DeploymentService) cloneRepository(deployment models.Deployment, commit
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	// Build authenticated clone URL using the stored token
+	// Build authenticated clone URL using the stored access token
 	cloneURL := deployment.GitHubRepository.CloneURL
-	if deployment.GitHubRepository.Token != "" {
+	if deployment.GitHubRepository.AccessToken != "" {
 		// Convert HTTPS clone URL to use token authentication
 		// GitHub format: https://github.com/owner/repo.git
 		// Authenticated format: https://token@github.com/owner/repo.git
 		if strings.HasPrefix(cloneURL, "https://github.com/") {
-			cloneURL = strings.Replace(cloneURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", deployment.GitHubRepository.Token), 1)
+			cloneURL = strings.Replace(cloneURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", deployment.GitHubRepository.AccessToken), 1)
 			result.BuildLogs += "Using authenticated GitHub access\n"
 		}
 	} else {
-		result.BuildLogs += "Warning: No GitHub token found, attempting public access\n"
+		result.BuildLogs += "Warning: No GitHub access token found, attempting public access\n"
 	}
 
 	// Clone repository
