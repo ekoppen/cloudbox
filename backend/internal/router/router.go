@@ -172,6 +172,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.DELETE("/:id/deployments/:deployment_id", deploymentHandler.DeleteDeployment)
 				projects.POST("/:id/deployments/:deployment_id/deploy", deploymentHandler.Deploy)
 				projects.GET("/:id/deployments/:deployment_id/logs", deploymentHandler.GetLogs)
+				projects.GET("/:id/deployments/:deployment_id/status", deploymentHandler.GetStatus)
 				
 				// Functions
 				projects.GET("/:id/functions", functionHandler.ListFunctions)

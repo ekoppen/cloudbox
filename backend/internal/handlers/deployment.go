@@ -410,7 +410,15 @@ func (h *DeploymentHandler) Deploy(c *gin.Context) {
 	})
 }
 
-// GetLogs returns deployment logs
+// LogEntry represents a structured log entry
+type LogEntry struct {
+	Timestamp  string `json:"timestamp"`
+	Level      string `json:"level"`
+	Message    string `json:"message"`
+	Phase      string `json:"phase"`
+}
+
+// GetLogs returns deployment logs in structured format
 func (h *DeploymentHandler) GetLogs(c *gin.Context) {
 	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -434,11 +442,128 @@ func (h *DeploymentHandler) GetLogs(c *gin.Context) {
 		return
 	}
 
+	// Convert logs to structured format for console
+	var logs []LogEntry
+	currentTime := time.Now()
+
+	// Add build logs
+	if deployment.BuildLogs != "" {
+		buildLines := strings.Split(deployment.BuildLogs, "\n")
+		for i, line := range buildLines {
+			if line = strings.TrimSpace(line); line != "" {
+				logs = append(logs, LogEntry{
+					Timestamp: currentTime.Add(time.Duration(i) * time.Second).Format("15:04:05"),
+					Level:     "info",
+					Message:   line,
+					Phase:     "build",
+				})
+			}
+		}
+	}
+
+	// Add deploy logs
+	if deployment.DeployLogs != "" {
+		deployLines := strings.Split(deployment.DeployLogs, "\n")
+		for i, line := range deployLines {
+			if line = strings.TrimSpace(line); line != "" {
+				logs = append(logs, LogEntry{
+					Timestamp: currentTime.Add(time.Duration(len(logs)+i) * time.Second).Format("15:04:05"),
+					Level:     "info",
+					Message:   line,
+					Phase:     "deploy",
+				})
+			}
+		}
+	}
+
+	// Add error logs
+	if deployment.ErrorLogs != "" {
+		errorLines := strings.Split(deployment.ErrorLogs, "\n")
+		for i, line := range errorLines {
+			if line = strings.TrimSpace(line); line != "" {
+				logs = append(logs, LogEntry{
+					Timestamp: currentTime.Add(time.Duration(len(logs)+i) * time.Second).Format("15:04:05"),
+					Level:     "error",
+					Message:   line,
+					Phase:     "error",
+				})
+			}
+		}
+	}
+
+	// If no logs yet but deployment is active, add status message
+	if len(logs) == 0 && (deployment.Status == "pending" || deployment.Status == "building" || deployment.Status == "deploying") {
+		logs = append(logs, LogEntry{
+			Timestamp: currentTime.Format("15:04:05"),
+			Level:     "info",
+			Message:   fmt.Sprintf("Deployment status: %s", deployment.Status),
+			Phase:     "status",
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"build_logs":  deployment.BuildLogs,
-		"deploy_logs": deployment.DeployLogs,
-		"error_logs":  deployment.ErrorLogs,
+		"logs":        logs,
 		"status":      deployment.Status,
+		"build_logs":  deployment.BuildLogs,   // Legacy format for compatibility
+		"deploy_logs": deployment.DeployLogs,  // Legacy format for compatibility
+		"error_logs":  deployment.ErrorLogs,   // Legacy format for compatibility
+	})
+}
+
+// GetStatus returns deployment status and progress information
+func (h *DeploymentHandler) GetStatus(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	deploymentID, err := strconv.ParseUint(c.Param("deployment_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid deployment ID"})
+		return
+	}
+
+	var deployment models.Deployment
+	if err := h.db.Where("id = ? AND project_id = ?", uint(deploymentID), uint(projectID)).First(&deployment).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Deployment not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deployment"})
+		}
+		return
+	}
+
+	// Calculate progress based on status and log content
+	progress := 0
+	switch deployment.Status {
+	case "pending":
+		progress = 5
+	case "building":
+		progress = 25
+		if strings.Contains(deployment.BuildLogs, "Build completed successfully") {
+			progress = 50
+		}
+	case "deploying":
+		progress = 75
+		if strings.Contains(deployment.DeployLogs, "Application started successfully") {
+			progress = 95
+		}
+	case "deployed":
+		progress = 100
+	case "failed":
+		progress = 100
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":      deployment.Status,
+		"progress":    progress,
+		"build_time":  deployment.BuildTime,
+		"deploy_time": deployment.DeployTime,
+		"file_count":  deployment.FileCount,
+		"total_size":  deployment.TotalSize,
+		"deployed_at": deployment.DeployedAt,
+		"updated_at":  deployment.UpdatedAt,
 	})
 }
 
