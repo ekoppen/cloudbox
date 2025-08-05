@@ -1,0 +1,84 @@
+{
+  "name": "sveltekit-portfolio-cip",
+  "version": "1.0.0",
+  "type": "frontend",
+  "cloudbox_version": "1.0",
+  
+  "description": "SvelteKit photography portfolio with CloudBox Install Protocol support",
+  "author": "CloudBox Team",
+  "license": "MIT",
+  "repository": "https://github.com/cloudbox/sveltekit-portfolio-cip",
+  
+  "scripts": {
+    "install": "./scripts/cloudbox-install.sh",
+    "start": "./scripts/cloudbox-start.sh", 
+    "stop": "./scripts/cloudbox-stop.sh",
+    "status": "./scripts/cloudbox-status.sh",
+    "health": "./scripts/cloudbox-health.sh"
+  },
+  
+  "requirements": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  
+  "ports": {
+    "web": {
+      "port": 3000,
+      "required": true,
+      "description": "Main web server port",
+      "configurable": true,
+      "variable": "PORT"
+    }
+  },
+  
+  "environment": {
+    "NODE_ENV": {
+      "default": "production",
+      "required": true,
+      "description": "Node.js environment"
+    },
+    "ORIGIN": {
+      "default": "http://localhost:3000",
+      "required": true,
+      "description": "Application origin URL"
+    },
+    "API_URL": {
+      "default": "{{CLOUDBOX_API_URL}}",
+      "required": true,
+      "description": "CloudBox API endpoint"
+    },
+    "PROJECT_ID": {
+      "default": "{{CLOUDBOX_PROJECT_ID}}",
+      "required": true,
+      "description": "CloudBox project identifier"
+    }
+  },
+  
+  "docker": {
+    "enabled": true,
+    "compose_file": "docker-compose.cloudbox.yml",
+    "monitoring": {
+      "enabled": true,
+      "health_endpoint": "/health",
+      "metrics_endpoint": "/api/metrics",
+      "logs": true
+    }
+  },
+  
+  "cloudbox": {
+    "data_api": true,
+    "auth_api": true,
+    "storage_api": true,
+    "templates": ["photoportfolio"],
+    "categories": ["portfolio", "photography", "personal"]
+  },
+  
+  "deployment": {
+    "build_command": "npm run build",
+    "start_command": "node build",
+    "install_dependencies": "npm ci --production",
+    "pre_deploy": [],
+    "post_deploy": []
+  }
+}

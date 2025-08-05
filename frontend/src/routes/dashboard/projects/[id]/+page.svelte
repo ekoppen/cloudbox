@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
@@ -37,11 +38,41 @@
   };
 
   let recentActivity: RecentActivity[] = [];
+  let loadingStats = true;
 
   $: projectId = $page.params.id;
 
   // Chart data - will be loaded from API
   let chartData: Array<{day: string, requests: number}> = [];
+
+  onMount(() => {
+    loadProjectStats();
+  });
+
+  async function loadProjectStats() {
+    if (!projectId) return;
+    
+    loadingStats = true;
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.projects.stats(projectId), {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        stats = data;
+        chartData = data.activity_data || [];
+      } else {
+        console.error('Failed to load project stats');
+      }
+    } catch (err) {
+      console.error('Project stats error:', err);
+    } finally {
+      loadingStats = false;
+    }
+  }
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -87,18 +118,30 @@
   </div>
 
   <!-- Quick Stats Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-    <Card class="p-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-sm font-medium text-muted-foreground">Verzoeken vandaag</p>
-          <p class="text-2xl font-bold text-foreground">{stats.requests_today.toLocaleString()}</p>
+  {#if loadingStats}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {#each Array(4) as _}
+        <Card class="p-6">
+          <div class="animate-pulse">
+            <div class="h-4 bg-muted rounded w-3/4 mb-2"></div>
+            <div class="h-8 bg-muted rounded w-1/2"></div>
+          </div>
+        </Card>
+      {/each}
+    </div>
+  {:else}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card class="p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Verzoeken vandaag</p>
+            <p class="text-2xl font-bold text-foreground">{stats.requests_today.toLocaleString()}</p>
+          </div>
+          <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+            <Icon name="functions" size={20} className="text-blue-600 dark:text-blue-400" />
+          </div>
         </div>
-        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-          <Icon name="functions" size={20} className="text-blue-600 dark:text-blue-400" />
-        </div>
-      </div>
-    </Card>
+      </Card>
 
     <Card class="p-6">
       <div class="flex items-center justify-between">
@@ -135,7 +178,8 @@
         </div>
       </div>
     </Card>
-  </div>
+    </div>
+  {/if}
 
   <!-- Charts Section -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

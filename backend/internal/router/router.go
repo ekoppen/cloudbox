@@ -50,6 +50,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			"service": "cloudbox-api",
 		})
 	})
+
 	
 
 	// Public webhook endpoint (no authentication required)
@@ -120,6 +121,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.GET("/:id", projectHandler.GetProject)
 				projects.PUT("/:id", projectHandler.UpdateProject)
 				projects.DELETE("/:id", projectHandler.DeleteProject)
+				projects.GET("/:id/stats", projectHandler.GetProjectStats)
 				
 				// Project-specific routes
 				projects.GET("/:id/api-keys", projectHandler.ListAPIKeys)
@@ -163,6 +165,9 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.PUT("/:id/github-repositories/:repo_id/token", githubHandler.UpdateRepositoryToken)
 				projects.GET("/:id/github-repositories/:repo_id/test-access", githubHandler.TestRepositoryAccess)
 				
+				// CIP compliance check endpoint
+				projects.POST("/:id/github-repositories/:repo_id/cip-check", githubHandler.CheckCIPCompliance)
+				
 				projects.POST("/:id/github-repositories/:repo_id/deploy-pending", deploymentHandler.DeployPendingUpdate)
 				
 				projects.GET("/:id/deployments", deploymentHandler.ListDeployments)
@@ -170,9 +175,12 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.GET("/:id/deployments/:deployment_id", deploymentHandler.GetDeployment)
 				projects.PUT("/:id/deployments/:deployment_id", deploymentHandler.UpdateDeployment)
 				projects.DELETE("/:id/deployments/:deployment_id", deploymentHandler.DeleteDeployment)
-				projects.POST("/:id/deployments/:deployment_id/deploy", deploymentHandler.Deploy)
+				projects.POST("/:id/deployments/:deployment_id/deploy", deploymentHandler.ExecuteCIPDeployment)
 				projects.GET("/:id/deployments/:deployment_id/logs", deploymentHandler.GetLogs)
 				projects.GET("/:id/deployments/:deployment_id/status", deploymentHandler.GetStatus)
+				
+				// Port availability checking
+				projects.POST("/:id/deployments/check-ports", deploymentHandler.CheckPortAvailability)
 				
 				// Functions
 				projects.GET("/:id/functions", functionHandler.ListFunctions)

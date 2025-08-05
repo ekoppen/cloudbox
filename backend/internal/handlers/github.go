@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -89,8 +90,11 @@ type ProjectAnalysisResponse struct {
 	HasDocker         bool                   `json:"has_docker"`
 	DockerCommand     string                 `json:"docker_command"`
 	HasScripts        bool                   `json:"has_scripts"`        // Install/deployment scripts available
+	InstallScript     string                 `json:"install_script"`     // Path to install script (if available)
+	DeployScript      string                 `json:"deploy_script"`      // Path to deploy script (if available)
 	HasDockerCompose  bool                   `json:"has_docker_compose"` // Docker Compose + Dockerfile available
 	Files             []string               `json:"files"`              // Important files found
+	FileContents      map[string]string      `json:"-"`                  // File contents for analysis (not exposed in JSON)
 }
 
 // ListGitHubRepositories returns all GitHub repositories for a project
@@ -763,6 +767,9 @@ func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisRespo
 			analysis.Files = append(analysis.Files, file)
 		}
 	}
+	
+	// Store file contents in analysis for later use in port analysis
+	analysis.FileContents = fileContents
 
 	// Analyze package.json if it exists
 	if packageJSON, exists := fileContents["package.json"]; exists {
@@ -772,13 +779,19 @@ func (h *GitHubHandler) analyzeRepositoryContents(analysis *ProjectAnalysisRespo
 	// Check for deployment options (prioritized order)
 	// 1. Scripts folder (highest priority)
 	analysis.HasScripts = h.hasInstallScripts(fileContents)
-	analysis.HasDockerCompose = h.hasDockerCompose(fileContents)
-	
 	if analysis.HasScripts {
+		// Get the actual script paths found in the repository
+		analysis.InstallScript, analysis.DeployScript = h.getAvailableScripts(fileContents)
 		// Scripts take precedence - set Docker to false
 		analysis.HasDocker = false
-		analysis.DockerCommand = "bash scripts/install.sh" // or appropriate script
-	} else if analysis.HasDockerCompose {
+		if analysis.InstallScript != "" {
+			analysis.DockerCommand = "bash " + analysis.InstallScript
+		}
+	}
+	
+	analysis.HasDockerCompose = h.hasDockerCompose(fileContents)
+	
+	if analysis.HasDockerCompose && !analysis.HasScripts {
 		// 2. Docker Compose + Dockerfile (second priority)
 		analysis.HasDocker = true
 		analysis.DockerCommand = "docker-compose up -d"
@@ -810,6 +823,249 @@ func (h *GitHubHandler) hasInstallScripts(fileContents map[string]string) bool {
 		}
 	}
 	return false
+}
+
+// getAvailableScripts returns the actual script paths found in the repository
+func (h *GitHubHandler) getAvailableScripts(fileContents map[string]string) (installScript, deployScript string) {
+	// Priority order for install scripts
+	installScripts := []string{"scripts/install.sh", "install.sh", "scripts/setup.sh"}
+	deployScripts := []string{"scripts/deploy.sh", "deploy.sh", "scripts/start.sh", "start.sh"}
+	
+	for _, script := range installScripts {
+		if _, exists := fileContents[script]; exists {
+			installScript = script
+			break
+		}
+	}
+	
+	for _, script := range deployScripts {
+		if _, exists := fileContents[script]; exists {
+			deployScript = script
+			break
+		}
+	}
+	
+	return installScript, deployScript
+}
+
+// analyzeScriptPortRequirements analyzes script files for port requirements
+func (h *GitHubHandler) analyzeScriptPortRequirements(fileContents map[string]string, scriptPath string) []models.PortRequirement {
+	var requirements []models.PortRequirement
+	
+	if scriptPath == "" {
+		return requirements
+	}
+	
+	scriptContent, exists := fileContents[scriptPath]
+	if !exists {
+		return requirements
+	}
+	
+	// Simplified port patterns focused on essential ports only
+	// Prioritize single main application port to avoid duplicates
+	portPatterns := map[string]models.PortRequirement{
+		// Main application port (highest priority)
+		"PORT": {Name: "Application", Port: 3000, Protocol: "tcp", Required: true, Description: "Main application port", Variable: "PORT"},
+		
+		// Alternative web server patterns (only if PORT is not found)
+		"WEB_PORT": {Name: "Web Server", Port: 8080, Protocol: "tcp", Required: true, Description: "Web server port", Variable: "WEB_PORT"},
+		"HTTP_PORT": {Name: "HTTP Server", Port: 8080, Protocol: "tcp", Required: true, Description: "HTTP server port", Variable: "HTTP_PORT"},
+		
+		// API patterns (only for explicit API services)
+		"API_PORT": {Name: "API Server", Port: 4000, Protocol: "tcp", Required: false, Description: "API server port", Variable: "API_PORT"},
+		
+		// Database patterns (only if explicitly referenced in scripts)
+		"DB_PORT": {Name: "Database", Port: 5432, Protocol: "tcp", Required: false, Description: "External database port", Variable: "DB_PORT"},
+		"MONGODB_PORT": {Name: "MongoDB", Port: 27017, Protocol: "tcp", Required: false, Description: "MongoDB port", Variable: "MONGODB_PORT"},
+	}
+	
+	lines := strings.Split(scriptContent, "\n")
+	foundPorts := make(map[string]bool)
+	hasMainPort := false // Track if we found the main application port
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		// Skip comments and empty lines
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		
+		// Look for port variable assignments and usage with priority logic
+		for variable, template := range portPatterns {
+			if foundPorts[variable] {
+				continue // Already found this port
+			}
+			
+			// Check for various patterns where ports might be defined or used
+			patterns := []string{
+				variable + "=",           // WEB_PORT=80
+				variable + " =",          // WEB_PORT = 80  
+				"${" + variable + "}",    // ${WEB_PORT}
+				"$" + variable,           // $WEB_PORT
+				":" + variable,           // Port: WEB_PORT
+				variable + ":",           // WEB_PORT: 80
+			}
+			
+			for _, pattern := range patterns {
+				if strings.Contains(strings.ToUpper(line), strings.ToUpper(pattern)) {
+					// Priority logic: avoid duplicate web server ports
+					if variable == "PORT" {
+						hasMainPort = true
+					} else if (variable == "WEB_PORT" || variable == "HTTP_PORT") && hasMainPort {
+						// Skip alternative web server ports if main PORT already found
+						break
+					}
+					
+					// Found a port reference, try to extract the default value
+					port := h.extractPortFromLine(line, variable)
+					if port > 0 {
+						requirement := template
+						requirement.Port = port
+						requirements = append(requirements, requirement)
+						foundPorts[variable] = true
+						
+						if variable == "PORT" {
+							hasMainPort = true
+						}
+						break
+					} else {
+						// Found reference but no default port, use template defaults
+						requirements = append(requirements, template)
+						foundPorts[variable] = true
+						
+						if variable == "PORT" {
+							hasMainPort = true
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+	
+	// Filter out unnecessary ports for portfolio apps
+	if h.isPortfolioApp(scriptContent) {
+		filteredRequirements := []models.PortRequirement{}
+		for _, req := range requirements {
+			// Portfolio apps only need frontend webserver port
+			// API is provided by CloudBox itself, no separate API server needed
+			if req.Variable == "PORT" || req.Variable == "WEB_PORT" || req.Variable == "HTTP_PORT" {
+				filteredRequirements = append(filteredRequirements, req)
+			}
+			// Skip API_PORT - CloudBox provides the API
+			// Skip database ports - portfolio apps typically use CloudBox data API
+		}
+		return filteredRequirements
+	}
+	
+	return requirements
+}
+
+// isPortfolioApp checks if this appears to be a simple portfolio/static site app
+func (h *GitHubHandler) isPortfolioApp(scriptContent string) bool {
+	portfolioIndicators := []string{
+		"portfolio", "photoportfolio", "static", "vite", "npm run preview", 
+		"serve", "http-server", "live-server",
+	}
+	
+	scriptLower := strings.ToLower(scriptContent)
+	for _, indicator := range portfolioIndicators {
+		if strings.Contains(scriptLower, indicator) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// extractPortFromLine tries to extract a port number from a script line
+func (h *GitHubHandler) extractPortFromLine(line, variable string) int {
+	// Remove comments
+	if commentIndex := strings.Index(line, "#"); commentIndex >= 0 {
+		line = line[:commentIndex]
+	}
+	
+	// Look for patterns like WEB_PORT=80, WEB_PORT: 80, etc.
+	patterns := []string{
+		variable + "=",
+		variable + " =",
+		variable + ":",
+		variable + " :",
+	}
+	
+	for _, pattern := range patterns {
+		if index := strings.Index(strings.ToUpper(line), strings.ToUpper(pattern)); index >= 0 {
+			// Extract everything after the pattern
+			remaining := strings.TrimSpace(line[index+len(pattern):])
+			
+			// Extract the first number found
+			var numStr strings.Builder
+			for _, char := range remaining {
+				if char >= '0' && char <= '9' {
+					numStr.WriteRune(char)
+				} else if numStr.Len() > 0 {
+					break // Stop at first non-digit after finding digits
+				}
+			}
+			
+			if numStr.Len() > 0 {
+				if port, err := strconv.Atoi(numStr.String()); err == nil && port > 0 && port <= 65535 {
+					return port
+				}
+			}
+		}
+	}
+	
+	return 0
+}
+
+// getDefaultPortForVariable returns sensible defaults for common port variables
+func (h *GitHubHandler) getDefaultPortForVariable(variable string) int {
+	defaults := map[string]int{
+		"WEB_PORT":     80,
+		"HTTP_PORT":    80,
+		"PORT":         3000,
+		"API_PORT":     4000,
+		"SERVER_PORT":  8000,
+		"DB_PORT":      5432,
+		"MONGO_PORT":   27017,
+		"MONGODB_PORT": 27017,
+		"MYSQL_PORT":   3306,
+		"POSTGRES_PORT": 5432,
+		"REDIS_PORT":   6379,
+		"DEV_PORT":     3000,
+		"PREVIEW_PORT": 4173,
+	}
+	
+	return defaults[variable]
+}
+
+// analyzeScriptPortRequirementsFromMap is a wrapper that accepts the file contents map
+func (h *GitHubHandler) analyzeScriptPortRequirementsFromMap(fileContents map[string]string, scriptPath string) []models.PortRequirement {
+	return h.analyzeScriptPortRequirements(fileContents, scriptPath)
+}
+
+// mergePortRequirements combines port requirements from multiple sources, avoiding duplicates
+func (h *GitHubHandler) mergePortRequirements(existing, additional []models.PortRequirement) []models.PortRequirement {
+	existingVars := make(map[string]bool)
+	result := make([]models.PortRequirement, len(existing))
+	copy(result, existing)
+	
+	// Track existing variables
+	for _, req := range existing {
+		existingVars[req.Variable] = true
+	}
+	
+	// Add new requirements that don't conflict
+	for _, req := range additional {
+		if !existingVars[req.Variable] {
+			result = append(result, req)
+			existingVars[req.Variable] = true
+		}
+	}
+	
+	return result
 }
 
 // hasDockerCompose checks if repository has both docker-compose.yml and Dockerfile
@@ -1630,17 +1886,35 @@ func (h *GitHubHandler) generateInstallOptions(analysis *ProjectAnalysisResponse
 	var options []models.InstallOption
 
 	// 1. Scripts option (highest priority)
-	if analysis.HasScripts {
+	if analysis.HasScripts && analysis.InstallScript != "" {
+		// Use the actual script paths found in the repository
+		installCmd := "bash " + analysis.InstallScript
+		deployCmd := "bash " + analysis.DeployScript
+		
+		// Fallback to install script if deploy script not found
+		if analysis.DeployScript == "" && analysis.InstallScript != "" {
+			deployCmd = "bash " + analysis.InstallScript
+		}
+		
+		// Analyze script for port requirements
+		portRequirements := h.analyzeScriptPortRequirementsFromMap(analysis.FileContents, analysis.InstallScript)
+		if analysis.DeployScript != "" {
+			// Also check deploy script for additional port requirements
+			deployPortReqs := h.analyzeScriptPortRequirementsFromMap(analysis.FileContents, analysis.DeployScript)
+			portRequirements = h.mergePortRequirements(portRequirements, deployPortReqs)
+		}
+		
 		options = append(options, models.InstallOption{
 			Name:         "scripts",
-			Command:      "bash scripts/install.sh",
-			BuildCommand: "bash scripts/install.sh",
-			StartCommand: "bash scripts/deploy.sh",
-			DevCommand:   "bash scripts/deploy.sh",
+			Command:      installCmd,
+			BuildCommand: installCmd,
+			StartCommand: deployCmd,
+			DevCommand:   deployCmd,
 			Port:         analysis.Port,
 			Environment:  analysis.Environment,
 			IsRecommended: true,
 			Description:  "Deploy using custom install scripts (recommended - repository provides optimized deployment)",
+			PortRequirements: portRequirements,
 		})
 	}
 
@@ -1999,4 +2273,216 @@ func (h *GitHubHandler) AnalyzeAndSaveRepository(c *gin.Context) {
 		"message": "Repository analyzed and saved successfully",
 		"analysis": analysis,
 	})
+}
+
+// CIPCheckRequest represents a request to check CIP compliance
+type CIPCheckRequest struct {
+	RepoURL string `json:"repo_url" binding:"required"`
+	Branch  string `json:"branch"`
+}
+
+// CIPCheckResponse represents the CIP compliance check response
+type CIPCheckResponse struct {
+	IsCIPCompliant bool   `json:"is_cip_compliant"`
+	Message        string `json:"message"`
+	Details        *struct {
+		HasCloudBoxJSON bool     `json:"has_cloudbox_json"`
+		HasInstallScript bool    `json:"has_install_script"`
+		HasStartScript   bool    `json:"has_start_script"`
+		HasStatusScript  bool    `json:"has_status_script"`
+		HasStopScript    bool    `json:"has_stop_script"`
+		MissingScripts   []string `json:"missing_scripts,omitempty"`
+	} `json:"details,omitempty"`
+}
+
+// CheckCIPCompliance checks if a repository is CIP compliant
+func (h *GitHubHandler) CheckCIPCompliance(c *gin.Context) {
+	var req CIPCheckRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get project ID and repo ID from URL
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	repoID, err := strconv.Atoi(c.Param("repo_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository ID"})
+		return
+	}
+
+	// Get repository from database
+	var repository models.GitHubRepository
+	if err := h.db.Where("id = ? AND project_id = ?", repoID, projectID).First(&repository).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found"})
+		return
+	}
+
+	// Set default branch if not provided
+	branch := req.Branch
+	if branch == "" {
+		branch = repository.Branch
+	}
+	if branch == "" {
+		branch = "main"
+	}
+
+	// Check CIP compliance by looking for cloudbox.json and required scripts
+	compliance, err := h.checkCIPCompliance(req.RepoURL, branch, &repository)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to check CIP compliance",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, compliance)
+}
+
+// checkCIPCompliance performs the actual CIP compliance check
+func (h *GitHubHandler) checkCIPCompliance(repoURL, branch string, repository *models.GitHubRepository) (*CIPCheckResponse, error) {
+	response := &CIPCheckResponse{
+		IsCIPCompliant: false,
+		Details: &struct {
+			HasCloudBoxJSON bool     `json:"has_cloudbox_json"`
+			HasInstallScript bool    `json:"has_install_script"`
+			HasStartScript   bool    `json:"has_start_script"`
+			HasStatusScript  bool    `json:"has_status_script"`
+			HasStopScript    bool    `json:"has_stop_script"`
+			MissingScripts   []string `json:"missing_scripts,omitempty"`
+		}{},
+	}
+
+	// Check for cloudbox.json in repository
+	// Remove .git suffix from repository full name for API calls
+	repoName := strings.TrimSuffix(repository.FullName, ".git")
+	cloudboxJSONURL := fmt.Sprintf("https://api.github.com/repos/%s/contents/cloudbox.json?ref=%s", repoName, branch)
+	
+	// Extensive debug logging
+	log.Printf("=== CIP Check Debug Info ===")
+	log.Printf("Original FullName: %s", repository.FullName)
+	log.Printf("Cleaned RepoName: %s", repoName)
+	log.Printf("Branch: %s", branch)
+	log.Printf("Request URL: %s", cloudboxJSONURL)
+	log.Printf("Has Access Token: %t", repository.AccessToken != "")
+	if repository.AccessToken != "" {
+		log.Printf("Token prefix: %s...", repository.AccessToken[:20])
+	}
+	
+	req, err := http.NewRequest("GET", cloudboxJSONURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add GitHub token if available
+	if repository.AccessToken != "" {
+		req.Header.Set("Authorization", "token "+repository.AccessToken)
+		log.Printf("Authorization header set with token")
+	} else {
+		log.Printf("WARNING: No access token available - API call may fail for private repos")
+	}
+
+	// Add User-Agent header for GitHub API
+	req.Header.Set("User-Agent", "CloudBox-CIP-Check/1.0")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("HTTP request failed: %v", err)
+		return nil, fmt.Errorf("failed to check cloudbox.json at %s: %w", cloudboxJSONURL, err)
+	}
+	defer resp.Body.Close()
+
+	// Debug logging
+	log.Printf("HTTP Response: Status=%d, Headers=%v", resp.StatusCode, resp.Header)
+	fmt.Printf("CIP Check: URL=%s, Status=%d, Repo=%s, Branch=%s\n", cloudboxJSONURL, resp.StatusCode, repoName, branch)
+
+	if resp.StatusCode == http.StatusOK {
+		response.Details.HasCloudBoxJSON = true
+		
+		// Parse cloudbox.json to check for required scripts
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read cloudbox.json: %w", err)
+		}
+
+		// GitHub API returns content in base64
+		var gitHubResponse struct {
+			Content string `json:"content"`
+		}
+		
+		if err := json.Unmarshal(body, &gitHubResponse); err != nil {
+			response.Message = "Failed to parse GitHub API response"
+			return response, nil
+		}
+		
+		// Decode base64 content
+		decodedContent, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(gitHubResponse.Content, "\n", ""))
+		if err != nil {
+			response.Message = "Failed to decode cloudbox.json content"
+			return response, nil
+		}
+		
+		// Now parse the actual cloudbox.json content
+		var cloudboxConfig struct {
+			Scripts map[string]string `json:"scripts"`
+		}
+		
+		if err := json.Unmarshal(decodedContent, &cloudboxConfig); err != nil {
+			response.Message = "cloudbox.json found but invalid JSON format"
+			return response, nil
+		}
+
+		// Check for required scripts
+		requiredScripts := []string{"install", "start", "status", "stop"}
+		var missingScripts []string
+
+		for _, script := range requiredScripts {
+			if scriptPath, exists := cloudboxConfig.Scripts[script]; exists && scriptPath != "" {
+				switch script {
+				case "install":
+					response.Details.HasInstallScript = true
+				case "start":
+					response.Details.HasStartScript = true
+				case "status":
+					response.Details.HasStatusScript = true
+				case "stop":
+					response.Details.HasStopScript = true
+				}
+			} else {
+				missingScripts = append(missingScripts, script)
+			}
+		}
+
+		response.Details.MissingScripts = missingScripts
+
+		if len(missingScripts) == 0 {
+			response.IsCIPCompliant = true
+			response.Message = "Repository is CIP compliant with all required scripts"
+		} else {
+			response.Message = fmt.Sprintf("cloudbox.json found but missing scripts: %s", strings.Join(missingScripts, ", "))
+		}
+	} else if resp.StatusCode == http.StatusNotFound {
+		// Read response body for more details
+		body, _ := io.ReadAll(resp.Body)
+		response.Message = "No cloudbox.json found - not CIP compliant"
+		log.Printf("CIP Check: cloudbox.json not found at %s (404 error)", cloudboxJSONURL)
+		log.Printf("GitHub API 404 response body: %s", string(body))
+	} else if resp.StatusCode == http.StatusUnauthorized {
+		response.Message = "Access denied - check GitHub token permissions"
+	} else if resp.StatusCode == http.StatusForbidden {
+		response.Message = "Forbidden - GitHub API rate limit or insufficient permissions"
+	} else {
+		// Read response body for more details
+		body, _ := io.ReadAll(resp.Body)
+		response.Message = fmt.Sprintf("GitHub API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	return response, nil
 }

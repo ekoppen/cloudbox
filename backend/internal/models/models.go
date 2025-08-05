@@ -347,6 +347,16 @@ type SystemSetting struct {
 }
 
 // InstallOption represents different installation methods for a repository
+// PortRequirement represents a port requirement from script analysis
+type PortRequirement struct {
+	Name        string `json:"name"`         // "Web Server", "API Server", "MongoDB"
+	Port        int    `json:"port"`         // 80, 4000, 27017
+	Protocol    string `json:"protocol"`     // "tcp", "udp"
+	Required    bool   `json:"required"`     // true if absolutely required
+	Description string `json:"description"`  // "Web server port"
+	Variable    string `json:"variable"`     // Environment variable name, e.g. "WEB_PORT"
+}
+
 type InstallOption struct {
 	Name         string                 `json:"name"`          // "npm", "yarn", "pnpm", "docker"
 	Command      string                 `json:"command"`       // "npm install"
@@ -357,6 +367,7 @@ type InstallOption struct {
 	Environment  map[string]interface{} `json:"environment"`   // Default environment variables
 	IsRecommended bool                  `json:"is_recommended"` // Recommended option
 	Description  string                 `json:"description"`   // User-friendly description
+	PortRequirements []PortRequirement  `json:"port_requirements"` // Required ports for this install option
 }
 
 // RepositoryAnalysis represents the detailed analysis of a repository
@@ -448,7 +459,7 @@ type WebServer struct {
 	NginxEnabled  bool   `json:"nginx_enabled" gorm:"default:true"`
 
 	// Deployment paths
-	DeployPath    string `json:"deploy_path" gorm:"default:'/var/www'"`
+	DeployPath    string `json:"deploy_path" gorm:"default:'~/deploys'"`
 	BackupPath    string `json:"backup_path" gorm:"default:'/var/backups'"`
 	LogPath       string `json:"log_path" gorm:"default:'/var/log/deployments'"`
 
@@ -508,9 +519,11 @@ type Deployment struct {
 	Domain        string                 `json:"domain"`
 	Subdomain     string                 `json:"subdomain"`
 	Port          int                    `json:"port"`
+	DeployPath    string                 `json:"deploy_path"`    // Override deployment path (default: ~/deploys/{name})
 	Environment   map[string]interface{} `json:"environment" gorm:"type:jsonb;serializer:json"`
 	BuildCommand  string                 `json:"build_command"`
 	StartCommand  string                 `json:"start_command"`
+	PortConfiguration map[string]int     `json:"port_configuration" gorm:"type:jsonb;serializer:json"` // Port mappings: variable -> port
 	
 	// Deployment status
 	Status        string     `json:"status" gorm:"default:'pending'"` // pending, building, deploying, deployed, failed, stopped

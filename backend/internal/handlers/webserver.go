@@ -113,7 +113,8 @@ func (h *WebServerHandler) CreateWebServer(c *gin.Context) {
 		req.OS = "ubuntu"
 	}
 	if req.DeployPath == "" {
-		req.DeployPath = "/var/www"
+		// Use user's home directory as default instead of /var/www
+		req.DeployPath = "~/deploys"
 	}
 	if req.BackupPath == "" {
 		req.BackupPath = "/var/backups"

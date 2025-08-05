@@ -24,15 +24,27 @@ func NewAdminHandler(db *gorm.DB, cfg *config.Config) *AdminHandler {
 
 // SystemStatsResponse represents system statistics
 type SystemStatsResponse struct {
-	TotalUsers       int64 `json:"total_users"`
-	ActiveUsers      int64 `json:"active_users"`
-	InactiveUsers    int64 `json:"inactive_users"`
-	TotalProjects    int64 `json:"total_projects"`
-	TotalDeployments int64 `json:"total_deployments"`
-	TotalFunctions   int64 `json:"total_functions"`
-	TotalDocuments   int64 `json:"total_documents"`
-	TotalFiles       int64 `json:"total_files"`
-	TotalStorageSize int64 `json:"total_storage_size"`
+	TotalUsers        int64  `json:"total_users"`
+	ActiveUsers       int64  `json:"active_users"`
+	InactiveUsers     int64  `json:"inactive_users"`
+	TotalProjects     int64  `json:"total_projects"`
+	TotalDeployments  int64  `json:"total_deployments"`
+	TotalFunctions    int64  `json:"total_functions"`
+	TotalDocuments    int64  `json:"total_documents"`
+	TotalFiles        int64  `json:"total_files"`
+	TotalStorageSize  int64  `json:"total_storage_size"`
+	StorageUsed       int64  `json:"storage_used"`
+	APICalls24h       int64  `json:"api_calls_24h"`
+	Uptime            string `json:"uptime"`
+	DatabaseQueries   int64  `json:"database_queries"`
+	OS                string `json:"os"`
+	CPUUsage          int    `json:"cpu_usage"`
+	MemoryUsage       int    `json:"memory_usage"`
+	DiskUsage         int    `json:"disk_usage"`
+	Deployments7d     int64  `json:"deployments_7d"`
+	FunctionsExecuted int64  `json:"functions_executed"`
+	ActiveSessions    int64  `json:"active_sessions"`
+	ErrorRate24h      string `json:"error_rate_24h"`
 }
 
 // UserGrowthResponse represents user growth data
@@ -97,6 +109,10 @@ func (h *AdminHandler) GetSystemStats(c *gin.Context) {
 
 	// Get deployment statistics
 	h.db.Model(&models.Deployment{}).Count(&stats.TotalDeployments)
+	
+	// Get deployments in last 7 days
+	weekAgo := time.Now().AddDate(0, 0, -7)
+	h.db.Model(&models.Deployment{}).Where("created_at >= ?", weekAgo).Count(&stats.Deployments7d)
 
 	// Get function statistics
 	h.db.Model(&models.Function{}).Count(&stats.TotalFunctions)
@@ -111,6 +127,19 @@ func (h *AdminHandler) GetSystemStats(c *gin.Context) {
 	var totalSize int64
 	h.db.Model(&models.File{}).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
 	stats.TotalStorageSize = totalSize
+	stats.StorageUsed = totalSize
+
+	// Mock system information (can be enhanced with real system metrics later)
+	stats.APICalls24h = 1247
+	stats.Uptime = "7d 14h 23m"
+	stats.DatabaseQueries = 15634
+	stats.OS = "Linux Ubuntu 22.04"
+	stats.CPUUsage = 23
+	stats.MemoryUsage = 67
+	stats.DiskUsage = 45
+	stats.FunctionsExecuted = 8923
+	stats.ActiveSessions = 12
+	stats.ErrorRate24h = "0.3"
 
 	c.JSON(http.StatusOK, stats)
 }

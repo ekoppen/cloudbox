@@ -25,9 +25,10 @@
     install_option: '',
     ssh_key_id: '',
     web_server_id: '',
-    deployment_path: '/var/www/',
+    deployment_path: '~/deploys/',
     port: 3000,
-    environment: {}
+    environment: {},
+    port_configuration: {}
   };
 
   let sshKeys: any[] = [];
@@ -35,6 +36,12 @@
   let installOptions: any[] = [];
   let repositoryAnalysis: any = null;
   let loading = false;
+  
+  // Port configuration
+  let selectedInstallOption: any = null;
+  let portRequirements: any[] = [];
+  let portAvailability: {[key: number]: boolean} = {};
+  let checkingPorts = false;
 
   $: projectId = $page.params.id;
 
@@ -120,7 +127,8 @@
         ...deployment,
         ssh_key_id: deployment.ssh_key_id ? parseInt(deployment.ssh_key_id) : null,
         web_server_id: deployment.web_server_id ? parseInt(deployment.web_server_id) : null,
-        github_repository_id: repoId ? parseInt(repoId) : null
+        github_repository_id: repoId ? parseInt(repoId) : null,
+        port_configuration: deployment.port_configuration || {}
       };
 
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments`, {
@@ -149,6 +157,85 @@
 
   function goBack() {
     goto(`/dashboard/projects/${projectId}/deployments`);
+  }
+
+  // Watch for install option changes to update port requirements
+  $: if (deployment.install_option && installOptions.length > 0) {
+    selectedInstallOption = installOptions.find(opt => opt.name === deployment.install_option);
+    if (selectedInstallOption?.port_requirements) {
+      portRequirements = selectedInstallOption.port_requirements;
+      // Initialize port configuration with defaults
+      portRequirements.forEach(req => {
+        if (!deployment.port_configuration[req.variable]) {
+          deployment.port_configuration[req.variable] = req.port;
+        }
+      });
+    } else {
+      portRequirements = [];
+    }
+  }
+
+  // Check port availability when server changes
+  $: if (deployment.web_server_id && portRequirements.length > 0) {
+    checkPortAvailability();
+  }
+
+  // Debounced port checking
+  let portCheckTimeout: NodeJS.Timeout;
+  function debouncedPortCheck() {
+    if (portCheckTimeout) clearTimeout(portCheckTimeout);
+    portCheckTimeout = setTimeout(() => {
+      checkPortAvailability();
+    }, 1000); // Wait 1 second after user stops typing
+  }
+
+  async function checkPortAvailability() {
+    if (!deployment.web_server_id || portRequirements.length === 0) return;
+    
+    checkingPorts = true;
+    const ports = portRequirements.map(req => deployment.port_configuration[req.variable] || req.port);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments/check-ports`, {
+        method: 'POST',
+        headers: {
+          ...auth.getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          web_server_id: parseInt(deployment.web_server_id),
+          ports: ports
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        portAvailability = result.port_status;
+      } else {
+        console.error('Failed to check port availability');
+        portAvailability = {};
+      }
+    } catch (error) {
+      console.error('Error checking port availability:', error);
+      portAvailability = {};
+    } finally {
+      checkingPorts = false;
+    }
+  }
+
+  function getPortStatus(port: number): 'available' | 'unavailable' | 'unknown' {
+    if (checkingPorts) return 'unknown';
+    if (portAvailability.hasOwnProperty(port)) {
+      return portAvailability[port] ? 'available' : 'unavailable';
+    }
+    return 'unknown';
+  }
+
+  function hasPortConflicts(): boolean {
+    return portRequirements.some(req => {
+      const currentPort = deployment.port_configuration[req.variable] || req.port;
+      return getPortStatus(currentPort) === 'unavailable';
+    });
   }
 
 </script>
@@ -314,6 +401,112 @@
       </div>
     </Card>
 
+    <!-- Port Configuratie -->
+    {#if portRequirements.length > 0}
+      <Card class="p-6">
+        <h2 class="text-xl font-semibold mb-4">Port Configuratie</h2>
+        <div class="grid gap-4">
+          <p class="text-sm text-muted-foreground">
+            Deze deployment heeft de volgende poorten nodig. Controleer of deze beschikbaar zijn op je server.
+          </p>
+          
+          {#each portRequirements as req, index}
+            <div class="border rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <Label class="font-medium">{req.name}</Label>
+                  {#if req.description}
+                    <p class="text-sm text-muted-foreground">{req.description}</p>
+                  {/if}
+                </div>
+                <div class="flex items-center gap-2">
+                  {#if checkingPorts}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    <span class="text-sm text-muted-foreground">Checking...</span>
+                  {:else}
+                    {@const currentPort = deployment.port_configuration[req.variable] || req.port}
+                    {@const status = getPortStatus(currentPort)}
+                    {#if status === 'available'}
+                      <Icon name="check-circle" size={16} class="text-green-500" />
+                      <span class="text-sm text-green-600">Beschikbaar</span>
+                    {:else if status === 'unavailable'}
+                      <Icon name="x-circle" size={16} class="text-red-500" />
+                      <span class="text-sm text-red-600">In gebruik</span>
+                    {:else}
+                      <Icon name="help-circle" size={16} class="text-gray-400" />
+                      <span class="text-sm text-muted-foreground">Onbekend</span>
+                    {/if}
+                  {/if}
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <Label for="port_{req.variable}" class="text-sm">Port:</Label>
+                <Input 
+                  id="port_{req.variable}"
+                  type="number" 
+                  bind:value={deployment.port_configuration[req.variable]}
+                  placeholder={req.port.toString()}
+                  class="w-24"
+                  on:input={debouncedPortCheck}
+                />
+                <span class="text-sm text-muted-foreground">
+                  (default: {req.port})
+                </span>
+                {#if req.required}
+                  <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Verplicht</span>
+                {/if}
+              </div>
+              
+              {#if req.variable}
+                <p class="text-xs text-muted-foreground mt-1">
+                  Environment variabele: {req.variable}
+                </p>
+              {/if}
+            </div>
+          {/each}
+          
+          {#if deployment.web_server_id && !checkingPorts}
+            <div class="flex items-center gap-2 mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                on:click={checkPortAvailability}
+                disabled={checkingPorts}
+              >
+                <Icon name="refresh-cw" size={14} class="mr-2" />
+                Hercontroleer Poorten
+              </Button>
+              <span class="text-sm text-muted-foreground">
+                Laatste check: {new Date().toLocaleTimeString()}
+              </span>
+            </div>
+            
+            {#if hasPortConflicts()}
+              <div class="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
+                <div class="flex items-center gap-2">
+                  <Icon name="alert-circle" size={16} class="text-red-600" />
+                  <span class="text-sm text-red-800">
+                    <strong>Port conflict gedetecteerd!</strong> Sommige poorten zijn al in gebruik. 
+                    Pas de port nummers aan of stop de services die deze poorten gebruiken.
+                  </span>
+                </div>
+              </div>
+            {/if}
+          {:else if !deployment.web_server_id}
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div class="flex items-center gap-2">
+                <Icon name="alert-triangle" size={16} class="text-yellow-600" />
+                <span class="text-sm text-yellow-800">
+                  Selecteer eerst een server om port beschikbaarheid te controleren
+                </span>
+              </div>
+            </div>
+          {/if}
+        </div>
+      </Card>
+    {/if}
+
     <!-- Acties -->
     <div class="flex gap-4">
       <Button on:click={createDeployment} disabled={loading} class="min-w-[120px]">
@@ -325,6 +518,13 @@
           Deployment Aanmaken
         {/if}
       </Button>
+      
+      {#if hasPortConflicts()}
+        <div class="flex items-center gap-2 text-sm text-orange-600">
+          <Icon name="alert-triangle" size={16} />
+          <span>Waarschuwing: Port conflicten gedetecteerd</span>
+        </div>
+      {/if}
       
       <Button variant="outline" on:click={goBack}>
         Annuleren

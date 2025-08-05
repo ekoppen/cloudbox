@@ -87,10 +87,8 @@
           deployed_at: data.deployed_at
         };
         
-        // Stop polling if deployment completed or failed
-        if (status === 'deployed' || status === 'failed') {
-          stopPolling();
-        }
+        // Keep polling after deployment completion for status updates
+        // User can manually close console when done
       }
     } catch (error) {
       console.error('Failed to fetch deployment status:', error);

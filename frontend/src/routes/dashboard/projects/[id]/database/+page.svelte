@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
+  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -30,32 +31,146 @@
     total_count: number;
   }
 
-  let tables: Table[] = [];
+  interface Project {
+    id: number;
+    slug: string;
+    name: string;
+  }
 
+  let tables: Table[] = [];
+  let project: Project | null = null;
   let selectedTable: string = '';
   let tableData: TableData | null = null;
   let loading = false;
+  let loadingTables = true;
   let showCreateTable = false;
   let showAddRow = false;
   let newTableName = '';
   let newRowData: Record<string, any> = {};
+  let error = '';
 
   $: projectId = $page.params.id;
 
-  // Empty function - will be replaced with real API calls
-  function generateMockTableData(tableName: string): TableData {
-    return { columns: [], rows: [], total_count: 0 };
+  onMount(() => {
+    loadProject();
+  });
+
+  async function loadProject() {
+    try {
+      const response = await createApiRequest(API_ENDPOINTS.projects.get(projectId), {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        project = await response.json();
+        await loadCollections();
+      } else {
+        error = 'Project niet gevonden';
+      }
+    } catch (err) {
+      error = 'Fout bij laden van project';
+      console.error('Load project error:', err);
+    }
   }
 
-  function selectTable(tableName: string) {
+  async function loadCollections() {
+    if (!project) return;
+    
+    loadingTables = true;
+    error = '';
+
+    try {
+      // Load PhotoPortfolio collections
+      const collections = ['pages', 'albums', 'images', 'settings', 'branding'];
+      const collectionData = [];
+
+      for (const collection of collections) {
+        try {
+          const response = await fetch(`http://localhost:8080/p/${project.slug}/api/${collection}`, {
+            headers: {
+              'X-API-Key': getApiKey(),
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            collectionData.push({
+              name: collection,
+              rows: Array.isArray(data) ? data.length : (data.total_count || 0),
+              size: `${Math.round((JSON.stringify(data).length / 1024) * 10) / 10} KB`,
+              created_at: new Date().toLocaleDateString('nl-NL')
+            });
+          }
+        } catch (err) {
+          console.warn(`Failed to load collection ${collection}:`, err);
+        }
+      }
+
+      tables = collectionData;
+    } catch (err) {
+      error = 'Fout bij laden van collections';
+      console.error('Load collections error:', err);
+    } finally {
+      loadingTables = false;
+    }
+  }
+
+  function getApiKey(): string {
+    // Try to get API key from project info or env
+    if (typeof window !== 'undefined') {
+      const envKey = 'cd264cfc8266f888e3153c5dee8600a68170ad2eb337d69e2f008bafdd12c18b';
+      return envKey;
+    }
+    return '';
+  }
+
+  async function selectTable(tableName: string) {
+    if (!project) return;
+    
     selectedTable = tableName;
     loading = true;
     
-    // Simulate API call
-    setTimeout(() => {
-      tableData = generateMockTableData(tableName);
+    try {
+      const response = await fetch(`http://localhost:8080/p/${project.slug}/api/${tableName}`, {
+        headers: {
+          'X-API-Key': getApiKey(),
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Generate columns based on data structure
+        let columns: Column[] = [];
+        if (Array.isArray(data) && data.length > 0) {
+          const firstItem = data[0];
+          columns = Object.keys(firstItem).map(key => ({
+            name: key,
+            type: typeof firstItem[key] === 'number' ? 'INTEGER' : 
+                  typeof firstItem[key] === 'boolean' ? 'BOOLEAN' :
+                  key.includes('_at') ? 'TIMESTAMP' : 'VARCHAR',
+            nullable: true,
+            default_value: undefined
+          }));
+        }
+
+        tableData = {
+          columns,
+          rows: Array.isArray(data) ? data : [],
+          total_count: Array.isArray(data) ? data.length : 0
+        };
+      } else {
+        tableData = { columns: [], rows: [], total_count: 0 };
+      }
+    } catch (err) {
+      console.error(`Error loading table ${tableName}:`, err);
+      tableData = { columns: [], rows: [], total_count: 0 };
+    } finally {
       loading = false;
-    }, 500);
+    }
   }
 
   function formatValue(value: any): string {
@@ -138,7 +253,7 @@
       <div>
         <h1 class="text-2xl font-bold text-foreground">Database</h1>
         <p class="text-sm text-muted-foreground">
-          Beheer je database tabellen en data
+          Beheer je project collections en data
         </p>
       </div>
     </div>
@@ -158,28 +273,51 @@
         <div class="px-4 py-3 border-b border-border">
           <div class="flex items-center space-x-2">
             <Icon name="database" size={16} className="text-primary" />
-            <h3 class="text-sm font-medium text-foreground">Tabellen ({tables.length})</h3>
+            <h3 class="text-sm font-medium text-foreground">Collections ({tables.length})</h3>
           </div>
         </div>
         <div class="divide-y divide-border">
-          {#each tables as table}
-            <button
-              on:click={() => selectTable(table.name)}
-              class="w-full px-4 py-3 text-left hover:bg-muted transition-colors {
-                selectedTable === table.name ? 'bg-primary/10 border-r-2 border-primary' : ''
-              }"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-sm font-medium text-foreground">{table.name}</p>
-                  <p class="text-xs text-muted-foreground">{table.rows.toLocaleString()} rijen</p>
+          {#if loadingTables}
+            <div class="px-4 py-8 text-center">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+              <p class="mt-2 text-xs text-muted-foreground">Collections laden...</p>
+            </div>
+          {:else if error}
+            <div class="px-4 py-4 text-center">
+              <Icon name="backup" size={20} className="text-destructive mx-auto mb-2" />
+              <p class="text-xs text-destructive">{error}</p>
+              <button 
+                on:click={loadCollections}
+                class="text-xs text-primary hover:underline mt-1"
+              >
+                Opnieuw proberen
+              </button>
+            </div>
+          {:else if tables.length === 0}
+            <div class="px-4 py-8 text-center">
+              <Icon name="database" size={20} className="text-muted-foreground mx-auto mb-2" />
+              <p class="text-xs text-muted-foreground">Geen collections gevonden</p>
+            </div>
+          {:else}
+            {#each tables as table}
+              <button
+                on:click={() => selectTable(table.name)}
+                class="w-full px-4 py-3 text-left hover:bg-muted transition-colors {
+                  selectedTable === table.name ? 'bg-primary/10 border-r-2 border-primary' : ''
+                }"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-foreground">{table.name}</p>
+                    <p class="text-xs text-muted-foreground">{table.rows.toLocaleString()} records</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xs text-muted-foreground">{table.size}</p>
+                  </div>
                 </div>
-                <div class="text-right">
-                  <p class="text-xs text-muted-foreground">{table.size}</p>
-                </div>
-              </div>
-            </button>
-          {/each}
+              </button>
+            {/each}
+          {/if}
         </div>
       </Card>
     </div>
@@ -191,13 +329,13 @@
           <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
             <Icon name="database" size={32} className="text-muted-foreground" />
           </div>
-          <h3 class="text-lg font-medium text-foreground mb-2">Selecteer een tabel</h3>
-          <p class="text-muted-foreground">Kies een tabel uit de linkerkolom om de data te bekijken</p>
+          <h3 class="text-lg font-medium text-foreground mb-2">Selecteer een collection</h3>
+          <p class="text-muted-foreground">Kies een collection uit de linkerkolom om de data te bekijken</p>
         </Card>
       {:else if loading}
         <Card class="p-12 text-center">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p class="mt-4 text-muted-foreground">Tabel data laden...</p>
+          <p class="mt-4 text-muted-foreground">Collection data laden...</p>
         </Card>
       {:else if tableData}
         <div class="space-y-4">

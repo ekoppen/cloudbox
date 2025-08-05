@@ -485,6 +485,80 @@ func (h *ProjectHandler) DeleteData(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Data API not yet implemented"})
 }
 
+// ProjectStatsResponse represents project statistics
+type ProjectStatsResponse struct {
+	RequestsToday    int     `json:"requests_today"`
+	RequestsWeek     int     `json:"requests_week"`
+	RequestsMonth    int     `json:"requests_month"`
+	APIKeysCount     int64   `json:"api_keys_count"`
+	DatabaseTables   int64   `json:"database_tables"`
+	StorageUsed      int64   `json:"storage_used"`
+	UsersCount       int64   `json:"users_count"`
+	DeploymentsCount int64   `json:"deployments_count"`
+	BucketsCount     int64   `json:"buckets_count"`
+	FilesCount       int64   `json:"files_count"`
+	ActivityData     []gin.H `json:"activity_data"`
+}
+
+// GetProjectStats returns statistics for a specific project
+func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	// Check if user can access this project
+	_, canAccess := h.canAccessProject(c, uint(projectID))
+	if !canAccess {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	var stats ProjectStatsResponse
+
+	// Get database collections count
+	h.db.Model(&models.Collection{}).Where("project_id = ?", projectID).Count(&stats.DatabaseTables)
+
+	// Get storage buckets count
+	h.db.Model(&models.Bucket{}).Where("project_id = ?", projectID).Count(&stats.BucketsCount)
+
+	// Get files count and storage used
+	h.db.Model(&models.File{}).Where("project_id = ?", projectID).Count(&stats.FilesCount)
+	
+	var totalStorageSize int64
+	h.db.Model(&models.File{}).Where("project_id = ?", projectID).Select("COALESCE(SUM(size), 0)").Scan(&totalStorageSize)
+	stats.StorageUsed = totalStorageSize
+
+	// Get deployments count
+	h.db.Model(&models.Deployment{}).Where("project_id = ?", projectID).Count(&stats.DeploymentsCount)
+
+	// Get API keys count
+	h.db.Model(&models.APIKey{}).Where("project_id = ?", projectID).Count(&stats.APIKeysCount)
+
+	// Get users count (for now we'll use a simple count, can be enhanced later)
+	h.db.Model(&models.User{}).Where("is_active = ?", true).Count(&stats.UsersCount)
+
+	// Mock API request data for now (can be enhanced with real tracking later)
+	stats.RequestsToday = 47
+	stats.RequestsWeek = 324
+	stats.RequestsMonth = 1247
+
+	// Generate mock activity data for charts
+	stats.ActivityData = []gin.H{
+		{"day": "Maandag", "requests": 45},
+		{"day": "Dinsdag", "requests": 52},
+		{"day": "Woensdag", "requests": 38},
+		{"day": "Donderdag", "requests": 67},
+		{"day": "Vrijdag", "requests": 73},
+		{"day": "Zaterdag", "requests": 29},
+		{"day": "Zondag", "requests": 20},
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
 // Helper functions
 
 // canAccessProject checks if user can access a project based on role

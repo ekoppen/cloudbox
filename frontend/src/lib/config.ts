@@ -24,6 +24,7 @@ export const API_ENDPOINTS = {
     get: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
     update: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
     delete: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
+    stats: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/stats`,
     github: {
       config: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/github/config`,
       test: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/github/config/test`,

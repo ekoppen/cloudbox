@@ -64,6 +64,7 @@
     { id: 'auth', name: 'Authenticatie', icon: 'auth', href: `/dashboard/projects/${projectId}/auth` },
     { id: 'storage', name: 'Opslag', icon: 'storage', href: `/dashboard/projects/${projectId}/storage` },
     { id: 'functions', name: 'Functies', icon: 'functions', href: `/dashboard/projects/${projectId}/functions` },
+    { id: 'api', name: 'API', icon: 'settings', href: `/dashboard/projects/${projectId}/api` },
     { id: 'messaging', name: 'Berichten', icon: 'messaging', href: `/dashboard/projects/${projectId}/messaging` },
     { 
       id: 'deployments', 

@@ -11,7 +11,7 @@
   }
   
   export let variant: $$Props["variant"] = "default"
-  export let size: $$Props["size"] = "default"
+  export let size: $$Props["size"] = "default" 
   export let href: $$Props["href"] = undefined
   export let type: $$Props["type"] = "button"
   export let disabled: $$Props["disabled"] = false
@@ -41,8 +41,8 @@
     {href}
     class={cn(
       "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-      variants[variant],
-      sizes[size],
+      variants[variant || "default"],
+      sizes[size || "default"],
       className
     )}
     on:click
@@ -56,8 +56,8 @@
     {disabled}
     class={cn(
       "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-      variants[variant],
-      sizes[size],
+      variants[variant || "default"],
+      sizes[size || "default"],
       className
     )}
     on:click

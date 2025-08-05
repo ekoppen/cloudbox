@@ -41,9 +41,8 @@
     domain: '',
     subdomain: '',
     port: 3000,
+    deploy_path: '',
     environment: {},
-    build_command: '',
-    start_command: '',
     branch: 'main',
     is_auto_deploy_enabled: false
   };
@@ -57,14 +56,27 @@
     domain: '',
     subdomain: '',
     port: 3000,
-    build_command: '',
-    start_command: '',
+    deploy_path: '',
     branch: 'main',
     is_auto_deploy_enabled: false
   };
 
   onMount(async () => {
     await loadData();
+    
+    // Check if we should auto-open the create modal with pre-selected repo
+    const urlParams = new URLSearchParams(window.location.search);
+    const repoId = urlParams.get('repo_id');
+    if (repoId) {
+      // Pre-select the repository in the form
+      deploymentForm.github_repository_id = repoId;
+      showCreateModal = true;
+      
+      // Clean up URL
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('repo_id');
+      window.history.replaceState({}, '', newUrl);
+    }
   });
 
   async function loadData() {
@@ -164,6 +176,7 @@
       activeDeploymentId = deploymentId.toString();
       showConsole = true;
       
+      // All deployments are now CIP deployments  
       const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/deployments/${deploymentId}/deploy`, {
         method: 'POST',
         headers: {
@@ -177,17 +190,30 @@
       });
 
       if (response.ok) {
-        toast.success('Deployment gestart - Console logs worden getoond');
+        toast.success('CloudBox Install Protocol deployment gestart');
         await loadData();
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Fout bij starten deployment');
-        // Keep console open to show error logs
+        const errorText = await response.text();
+        let errorMessage = 'Fout bij starten deployment';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) {
+          console.error('Failed to parse error response:', errorText);
+          errorMessage = `Server error: ${response.status}`;
+        }
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error deploying:', error);
       toast.error('Netwerkfout bij deployment');
     }
+  }
+  
+  // Show console for any deployment
+  function showDeploymentConsole(deploymentId: number) {
+    activeDeploymentId = deploymentId.toString();
+    showConsole = true;
   }
 
   async function updateDeployment() {
@@ -286,9 +312,8 @@
       domain: '',
       subdomain: '',
       port: 3000,
+      deploy_path: '',
       environment: {},
-      build_command: '',
-      start_command: '',
       branch: 'main',
       is_auto_deploy_enabled: false
     };
@@ -304,8 +329,7 @@
       domain: deployment.domain || '',
       subdomain: deployment.subdomain || '',
       port: deployment.port,
-      build_command: deployment.build_command || '',
-      start_command: deployment.start_command || '',
+      deploy_path: deployment.deploy_path || '',
       branch: deployment.branch,
       is_auto_deploy_enabled: deployment.is_auto_deploy_enabled
     };
@@ -321,8 +345,7 @@
       domain: '',
       subdomain: '',
       port: 3000,
-      build_command: '',
-      start_command: '',
+      deploy_path: '',
       branch: 'main',
       is_auto_deploy_enabled: false
     };
@@ -351,7 +374,11 @@
       <h1 class="text-3xl font-bold text-foreground">Deployments</h1>
       <p class="text-muted-foreground mt-1">Beheer je app deployments en automatisering</p>
     </div>
-    <Button on:click={() => showCreateModal = true} class="bg-primary text-primary-foreground">
+    <Button on:click={() => {
+      console.log('Nieuwe Deployment knop geklikt!');
+      showCreateModal = true;
+      console.log('showCreateModal is nu:', showCreateModal);
+    }} class="bg-primary text-primary-foreground">
       <Icon name="rocket" size={16} className="mr-2" />
       Nieuwe Deployment
     </Button>
@@ -451,16 +478,25 @@
 
               <div class="flex gap-2 ml-4">
                 <Button
-                  on:click={() => deploy(deployment.id)}
+                  on:click={(e) => { e.stopPropagation(); deploy(deployment.id); }}
                   size="sm"
                   disabled={deployment.status === 'deploying' || deployment.status === 'building'}
-                  class="bg-green-600 text-white hover:bg-green-700"
-                  title="Deploy uitvoeren"
+                  class="bg-blue-600 text-white hover:bg-blue-700"
+                  title="CloudBox Install Protocol deployment"
                 >
-                  <Icon name={deployment.status === 'deploying' || deployment.status === 'building' ? "refresh" : "rocket"} size={16} />
+                  <Icon name={deployment.status === 'deploying' || deployment.status === 'building' ? "refresh" : "package"} size={16} />
                 </Button>
                 <Button
-                  on:click={() => editDeployment(deployment)}
+                  on:click={(e) => { e.stopPropagation(); showDeploymentConsole(deployment.id); }}
+                  size="sm"
+                  variant="outline"
+                  class="border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400"
+                  title="Console bekijken"
+                >
+                  <Icon name="terminal" size={16} />
+                </Button>
+                <Button
+                  on:click={(e) => { e.stopPropagation(); editDeployment(deployment); }}
                   size="sm"
                   variant="outline"
                   class="border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
@@ -469,7 +505,7 @@
                   <Icon name="edit" size={16} />
                 </Button>
                 <Button
-                  on:click={() => deleteDeployment(deployment.id)}
+                  on:click={(e) => { e.stopPropagation(); deleteDeployment(deployment.id); }}
                   size="sm"
                   variant="outline"
                   class="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
@@ -533,6 +569,14 @@
                 <option value={repo.id.toString()}>{repo.name} ({repo.branch})</option>
               {/each}
             </select>
+            {#if githubRepos.length === 0}
+              <p class="text-sm text-muted-foreground mt-1">
+                Geen repositories beschikbaar. 
+                <a href="/dashboard/projects/{projectId}/github" class="text-blue-600 hover:underline">
+                  Voeg eerst een GitHub repository toe
+                </a>
+              </p>
+            {/if}
           </div>
           <div>
             <Label for="server">Webserver</Label>
@@ -542,6 +586,14 @@
                 <option value={server.id.toString()}>{server.name} ({server.hostname})</option>
               {/each}
             </select>
+            {#if webServers.length === 0}
+              <p class="text-sm text-muted-foreground mt-1">
+                Geen servers beschikbaar. 
+                <a href="/dashboard/projects/{projectId}/servers" class="text-blue-600 hover:underline">
+                  Voeg eerst een webserver toe
+                </a>
+              </p>
+            {/if}
           </div>
         </div>
 
@@ -574,22 +626,34 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <Label for="build">Build Command</Label>
-            <Input
-              id="build"
-              bind:value={deploymentForm.build_command}
-              placeholder="npm run build"
-            />
+        <div>
+          <Label for="deploy-path">Deployment Path (optioneel)</Label>
+          <Input
+            id="deploy-path"
+            bind:value={deploymentForm.deploy_path}
+            placeholder="~/deploys/mijn-app (default: ~/deploys/deployment-naam)"
+          />
+          <p class="text-sm text-muted-foreground mt-1">
+            Pad waar de applicatie op de server wordt geplaatst. Laat leeg voor default: ~/deploys/deployment-naam
+          </p>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <Icon name="info" size={16} class="text-blue-600" />
+            <span class="font-medium text-blue-800">CloudBox Install Protocol</span>
           </div>
-          <div>
-            <Label for="start">Start Command</Label>
-            <Input
-              id="start"
-              bind:value={deploymentForm.start_command}
-              placeholder="npm start"
-            />
+          <p class="text-sm text-blue-700 mb-3">
+            Deze deployment gebruikt CloudBox Install Protocol (CIP). Build en start commando's worden automatisch gedetecteerd via cloudbox.json in je repository.
+          </p>
+          <div class="bg-white border border-blue-200 rounded p-3">
+            <h4 class="font-medium text-blue-800 mb-2">Automatische Configuratie</h4>
+            <div class="text-sm text-blue-700 space-y-1">
+              <div><strong>Port:</strong> Wordt automatisch overgenomen van cloudbox.json ports.web.port (default: {deploymentForm.port})</div>
+              <div><strong>API URL:</strong> http://localhost:8080/api/projects/{projectId}</div>
+              <div><strong>Project ID:</strong> {projectId}</div>
+              <div><strong>Environment:</strong> production</div>
+            </div>
           </div>
         </div>
 
@@ -707,23 +771,26 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <Label for="edit-build">Build Command</Label>
-            <Input
-              id="edit-build"
-              bind:value={editForm.build_command}
-              placeholder="npm run build"
-            />
+        <div>
+          <Label for="edit-deploy-path">Deployment Path (optioneel)</Label>
+          <Input
+            id="edit-deploy-path"
+            bind:value={editForm.deploy_path}
+            placeholder="~/deploys/mijn-app (default: ~/deploys/deployment-naam)"
+          />
+          <p class="text-sm text-muted-foreground mt-1">
+            Pad waar de applicatie op de server wordt geplaatst. Laat leeg voor default: ~/deploys/deployment-naam
+          </p>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <Icon name="info" size={16} class="text-blue-600" />
+            <span class="font-medium text-blue-800">CloudBox Install Protocol</span>
           </div>
-          <div>
-            <Label for="edit-start">Start Command</Label>
-            <Input
-              id="edit-start"
-              bind:value={editForm.start_command}
-              placeholder="npm start"
-            />
-          </div>
+          <p class="text-sm text-blue-700">
+            Deze deployment gebruikt CloudBox Install Protocol (CIP). Build en start commando's worden automatisch gedetecteerd via cloudbox.json in je repository.
+          </p>
         </div>
 
         <div class="flex items-center space-x-2">

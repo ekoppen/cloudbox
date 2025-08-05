@@ -27,7 +27,7 @@ func NewDeploymentHandler(db *gorm.DB, cfg *config.Config) *DeploymentHandler {
 	return &DeploymentHandler{
 		db:                db, 
 		cfg:               cfg,
-		deploymentService: services.NewDeploymentService(db),
+		deploymentService: services.NewDeploymentService(db, cfg),
 	}
 }
 
@@ -44,7 +44,9 @@ type CreateDeploymentRequest struct {
 	BuildCommand       string                 `json:"build_command"`
 	StartCommand       string                 `json:"start_command"`
 	Branch             string                 `json:"branch"`
+	InstallOption      string                 `json:"install_option"`
 	IsAutoDeployEnabled bool                  `json:"is_auto_deploy_enabled"`
+	PortConfiguration  map[string]int         `json:"port_configuration"` // Port mappings: variable -> port
 }
 
 // UpdateDeploymentRequest represents a deployment update request
@@ -140,7 +142,15 @@ func (h *DeploymentHandler) CreateDeployment(c *gin.Context) {
 		return
 	}
 
-	// Set defaults
+	// Apply install option commands if specified
+	if req.InstallOption != "" {
+		if err := h.applyInstallOptionCommands(&req, repository); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid install option: %v", err)})
+			return
+		}
+	}
+
+	// Set defaults for unspecified values
 	if req.Port == 0 {
 		req.Port = repository.AppPort
 	}
@@ -193,6 +203,7 @@ func (h *DeploymentHandler) CreateDeployment(c *gin.Context) {
 		WebServerID:        req.WebServerID,
 		IsAutoDeployEnabled: req.IsAutoDeployEnabled,
 		TriggerBranch:      req.Branch,
+		PortConfiguration:  req.PortConfiguration,
 	}
 
 	if err := h.db.Create(&deployment).Error; err != nil {
@@ -576,13 +587,85 @@ func (h *DeploymentHandler) executeRealDeployment(deployment models.Deployment, 
 	if !result.Success && result.ErrorLogs == "" {
 		result.ErrorLogs = "Deployment failed with unknown error"
 	}
+}
+
+// ExecuteCIPDeployment handles CloudBox Install Protocol deployments via API
+func (h *DeploymentHandler) ExecuteCIPDeployment(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	deploymentID, err := strconv.ParseUint(c.Param("deployment_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid deployment ID"})
+		return
+	}
+
+	// Get commit hash and branch from request
+	var request struct {
+		CommitHash string `json:"commit_hash"`
+		Branch     string `json:"branch"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Set defaults
+	if request.Branch == "" {
+		request.Branch = "main"
+	}
+	if request.CommitHash == "" {
+		request.CommitHash = "latest"
+	}
+
+	// Load deployment with relations
+	var deployment models.Deployment
+	if err := h.db.Where("id = ? AND project_id = ?", uint(deploymentID), uint(projectID)).
+		Preload("GitHubRepository").
+		Preload("WebServer").
+		Preload("WebServer.SSHKey").
+		First(&deployment).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Deployment not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load deployment"})
+		}
+		return
+	}
+
+	// Start CIP deployment in background
+	go h.executeCIPDeployment(deployment, request.CommitHash, request.Branch)
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "CloudBox Install Protocol deployment started",
+		"deployment_id": deployment.ID,
+		"status": "building",
+	})
+}
+
+// executeCIPDeployment performs a CIP deployment using the remote terminal service
+func (h *DeploymentHandler) executeCIPDeployment(deployment models.Deployment, commitHash, branch string) {
+	// Execute CIP deployment with real-time logging
+	result := h.deploymentService.ExecuteCIPDeployment(deployment, commitHash, branch, func(output, logType string) {
+		// Log to console for debugging
+		fmt.Printf("[CIP:%d] %s: %s\n", deployment.ID, logType, output)
+	})
+	
+	// If deployment failed and we don't have detailed logs, add generic error
+	if !result.Success && result.ErrorLogs == "" {
+		result.ErrorLogs = "CIP deployment failed with unknown error"
+	}
 	
 	// Log deployment result for debugging
 	if result.Success {
-		fmt.Printf("Deployment %d completed successfully in %dms (build: %dms, deploy: %dms)\n", 
+		fmt.Printf("CIP Deployment %d completed successfully in %dms (build: %dms, deploy: %dms)\n",
 			deployment.ID, result.BuildTime+result.DeployTime, result.BuildTime, result.DeployTime)
 	} else {
-		fmt.Printf("Deployment %d failed: %s\n", deployment.ID, result.ErrorLogs)
+		fmt.Printf("CIP Deployment %d failed: %s\n", deployment.ID, result.ErrorLogs)
 	}
 }
 
@@ -1203,4 +1286,103 @@ func (h *DeploymentHandler) sendDeploymentStartedNotification(repository models.
 	}
 	
 	return nil
+}
+
+// applyInstallOptionCommands applies the commands from the selected install option
+// CheckPortAvailabilityRequest represents a port availability check request
+type CheckPortAvailabilityRequest struct {
+	WebServerID uint  `json:"web_server_id" binding:"required"`
+	Ports       []int `json:"ports" binding:"required"`
+}
+
+// CheckPortAvailabilityResponse represents port availability results
+type CheckPortAvailabilityResponse struct {
+	PortStatus map[int]bool `json:"port_status"` // port -> available
+	ServerInfo string       `json:"server_info"`
+}
+
+// CheckPortAvailability checks if ports are available on a server
+func (h *DeploymentHandler) CheckPortAvailability(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var req CheckPortAvailabilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify web server belongs to project
+	var webServer models.WebServer
+	if err := h.db.Where("project_id = ? AND id = ?", projectID, req.WebServerID).First(&webServer).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Web server not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	// Create deployment service instance
+	deploymentService := services.NewDeploymentService(h.db, h.cfg)
+	
+	// Check port availability
+	portStatus, err := deploymentService.CheckPortAvailability(webServer, req.Ports)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to check port availability",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	response := CheckPortAvailabilityResponse{
+		PortStatus: portStatus,
+		ServerInfo: fmt.Sprintf("%s@%s:%d", webServer.Username, webServer.Hostname, webServer.Port),
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *DeploymentHandler) applyInstallOptionCommands(req *CreateDeploymentRequest, repository models.GitHubRepository) error {
+	// Get the repository analysis to find install options
+	var analysis models.RepositoryAnalysis
+	if err := h.db.Where("github_repository_id = ?", repository.ID).Order("created_at DESC").First(&analysis).Error; err != nil {
+		return fmt.Errorf("repository analysis not found")
+	}
+
+	// Find the selected install option from the analysis
+	for _, option := range analysis.InstallOptions {
+		if option.Name == req.InstallOption {
+			// Apply the install option commands
+			if option.BuildCommand != "" {
+				req.BuildCommand = option.BuildCommand
+			}
+			if option.StartCommand != "" {
+				req.StartCommand = option.StartCommand
+			}
+			if option.DevCommand != "" {
+				// For development environments, use dev command as start command
+				// You might want to add logic here to detect if this is a dev deployment
+			}
+			if option.Port > 0 {
+				req.Port = option.Port
+			}
+			if option.Environment != nil {
+				// Merge environment variables
+				if req.Environment == nil {
+					req.Environment = make(map[string]interface{})
+				}
+				for key, value := range option.Environment {
+					req.Environment[key] = value
+				}
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("install option \"%s\" not found", req.InstallOption)
 }

@@ -109,9 +109,13 @@ func (h *SSHKeyHandler) CreateSSHKey(c *gin.Context) {
 
 	encryptedPrivateKey, err := utils.EncryptPrivateKey(privateKey, masterPassword)
 	if err != nil {
+		log.Printf("Failed to encrypt private key: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt private key"})
 		return
 	}
+	
+	// Debug logging
+	log.Printf("SSH Key created with master key length: %d", len(masterPassword))
 
 	// Create SSH key record with encrypted private key
 	sshKey := models.SSHKey{
@@ -177,12 +181,66 @@ func (h *SSHKeyHandler) GetDecryptedPrivateKey(keyID uint) (string, error) {
 		return "", fmt.Errorf("master key not configured")
 	}
 
+	// Debug logging
+	log.Printf("Attempting to decrypt SSH key ID %d with master key length: %d", sshKey.ID, len(h.cfg.MasterKey))
+	log.Printf("Encrypted key length: %d", len(sshKey.PrivateKey))
+	
 	decryptedKey, err := utils.DecryptPrivateKey(sshKey.PrivateKey, h.cfg.MasterKey)
 	if err != nil {
+		log.Printf("Decryption failed for SSH key ID %d: %v", sshKey.ID, err)
 		return "", fmt.Errorf("failed to decrypt private key: %w", err)
 	}
+	
+	log.Printf("Successfully decrypted SSH key ID %d", sshKey.ID)
 
 	return decryptedKey, nil
+}
+
+// FixSSHKeyEncryption re-encrypts an SSH key with the current master key
+// This is useful when the master key has changed or was initially missing
+func (h *SSHKeyHandler) FixSSHKeyEncryption(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	keyID, err := strconv.ParseUint(c.Param("key_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid key ID"})
+		return
+	}
+
+	var sshKey models.SSHKey
+	if err := h.db.Where("id = ? AND project_id = ?", uint(keyID), uint(projectID)).First(&sshKey).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "SSH key not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch SSH key"})
+		}
+		return
+	}
+
+	// Check if master key is configured
+	if h.cfg.MasterKey == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master key not configured"})
+		return
+	}
+
+	// First try to decrypt with current master key
+	_, err = utils.DecryptPrivateKey(sshKey.PrivateKey, h.cfg.MasterKey)
+	if err == nil {
+		// Key is already properly encrypted with current master key
+		c.JSON(http.StatusOK, gin.H{"message": "SSH key is already properly encrypted"})
+		return
+	}
+
+	// If decryption failed, we need the user to provide the original private key
+	// This is a security measure - we can't fix encryption without the original key
+	c.JSON(http.StatusBadRequest, gin.H{
+		"error": "Cannot fix SSH key encryption automatically. The key was encrypted with a different master key. Please delete and recreate the SSH key.",
+		"suggestion": "Delete this SSH key and create a new one, or contact system administrator if you need to recover the original private key",
+	})
 }
 
 // UpdateSSHKey updates an SSH key

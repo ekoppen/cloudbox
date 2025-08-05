@@ -285,14 +285,10 @@
     }
   }
 
-  async function analyzeRepository(repo, force = false) {
+  async function checkCIPCompliance(repo) {
     analyzingRepo = repo.id;
     try {
-      const endpoint = force 
-        ? `${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/reanalyze`
-        : `${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analyze`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/cip-check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -306,19 +302,21 @@
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(force ? 'Repository hergeanalyseerd' : 'Repository geanalyseerd');
+        if (result.is_cip_compliant) {
+          toast.success(`✅ CIP Compliant - ${result.message || 'Repository heeft cloudbox.json en vereiste scripts'}`);
+        } else {
+          toast.error(`❌ Niet CIP Compliant - ${result.message || 'Geen cloudbox.json gevonden'}`);
+        }
         
-        // Show the analysis result immediately
-        selectedRepo = repo;
-        repoAnalysis = result.analysis;
-        showAnalysisModal = true;
+        // Reload repositories to get updated CIP status
+        await loadRepositories();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Fout bij analyseren repository');
+        toast.error(error.error || 'Fout bij controleren CIP compliance');
       }
     } catch (error) {
-      console.error('Error analyzing repository:', error);
-      toast.error('Netwerkfout bij analyseren repository');
+      console.error('Error checking CIP compliance:', error);
+      toast.error('Netwerkfout bij controleren CIP compliance');
     } finally {
       analyzingRepo = null;
     }
@@ -418,41 +416,9 @@
   }
 
   async function createDeployment(repo) {
-    try {
-      let analysisData = null;
-      
-      // If we have analysis data in modal, use that; otherwise fetch it
-      if (repoAnalysis && selectedRepo && selectedRepo.id === repo.id) {
-        analysisData = { analysis: repoAnalysis };
-      } else {
-        // Fetch analysis if not available
-        const analysisResponse = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/github-repositories/${repo.id}/analysis`, {
-          headers: auth.getAuthHeader()
-        });
-
-        if (!analysisResponse.ok) {
-          toast.error('Kan repository analyse niet ophalen. Analyseer eerst de repository.');
-          return;
-        }
-
-        analysisData = await analysisResponse.json();
-      }
-      
-      if (!analysisData.analysis || !analysisData.analysis.install_options || analysisData.analysis.install_options.length === 0) {
-        toast.error('Geen deployment opties beschikbaar. Analyseer eerst de repository.');
-        return;
-      }
-
-      // Get the recommended install option
-      const recommendedOption = analysisData.analysis.install_options.find(opt => opt.is_recommended) || analysisData.analysis.install_options[0];
-
-      // Navigate to deployment creation with pre-filled data
-      goto(`/dashboard/projects/${projectId}/deployments/create?repo_id=${repo.id}&repo_name=${encodeURIComponent(repo.name)}&install_option=${encodeURIComponent(recommendedOption.name)}`);
-      
-    } catch (error) {
-      console.error('Error creating deployment:', error);
-      toast.error('Fout bij aanmaken deployment');
-    }
+    // Navigate directly to deployments page where user can create deployment
+    // Pre-fill repo_id in URL so deployment modal can pre-select the repository
+    goto(`/dashboard/projects/${projectId}/deployments?repo_id=${repo.id}`);
   }
 </script>
 
@@ -549,38 +515,29 @@
                 <!-- Primaire acties (horizontaal, prominent) -->
                 <div class="flex gap-2 mb-3">
                   <Button
-                    on:click={() => analyzeRepository(repo, false)}
+                    on:click={() => checkCIPCompliance(repo)}
                     size="sm"
                     variant="default"
                     class="bg-blue-600 hover:bg-blue-700 text-white"
                     disabled={analyzingRepo === repo.id}
+                    title="Controleer of repository CloudBox Install Protocol ondersteunt"
                   >
                     {#if analyzingRepo === repo.id}
                       <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Analyseren...
+                      Controleren...
                     {:else}
-                      <Icon name="eye" size={16} class="mr-2" />
-                      Analyseer
+                      <Icon name="check-circle" size={16} class="mr-2" />
+                      CIP Check
                     {/if}
-                  </Button>
-                  
-                  <Button
-                    on:click={() => getRepositoryAnalysis(repo)}
-                    size="sm"
-                    variant="outline"
-                    class="border-blue-300 text-blue-600 hover:bg-blue-50"
-                  >
-                    <Icon name="search" size={16} class="mr-2" />
-                    Bekijk Analyse
                   </Button>
                   
                   <!-- Deploy knop -->
                   <Button
                     on:click={() => createDeployment(repo)}
                     size="sm" 
-                    variant="outline"
-                    class="border-green-300 text-green-600 hover:bg-green-50"
-                    title="Nieuwe deployment aanmaken"
+                    variant="default"
+                    class="bg-green-600 hover:bg-green-700 text-white"
+                    title="Nieuwe deployment aanmaken vanuit deze repository"
                   >
                     <Icon name="rocket" size={16} class="mr-2" />
                     Deploy

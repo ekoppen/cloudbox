@@ -33,17 +33,11 @@ RUN adduser -D -s /bin/sh cloudbox
 WORKDIR /app
 RUN chown cloudbox:cloudbox /app
 
-# Switch to non-root user for dependency installation
+# Copy the complete built application including node_modules from builder stage
+COPY --from=builder --chown=cloudbox:cloudbox /app ./
+
+# Switch to non-root user
 USER cloudbox
-
-# Copy package files and install dependencies as non-root user
-COPY --from=builder --chown=cloudbox:cloudbox /app/package*.json ./
-
-# Install all dependencies (SvelteKit needs dev dependencies for runtime)
-RUN npm ci
-
-# Copy built application from builder stage
-COPY --from=builder --chown=cloudbox:cloudbox /app/build ./
 
 # Set production environment variables
 ENV NODE_ENV=production
@@ -58,4 +52,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 # Run the SvelteKit application
-CMD ["node", "index.js"]
+CMD ["sh", "-c", "cd /app && node build/index.js"]
