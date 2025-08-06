@@ -87,6 +87,20 @@ export const API_ENDPOINTS = {
           create: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
           delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
         }
+      },
+      // Collections endpoints for project admin
+      collections: {
+        list: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections`,
+        create: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections`,
+        get: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}`,
+        delete: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}`,
+        documents: {
+          list: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents`,
+          create: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents`,
+          get: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents/${id}`,
+          update: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents/${id}`,
+          delete: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents/${id}`,
+        }
       }
     },
     system: {

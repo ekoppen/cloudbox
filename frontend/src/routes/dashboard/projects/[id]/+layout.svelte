@@ -187,7 +187,7 @@
               <div>
                 <span class="text-muted-foreground">API Endpoint:</span>
                 <code class="ml-1 bg-background px-1 rounded text-xs text-foreground">
-                  /p/{project.slug}/api
+                  /p/{project.id}/api
                 </code>
               </div>
             </div>

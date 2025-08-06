@@ -31,7 +31,7 @@
   let searchQuery = '';
 
   $: projectId = $page.params.id;
-  $: baseURL = project ? `http://localhost:8080/p/${project.slug}/api` : '';
+  $: baseURL = project ? `http://localhost:8080/p/${project.id}/api` : '';
 
   // Define available API endpoints
   $: if (project) {

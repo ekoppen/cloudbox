@@ -134,6 +134,7 @@ type Project struct {
 	Name        string `json:"name" gorm:"not null"`
 	Description string `json:"description"`
 	Slug        string `json:"slug" gorm:"uniqueIndex;not null"`
+	Notes       string `json:"notes" gorm:"type:text"` // Project notes
 	IsActive    bool   `json:"is_active" gorm:"default:true"`
 	
 	// Owner

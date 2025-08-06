@@ -83,33 +83,56 @@
     error = '';
 
     try {
-      // Load PhotoPortfolio collections
-      const collections = ['pages', 'albums', 'images', 'settings', 'branding'];
-      const collectionData = [];
+      // Load collections using admin API
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.collections.list(project.id.toString()), {
+        headers: {
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      for (const collection of collections) {
-        try {
-          const response = await fetch(`http://localhost:8080/p/${project.slug}/api/${collection}`, {
-            headers: {
-              'X-API-Key': getApiKey(),
-            },
-          });
+      if (response.ok) {
+        const collections = await response.json();
+        const collectionData = [];
 
-          if (response.ok) {
-            const data = await response.json();
+        // Get document count for each collection
+        for (const collection of collections) {
+          try {
+            const documentsResponse = await createApiRequest(API_ENDPOINTS.admin.projects.collections.documents.list(project.id.toString(), collection.name), {
+              headers: {
+                'Authorization': `Bearer ${$auth.token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+
+            let documentCount = 0;
+            if (documentsResponse.ok) {
+              const documentsData = await documentsResponse.json();
+              documentCount = documentsData.documents ? documentsData.documents.length : (documentsData.total || 0);
+            }
+
             collectionData.push({
-              name: collection,
-              rows: Array.isArray(data) ? data.length : (data.total_count || 0),
-              size: `${Math.round((JSON.stringify(data).length / 1024) * 10) / 10} KB`,
-              created_at: new Date().toLocaleDateString('nl-NL')
+              name: collection.name,
+              rows: documentCount,
+              size: `${Math.round((JSON.stringify(collection).length / 1024) * 10) / 10} KB`,
+              created_at: new Date(collection.created_at).toLocaleDateString('nl-NL')
+            });
+          } catch (err) {
+            console.warn(`Failed to load documents for collection ${collection.name}:`, err);
+            collectionData.push({
+              name: collection.name,
+              rows: 0,
+              size: '0 KB',
+              created_at: new Date(collection.created_at).toLocaleDateString('nl-NL')
             });
           }
-        } catch (err) {
-          console.warn(`Failed to load collection ${collection}:`, err);
         }
-      }
 
-      tables = collectionData;
+        tables = collectionData;
+      } else {
+        error = 'Fout bij laden van collections';
+        console.error('Collections response not OK:', response.status, response.statusText);
+      }
     } catch (err) {
       error = 'Fout bij laden van collections';
       console.error('Load collections error:', err);
@@ -118,14 +141,6 @@
     }
   }
 
-  function getApiKey(): string {
-    // Try to get API key from project info or env
-    if (typeof window !== 'undefined') {
-      const envKey = 'cd264cfc8266f888e3153c5dee8600a68170ad2eb337d69e2f008bafdd12c18b';
-      return envKey;
-    }
-    return '';
-  }
 
   async function selectTable(tableName: string) {
     if (!project) return;
@@ -134,9 +149,10 @@
     loading = true;
     
     try {
-      const response = await fetch(`http://localhost:8080/p/${project.slug}/api/${tableName}`, {
+      const response = await createApiRequest(API_ENDPOINTS.admin.projects.collections.documents.list(project.id.toString(), tableName), {
         headers: {
-          'X-API-Key': getApiKey(),
+          'Authorization': `Bearer ${$auth.token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -145,8 +161,9 @@
         
         // Generate columns based on data structure
         let columns: Column[] = [];
-        if (Array.isArray(data) && data.length > 0) {
-          const firstItem = data[0];
+        const documents = data.documents || [];
+        if (Array.isArray(documents) && documents.length > 0) {
+          const firstItem = documents[0].data || documents[0];
           columns = Object.keys(firstItem).map(key => ({
             name: key,
             type: typeof firstItem[key] === 'number' ? 'INTEGER' : 
@@ -159,10 +176,11 @@
 
         tableData = {
           columns,
-          rows: Array.isArray(data) ? data : [],
-          total_count: Array.isArray(data) ? data.length : 0
+          rows: documents.map((doc: any) => ({ id: doc.id, ...doc.data, created_at: doc.created_at, updated_at: doc.updated_at })),
+          total_count: documents.length
         };
       } else {
+        console.error('Table response not OK:', response.status, response.statusText);
         tableData = { columns: [], rows: [], total_count: 0 };
       }
     } catch (err) {

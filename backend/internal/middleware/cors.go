@@ -1,11 +1,14 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/cloudbox/backend/internal/config"
+	"github.com/cloudbox/backend/internal/models"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // CORS middleware handles Cross-Origin Resource Sharing
@@ -98,4 +101,61 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// ProjectCORS middleware handles project-specific CORS configuration
+func ProjectCORS(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		
+		// Get project ID from context (set by ProjectAuthOrJWT middleware)
+		projectID, exists := c.Get("project_id")
+		if !exists {
+			// Fall back to global CORS if no project context
+			CORS(cfg)(c)
+			return
+		}
+		
+		// Load project-specific CORS configuration
+		var corsConfig models.CORSConfig
+		err := db.Where("project_id = ?", projectID).First(&corsConfig).Error
+		if err != nil {
+			// Fall back to global CORS if no project CORS config found
+			CORS(cfg)(c)
+			return
+		}
+		
+		// For OPTIONS requests (preflight)
+		if c.Request.Method == "OPTIONS" {
+			if origin != "" && (isOriginAllowed(origin, corsConfig.AllowedOrigins) || contains(corsConfig.AllowedOrigins, "*")) {
+				c.Header("Access-Control-Allow-Origin", origin)
+			} else if origin != "" {
+				// For development, allow localhost origins even if not explicitly configured
+				if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+					c.Header("Access-Control-Allow-Origin", origin)
+				}
+			}
+			
+			c.Header("Access-Control-Allow-Methods", strings.Join(corsConfig.AllowedMethods, ", "))
+			c.Header("Access-Control-Allow-Headers", strings.Join(corsConfig.AllowedHeaders, ", "))
+			if corsConfig.AllowCredentials {
+				c.Header("Access-Control-Allow-Credentials", "true")
+			}
+			c.Header("Access-Control-Max-Age", fmt.Sprintf("%d", corsConfig.MaxAge))
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		
+		// For non-OPTIONS requests
+		if isOriginAllowed(origin, corsConfig.AllowedOrigins) {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Methods", strings.Join(corsConfig.AllowedMethods, ", "))
+			c.Header("Access-Control-Allow-Headers", strings.Join(corsConfig.AllowedHeaders, ", "))
+			if corsConfig.AllowCredentials {
+				c.Header("Access-Control-Allow-Credentials", "true")
+			}
+		}
+
+		c.Next()
+	}
 }

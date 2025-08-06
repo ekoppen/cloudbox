@@ -559,6 +559,58 @@ func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// GetProjectNotes returns project notes
+func (h *ProjectHandler) GetProjectNotes(c *gin.Context) {
+	projectID, err := utils.ParseProjectID(c)
+	if err != nil {
+		utils.ResponseInvalidProjectID(c)
+		return
+	}
+
+	project, canAccess := h.canAccessProject(c, uint(projectID))
+	if !canAccess {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"notes": project.Notes})
+}
+
+// UpdateProjectNotes updates project notes
+func (h *ProjectHandler) UpdateProjectNotes(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	projectID, err := utils.ParseProjectID(c)
+	if err != nil {
+		utils.ResponseInvalidProjectID(c)
+		return
+	}
+
+	var req struct {
+		Notes string `json:"notes"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update project notes
+	result := h.db.Model(&models.Project{}).
+		Where("id = ? AND user_id = ?", uint(projectID), userID).
+		Update("notes", req.Notes)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project notes"})
+		return
+	}
+
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project notes updated successfully"})
+}
+
 // Helper functions
 
 // canAccessProject checks if user can access a project based on role

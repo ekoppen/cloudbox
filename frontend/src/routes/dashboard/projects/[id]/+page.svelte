@@ -99,22 +99,16 @@
 
 <div class="space-y-6">
   <!-- Welcome Section -->
-  <div class="flex items-center justify-between">
-    <div class="flex items-center space-x-4">
-      <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-        <Icon name="dashboard" size={24} color="white" />
-      </div>
-      <div>
-        <h1 class="text-2xl font-bold text-foreground">Project Overzicht</h1>
-        <p class="mt-1 text-sm text-muted-foreground">
-          Beheer en monitor je CloudBox project
-        </p>
-      </div>
+  <div class="flex items-center space-x-4">
+    <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+      <Icon name="dashboard" size={24} color="white" />
     </div>
-    <Button href="/testapp.html" target="_blank" variant="outline" class="flex items-center space-x-2">
-      <Icon name="functions" size={16} />
-      <span>Test App</span>
-    </Button>
+    <div>
+      <h1 class="text-2xl font-bold text-foreground">Project Overzicht</h1>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Beheer en monitor je CloudBox project
+      </p>
+    </div>
   </div>
 
   <!-- Quick Stats Grid -->
