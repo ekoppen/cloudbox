@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -64,21 +67,80 @@ func (h *PortfolioHandler) TranslatePage(c *gin.Context) {
 		return
 	}
 	
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in TranslatePage: %v", r)
+		}
+	}()
+	
 	// Verify the page exists
 	var page models.Document
-	if err := h.db.Where("project_id = ? AND collection_name = ? AND id = ?", projectID, "pages", pageID).First(&page).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", projectID, "pages", pageID).First(&page).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify page"})
+		}
 		return
 	}
 	
-	// Mock translation response (to be implemented with actual translation service)
-	c.JSON(http.StatusOK, gin.H{
-		"id": pageID + "_" + req.TargetLanguage,
-		"pageId": pageID,
-		"language": req.TargetLanguage,
-		"status": "completed",
-		"createdAt": time.Now(),
-	})
+	// Check if translation already exists
+	translationID := pageID + "_" + req.TargetLanguage
+	var existingTranslation models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", projectID, "translations", translationID).First(&existingTranslation).Error; err == nil {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Translation already exists for this language"})
+		return
+	}
+	
+	// Create translation document
+	translationData := map[string]interface{}{
+		"pageId":     pageID,
+		"language":   req.TargetLanguage,
+		"status":     "completed",
+		"content":    page.Data, // Copy original content for now (would be translated by AI service)
+		"sourceLanguage": "en", // Assume original is English
+	}
+	
+	translation := models.Document{
+		ID:             translationID,
+		CollectionName: "translations",
+		ProjectID:      projectID,
+		Data:           translationData,
+		Version:        1,
+		Author:         "translation_service",
+	}
+	
+	if err := tx.Create(&translation).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create translation"})
+		return
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit translation"})
+		return
+	}
+	
+	// Return translation response
+	response := gin.H{
+		"id":        translation.ID,
+		"pageId":    pageID,
+		"language":  req.TargetLanguage,
+		"status":    "completed",
+		"createdAt": translation.CreatedAt,
+	}
+	
+	// Merge translation data
+	for key, value := range translation.Data {
+		response[key] = value
+	}
+	
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *PortfolioHandler) GetPageTranslations(c *gin.Context) {
@@ -93,37 +155,103 @@ func (h *PortfolioHandler) GetPageTranslations(c *gin.Context) {
 	// Verify the page exists
 	var page models.Document
 	if err := h.db.Where("project_id = ? AND collection_name = ? AND id = ?", projectID, "pages", pageID).First(&page).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify page"})
+		}
 		return
 	}
 	
-	// Mock translations (to be implemented with actual translation tracking)
-	translations := []gin.H{
-		{
-			"id": pageID + "_nl",
-			"pageId": pageID,
-			"language": "nl",
-			"status": "completed",
-			"createdAt": time.Now().Add(-24 * time.Hour),
-		},
-		{
-			"id": pageID + "_de",
-			"pageId": pageID,
-			"language": "de", 
-			"status": "completed",
-			"createdAt": time.Now().Add(-48 * time.Hour),
-		},
+	// Query translation documents for this page
+	var documents []models.Document
+	if err := h.db.Where("project_id = ? AND collection_name = ? AND data->>'pageId' = ?", 
+		projectID, "translations", pageID).Order("created_at DESC").Find(&documents).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch translations"})
+		return
+	}
+	
+	// Convert documents to translation format
+	translations := make([]gin.H, 0, len(documents))
+	for _, doc := range documents {
+		translation := gin.H{
+			"id":        doc.ID,
+			"pageId":    pageID,
+			"createdAt": doc.CreatedAt,
+			"updatedAt": doc.UpdatedAt,
+		}
+		
+		// Merge document data
+		for key, value := range doc.Data {
+			translation[key] = value
+		}
+		
+		translations = append(translations, translation)
 	}
 	
 	c.JSON(http.StatusOK, translations)
 }
 
 func (h *PortfolioHandler) DeleteTranslation(c *gin.Context) {
+	projectID := c.GetUint("project_id")
+	if projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
 	translationID := c.Param("translationId")
+	if translationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Translation ID is required"})
+		return
+	}
 	
-	// Mock deletion
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in DeleteTranslation: %v", r)
+		}
+	}()
+	
+	// Verify translation exists and get its data before deletion
+	var translation models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, "translations", translationID).First(&translation).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Translation not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify translation"})
+		}
+		return
+	}
+	
+	// Delete the translation
+	result := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, "translations", translationID).Delete(&models.Document{})
+	
+	if result.Error != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete translation"})
+		return
+	}
+	
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Translation not found"})
+		return
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit deletion"})
+		return
+	}
+	
+	log.Printf("Deleted translation %s for project %d", translationID, projectID)
+	
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Translation deleted",
+		"message": "Translation deleted successfully",
 		"id": translationID,
 	})
 }
@@ -201,6 +329,38 @@ func (h *PortfolioHandler) GetImages(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, images)
+}
+
+// DeleteImage deletes an image document
+func (h *PortfolioHandler) DeleteImage(c *gin.Context) {
+	projectID, valid := h.validateProjectAccess(c)
+	if !valid {
+		return
+	}
+
+	imageID := c.Param("id")
+	if imageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image ID is required"})
+		return
+	}
+	
+	// Use utility function for deletion
+	err := h.deleteDocumentWithCascade(projectID, "images", imageID, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image"})
+		}
+		return
+	}
+	
+	log.Printf("Deleted image %s for project %d", imageID, projectID)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Image deleted successfully",
+		"id": imageID,
+	})
 }
 
 func (h *PortfolioHandler) UpdateImage(c *gin.Context) {
@@ -286,6 +446,234 @@ func (h *PortfolioHandler) GetAlbums(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, albums)
+}
+
+// CreateAlbum creates a new album document
+func (h *PortfolioHandler) CreateAlbum(c *gin.Context) {
+	projectID, valid := h.validateProjectAccess(c)
+	if !valid {
+		return
+	}
+
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Generate unique album ID if not provided
+	albumID, ok := req["id"].(string)
+	if !ok || albumID == "" {
+		albumID = uuid.New().String()
+	}
+	
+	// Set default values
+	if _, exists := req["title"]; !exists {
+		req["title"] = "Untitled Album"
+	}
+	if _, exists := req["published"]; !exists {
+		req["published"] = false
+	}
+	if _, exists := req["order"]; !exists {
+		req["order"] = 0
+	}
+	
+	album, err := h.createDocumentWithValidation(projectID, "albums", albumID, req, "portfolio_admin")
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create album"})
+		}
+		return
+	}
+	
+	log.Printf("Created album %s for project %d", albumID, projectID)
+	
+	// Return created album
+	response := gin.H{
+		"_id": album.ID,
+		"id": album.ID,
+		"createdAt": album.CreatedAt,
+		"updatedAt": album.UpdatedAt,
+		"message": "Album created successfully",
+	}
+	
+	// Merge album data
+	for key, value := range album.Data {
+		response[key] = value
+	}
+	
+	c.JSON(http.StatusCreated, response)
+}
+
+// UpdateAlbum updates an existing album document
+func (h *PortfolioHandler) UpdateAlbum(c *gin.Context) {
+	projectID, valid := h.validateProjectAccess(c)
+	if !valid {
+		return
+	}
+
+	albumID := c.Param("id")
+	if albumID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Album ID is required"})
+		return
+	}
+	
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	album, err := h.updateDocumentWithValidation(projectID, "albums", albumID, req)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update album"})
+		}
+		return
+	}
+	
+	log.Printf("Updated album %s for project %d", albumID, projectID)
+	
+	// Return updated album
+	response := gin.H{
+		"_id": album.ID,
+		"id": album.ID,
+		"createdAt": album.CreatedAt,
+		"updatedAt": album.UpdatedAt,
+		"message": "Album updated successfully",
+	}
+	
+	// Merge album data
+	for key, value := range album.Data {
+		response[key] = value
+	}
+	
+	c.JSON(http.StatusOK, response)
+}
+
+// DeleteAlbum deletes an album document
+func (h *PortfolioHandler) DeleteAlbum(c *gin.Context) {
+	projectID, valid := h.validateProjectAccess(c)
+	if !valid {
+		return
+	}
+
+	albumID := c.Param("id")
+	if albumID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Album ID is required"})
+		return
+	}
+	
+	// Use utility function for deletion
+	err := h.deleteDocumentWithCascade(projectID, "albums", albumID, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete album"})
+		}
+		return
+	}
+	
+	log.Printf("Deleted album %s for project %d", albumID, projectID)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Album deleted successfully",
+		"id": albumID,
+	})
+}
+
+// DeletePage deletes a page and all its related translations (cascade deletion)
+func (h *PortfolioHandler) DeletePage(c *gin.Context) {
+	projectID := c.GetUint("project_id")
+	if projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	pageID := c.Param("pageId")
+	if pageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Page ID is required"})
+		return
+	}
+	
+	// Start transaction for cascade deletion
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in DeletePage: %v", r)
+		}
+	}()
+	
+	// Verify page exists
+	var page models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, "pages", pageID).First(&page).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify page"})
+		}
+		return
+	}
+	
+	// First, delete all related translations (cascade deletion)
+	var translations []models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND data->>'pageId' = ?", 
+		projectID, "translations", pageID).Find(&translations).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find related translations"})
+		return
+	}
+	
+	// Delete all related translations
+	if len(translations) > 0 {
+		result := tx.Where("project_id = ? AND collection_name = ? AND data->>'pageId' = ?", 
+			projectID, "translations", pageID).Delete(&models.Document{})
+		
+		if result.Error != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete related translations"})
+			return
+		}
+		
+		log.Printf("Deleted %d translations for page %s", result.RowsAffected, pageID)
+	}
+	
+	// Delete the page itself
+	result := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, "pages", pageID).Delete(&models.Document{})
+	
+	if result.Error != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete page"})
+		return
+	}
+	
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		return
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit deletion"})
+		return
+	}
+	
+	log.Printf("Deleted page %s and %d related translations for project %d", pageID, len(translations), projectID)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Page and related translations deleted successfully",
+		"id": pageID,
+		"translationsDeleted": len(translations),
+	})
 }
 
 // Pages endpoints
@@ -516,6 +904,170 @@ func (h *PortfolioHandler) GetBranding(c *gin.Context) {
 	c.JSON(http.StatusOK, branding)
 }
 
+// CreatePage creates a new page document
+func (h *PortfolioHandler) CreatePage(c *gin.Context) {
+	projectID := c.GetUint("project_id")
+	if projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Generate unique page ID if not provided
+	pageID, ok := req["id"].(string)
+	if !ok || pageID == "" {
+		pageID = uuid.New().String()
+	}
+	
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in CreatePage: %v", r)
+		}
+	}()
+	
+	// Check if page ID already exists
+	var existingPage models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, "pages", pageID).First(&existingPage).Error; err == nil {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Page with this ID already exists"})
+		return
+	}
+	
+	// Set default values
+	if _, exists := req["language"]; !exists {
+		req["language"] = "en"
+	}
+	if _, exists := req["published"]; !exists {
+		req["published"] = false
+	}
+	
+	// Create page document
+	page := models.Document{
+		ID:             pageID,
+		CollectionName: "pages",
+		ProjectID:      projectID,
+		Data:           req,
+		Version:        1,
+		Author:         "portfolio_admin",
+	}
+	
+	if err := tx.Create(&page).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create page"})
+		return
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit page creation"})
+		return
+	}
+	
+	log.Printf("Created page %s for project %d", pageID, projectID)
+	
+	// Return created page
+	response := gin.H{
+		"_id": page.ID,
+		"id": page.ID,
+		"createdAt": page.CreatedAt,
+		"updatedAt": page.UpdatedAt,
+		"message": "Page created successfully",
+	}
+	
+	// Merge page data
+	for key, value := range page.Data {
+		response[key] = value
+	}
+	
+	c.JSON(http.StatusCreated, response)
+}
+
+// UpdatePage updates an existing page document
+func (h *PortfolioHandler) UpdatePage(c *gin.Context) {
+	projectID := c.GetUint("project_id")
+	if projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	pageID := c.Param("pageId")
+	if pageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Page ID is required"})
+		return
+	}
+	
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in UpdatePage: %v", r)
+		}
+	}()
+	
+	// Find existing page
+	var page models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, "pages", pageID).First(&page).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find page"})
+		}
+		return
+	}
+	
+	// Update page data
+	for key, value := range req {
+		page.Data[key] = value
+	}
+	page.Version++
+	
+	if err := tx.Save(&page).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update page"})
+		return
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit page update"})
+		return
+	}
+	
+	log.Printf("Updated page %s for project %d", pageID, projectID)
+	
+	// Return updated page
+	response := gin.H{
+		"_id": page.ID,
+		"id": page.ID,
+		"createdAt": page.CreatedAt,
+		"updatedAt": page.UpdatedAt,
+		"message": "Page updated successfully",
+	}
+	
+	// Merge page data
+	for key, value := range page.Data {
+		response[key] = value
+	}
+	
+	c.JSON(http.StatusOK, response)
+}
+
 // Users endpoints for portfolio
 func (h *PortfolioHandler) GetPortfolioUsers(c *gin.Context) {
 	projectID := c.GetUint("project_id")
@@ -560,4 +1112,138 @@ func (h *PortfolioHandler) GetPortfolioUsers(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, response)
+}
+
+// Utility functions for portfolio management
+
+// validateProjectAccess checks if the request has valid project access
+func (h *PortfolioHandler) validateProjectAccess(c *gin.Context) (uint, bool) {
+	projectID := c.GetUint("project_id")
+	if projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return 0, false
+	}
+	return projectID, true
+}
+
+// createDocumentWithValidation creates a document with proper validation and transaction handling
+func (h *PortfolioHandler) createDocumentWithValidation(projectID uint, collectionName, documentID string, data map[string]interface{}, author string) (*models.Document, error) {
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in createDocumentWithValidation: %v", r)
+		}
+	}()
+	
+	// Check if document already exists
+	var existingDoc models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, collectionName, documentID).First(&existingDoc).Error; err == nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("document with ID %s already exists", documentID)
+	}
+	
+	// Create new document
+	document := models.Document{
+		ID:             documentID,
+		CollectionName: collectionName,
+		ProjectID:      projectID,
+		Data:           data,
+		Version:        1,
+		Author:         author,
+	}
+	
+	if err := tx.Create(&document).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	
+	return &document, nil
+}
+
+// updateDocumentWithValidation updates a document with proper validation and transaction handling
+func (h *PortfolioHandler) updateDocumentWithValidation(projectID uint, collectionName, documentID string, updates map[string]interface{}) (*models.Document, error) {
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in updateDocumentWithValidation: %v", r)
+		}
+	}()
+	
+	// Find existing document
+	var document models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, collectionName, documentID).First(&document).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	
+	// Update document data
+	for key, value := range updates {
+		document.Data[key] = value
+	}
+	document.Version++
+	
+	if err := tx.Save(&document).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	
+	return &document, nil
+}
+
+// deleteDocumentWithCascade deletes a document and handles cascade deletion for related entities
+func (h *PortfolioHandler) deleteDocumentWithCascade(projectID uint, collectionName, documentID string, cascadeFunc func(*gorm.DB, uint, string) error) error {
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("Panic in deleteDocumentWithCascade: %v", r)
+		}
+	}()
+	
+	// Verify document exists
+	var document models.Document
+	if err := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, collectionName, documentID).First(&document).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	
+	// Execute cascade deletion if function provided
+	if cascadeFunc != nil {
+		if err := cascadeFunc(tx, projectID, documentID); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	
+	// Delete the main document
+	result := tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		projectID, collectionName, documentID).Delete(&models.Document{})
+	
+	if result.Error != nil {
+		tx.Rollback()
+		return result.Error
+	}
+	
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return gorm.ErrRecordNotFound
+	}
+	
+	return tx.Commit().Error
 }
