@@ -1,23 +1,23 @@
 /**
- * CloudBox JavaScript SDK
- * Official SDK for CloudBox Backend-as-a-Service
+ * CloudBox SDK - TypeScript Entry Point
+ * Official CloudBox SDK for JavaScript/TypeScript applications
+ * 
+ * @version 1.0.0
+ * @author VibCode
+ * @package @ekoppen/cloudbox-sdk
  */
 
-export { CloudBox } from './CloudBox';
-export { Auth } from './services/Auth';
-export { Database } from './services/Database';
-export { Storage } from './services/Storage';
-export { Functions } from './services/Functions';
-export { Messaging } from './services/Messaging';
-export { Users } from './services/Users';
-export { Backups } from './services/Backups';
+// Export main client
+export { CloudBoxClient } from './client';
 
-// Types
+// Export all managers
+export { CollectionManager } from './managers/collections';
+export { StorageManager } from './managers/storage';
+export { UserManager } from './managers/users';
+export { FunctionManager } from './managers/functions';
+
+// Export all types
 export * from './types';
 
-// Utils
-export { CloudBoxError } from './utils/CloudBoxError';
-
-// Default export
-import { CloudBox } from './CloudBox';
-export default CloudBox;
+// Default export for convenience
+export { CloudBoxClient as default } from './client';
