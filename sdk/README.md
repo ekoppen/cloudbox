@@ -1,6 +1,6 @@
 # CloudBox SDK
 
-[![npm version](https://badge.fury.io/js/@cloudbox%2Fsdk.svg)](https://badge.fury.io/js/@cloudbox%2Fsdk)
+[![npm version](https://badge.fury.io/js/@ekoppen%2Fcloudbox-sdk.svg)](https://badge.fury.io/js/@ekoppen%2Fcloudbox-sdk)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 
 The official JavaScript/TypeScript SDK for CloudBox Backend-as-a-Service.
@@ -15,6 +15,55 @@ The official JavaScript/TypeScript SDK for CloudBox Backend-as-a-Service.
 - 👥 **Users** - User management and administration
 - 🚀 **TypeScript** - Full TypeScript support with type definitions
 - 🎯 **Event-Driven** - EventEmitter-based architecture for real-time updates
+- 🛠️ **Interactive Setup** - Automated project setup with templates
+
+## Quick Project Setup
+
+### Interactive Setup Script
+For new projects, use our interactive setup script to automatically configure CloudBox with Docker:
+
+```bash
+# Download and run the interactive setup
+curl -fsSL https://raw.githubusercontent.com/ekoppen/cloudbox/main/sdk/scripts/interactive-setup.sh | bash
+
+# Or clone the repository and run locally
+git clone https://github.com/ekoppen/cloudbox.git
+cd cloudbox
+./sdk/scripts/interactive-setup.sh
+```
+
+The interactive setup will:
+- ✅ Test CloudBox connection and credentials
+- ✅ Choose from 6 project templates (Photo Portfolio, Blog, E-commerce, SaaS, Dev Portfolio, Custom)
+- ✅ Create all necessary collections and storage buckets
+- ✅ Generate Docker configuration (docker-compose.yml, .env, Dockerfile.example)
+- ✅ Configure user permissions and application settings
+
+### Project Templates Available
+
+1. **Photo Portfolio** - Perfect for photography websites (albums, images, pages)
+2. **Blog/CMS** - Content management with posts, categories, authors
+3. **E-commerce** - Online store with products, orders, customers
+4. **SaaS Application** - User subscriptions, plans, usage tracking
+5. **Developer Portfolio** - Showcase projects, skills, experience
+6. **Custom** - Define your own collections and structure
+
+### Manual Setup
+If you prefer manual setup, you can also use the SDK programmatically:
+
+```javascript
+import { CloudBoxClient, CloudBoxQuickSetup } from '@ekoppen/cloudbox-sdk';
+
+const cloudbox = new CloudBoxClient({
+  projectId: 'your-project-id',
+  apiKey: 'your-api-key',
+  endpoint: 'http://localhost:8080'
+});
+
+// Quick setup for photo portfolio
+const setup = new CloudBoxQuickSetup(cloudbox);
+await setup.setupPhotoPortfolio();
+```
 
 ## Installation
 
@@ -29,24 +78,34 @@ pnpm add @ekoppen/cloudbox-sdk
 ## Quick Start
 
 ```javascript
-import { CloudBox } from '@ekoppen/cloudbox-sdk';
+import { CloudBoxClient } from '@ekoppen/cloudbox-sdk';
 
 // Initialize CloudBox
-const cloudbox = new CloudBox({
+const cloudbox = new CloudBoxClient({
   apiKey: 'your-api-key',
   projectId: 'your-project-id',
-  endpoint: 'https://api.cloudbox.dev' // optional
+  endpoint: 'http://localhost:8080' // optional
 });
 
-// Or using project slug
-const cloudbox = new CloudBox({
-  apiKey: 'your-api-key',
-  projectSlug: 'my-awesome-app'
-});
-
-// Check connection
-const isConnected = await cloudbox.ping();
+// Test connection
+const isConnected = await cloudbox.testConnection();
 console.log('Connected:', isConnected);
+
+// Create collections with proper schema format
+await cloudbox.collections.create('posts', [
+  'title:string',
+  'content:text',
+  'published:boolean',
+  'created_at:datetime'
+]);
+
+// Create storage buckets
+await cloudbox.storage.createBucket({
+  name: 'uploads',
+  description: 'User uploaded files',
+  public: true,
+  maxSize: 10485760 // 10MB
+});
 ```
 
 ## Authentication
