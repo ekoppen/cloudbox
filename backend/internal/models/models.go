@@ -700,6 +700,70 @@ type Function struct {
 	// Runtime info
 	BuildLogs      string `json:"build_logs" gorm:"type:text"`
 	DeploymentLogs string `json:"deployment_logs" gorm:"type:text"`
+}
+
+// TemplateDeployment represents a deployment created from a template
+type TemplateDeployment struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Template information
+	TemplateName string                 `json:"template_name" gorm:"not null"`
+	Variables    map[string]interface{} `json:"variables" gorm:"type:jsonb"`
+	
+	// Status and relationships
+	Status    string `json:"status" gorm:"type:varchar(50);default:'created'"`
+	ProjectID uint   `json:"project_id" gorm:"not null"`
+	Project   Project `json:"project,omitempty"`
+	
+	// Related resources
+	GitHubRepositoryID uint             `json:"github_repository_id" gorm:"not null"`
+	GitHubRepository   GitHubRepository `json:"github_repository,omitempty"`
+	DeploymentID       uint             `json:"deployment_id" gorm:"not null"`
+	Deployment         Deployment       `json:"deployment,omitempty"`
+}
+
+// CloudBoxCompatibility represents CloudBox SDK compatibility check results
+type CloudBoxCompatibility struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Repository information
+	GitHubRepositoryID uint             `json:"github_repository_id" gorm:"uniqueIndex;not null"`
+	GitHubRepository   GitHubRepository `json:"github_repository,omitempty"`
+	
+	// Compatibility check results
+	IsCompatible     bool     `json:"is_compatible"`
+	HasCloudBoxSDK   bool     `json:"has_cloudbox_sdk"`
+	SDKVersion       string   `json:"sdk_version"`
+	PackageManager   string   `json:"package_manager"` // npm, yarn, pnpm
+	FrameworkType    string   `json:"framework_type"`  // react, vue, nextjs, etc.
+	
+	// CloudBox configuration detected
+	HasCloudBoxConfig bool                   `json:"has_cloudbox_config"`
+	ConfigFile        string                 `json:"config_file"`
+	DetectedConfig    map[string]interface{} `json:"detected_config" gorm:"type:jsonb"`
+	
+	// Environment variables detected
+	EnvVariables     pq.StringArray         `json:"env_variables" gorm:"type:text[]"`
+	RequiredEnvVars  pq.StringArray         `json:"required_env_vars" gorm:"type:text[]"`
+	
+	// Installation requirements
+	InstallCommands  pq.StringArray         `json:"install_commands" gorm:"type:text[]"`
+	BuildCommands    pq.StringArray         `json:"build_commands" gorm:"type:text[]"`
+	StartCommands    pq.StringArray         `json:"start_commands" gorm:"type:text[]"`
+	
+	// Compatibility issues
+	Issues           []string               `json:"issues" gorm:"type:jsonb"`
+	Recommendations  []string               `json:"recommendations" gorm:"type:jsonb"`
+	
+	// Check metadata
+	CheckedAt        time.Time              `json:"checked_at"`
+	CheckVersion     string                 `json:"check_version" gorm:"default:'1.0.0'"`
 	ErrorMessage   string `json:"error_message"`
 	
 	// Function URL and access

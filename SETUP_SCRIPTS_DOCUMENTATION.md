@@ -2,18 +2,30 @@
 
 Complete guide for setting up CloudBox projects using automated scripts, templates, and development roadmap.
 
-## 🚀 Interactive Setup Script
+## 🚀 Project Setup Options
 
-The interactive setup script provides a guided experience for setting up new CloudBox projects with Docker configuration.
+CloudBox offers multiple ways to set up your projects, from simple setup scripts to advanced template deployments with GitHub integration.
+
+### Quick Setup Script
+The setup script provides a simple way to get started with CloudBox SDK integration.
 
 ### Features
 
 ✅ **Connection Testing** - Validates CloudBox URL and API credentials  
-✅ **Project Templates** - 6 pre-configured project types  
-✅ **Docker Integration** - Generates docker-compose.yml and .env files  
-✅ **Automated Setup** - Creates all necessary collections and storage buckets  
-✅ **User Configuration** - Configurable Docker user and application port  
-✅ **Error Handling** - Comprehensive validation and error reporting  
+✅ **SDK Integration** - Sets up CloudBox SDK with examples  
+✅ **Environment Configuration** - Generates .env files  
+✅ **Project Examples** - Basic application structure  
+
+### Template Deployment System
+For more advanced projects, use CloudBox's template deployment system that combines project templates with GitHub repository creation.
+
+**Template + GitHub Integration Features:**
+✅ **Professional Templates** - 5+ production-ready application templates  
+✅ **GitHub Repository Creation** - Automatic repository creation with template code  
+✅ **Variable Customization** - Personalize templates with your content  
+✅ **CloudBox SDK Integration** - Pre-configured CloudBox setup  
+✅ **Automated Deployment** - Deploy to production with one click  
+✅ **Compatibility Checking** - Verify repositories work with CloudBox  
 
 ### Usage
 

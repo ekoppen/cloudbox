@@ -1,0 +1,59 @@
+{
+  "name": "{{project_slug}}-photoportfolio",
+  "version": "1.0.0",
+  "description": "{{site_name}} - Professional photography portfolio built with CloudBox",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "vite preview --port 3000",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ekoppen/cloudbox-sdk": "^1.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "framer-motion": "^10.0.0",
+    "lucide-react": "^0.321.0",
+    "clsx": "^2.0.0",
+    "date-fns": "^2.29.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.27",
+    "@types/react-dom": "^18.0.10",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.13",
+    "eslint": "^8.38.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.0",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.7",
+    "typescript": "^5.0.2",
+    "vite": "^4.3.2"
+  },
+  "author": "{{photographer_name}}",
+  "license": "MIT",
+  "keywords": [
+    "photography",
+    "portfolio",
+    "cloudbox",
+    "react",
+    "vite",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "{{github_repo_url}}"
+  },
+  "homepage": "{{deployment_url}}",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,330 @@
+{
+  "name": "photoportfolio",
+  "version": "1.0.0",
+  "description": "Professional photography portfolio template with galleries, albums, and content management",
+  "framework": "react",
+  "build_tool": "vite",
+  "author": "CloudBox Team",
+  "license": "MIT",
+  "repository": "https://github.com/cloudbox/template-photoportfolio",
+  "variables": [
+    {
+      "name": "site_name",
+      "type": "string",
+      "required": true,
+      "default": "My Photography Portfolio",
+      "description": "Name of the portfolio website"
+    },
+    {
+      "name": "photographer_name",
+      "type": "string",
+      "required": true,
+      "default": "Photographer Name",
+      "description": "Name of the photographer"
+    },
+    {
+      "name": "contact_email",
+      "type": "string",
+      "required": true,
+      "default": "contact@example.com",
+      "description": "Contact email address"
+    },
+    {
+      "name": "theme",
+      "type": "select",
+      "required": false,
+      "default": "modern",
+      "options": ["modern", "classic", "minimal", "artistic"],
+      "description": "Visual theme for the portfolio"
+    },
+    {
+      "name": "language",
+      "type": "select",
+      "required": false,
+      "default": "en",
+      "options": ["en", "es", "fr", "de", "it", "pt", "nl"],
+      "description": "Primary language for the site"
+    },
+    {
+      "name": "social_instagram",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Instagram username (without @)"
+    },
+    {
+      "name": "social_facebook",
+      "type": "string", 
+      "required": false,
+      "default": "",
+      "description": "Facebook page URL"
+    },
+    {
+      "name": "enable_blog",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enable blog functionality"
+    },
+    {
+      "name": "enable_shop",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Enable photography shop/prints"
+    },
+    {
+      "name": "analytics_ga",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Google Analytics tracking ID (GA4)"
+    }
+  ],
+  "cloudbox": {
+    "collections": [
+      {
+        "name": "pages",
+        "description": "Website pages and content",
+        "schema": [
+          "title:string",
+          "slug:string", 
+          "content:text",
+          "meta_title:string",
+          "meta_description:text",
+          "published:boolean",
+          "language:string",
+          "template:string",
+          "order:integer",
+          "featured_image:string",
+          "created_at:datetime",
+          "updated_at:datetime"
+        ],
+        "indexes": ["slug", "published", "language", "order"],
+        "seed_data": [
+          {
+            "id": "home",
+            "title": "{{site_name}}",
+            "slug": "home",
+            "content": "Welcome to {{site_name}}, the portfolio of {{photographer_name}}. Discover stunning photography that captures life's most beautiful moments.",
+            "meta_title": "{{site_name}} - Professional Photography",
+            "meta_description": "{{photographer_name}}'s professional photography portfolio showcasing artistic vision and technical excellence.",
+            "published": true,
+            "language": "{{language}}",
+            "template": "home",
+            "order": 1
+          },
+          {
+            "id": "about",
+            "title": "About {{photographer_name}}",
+            "slug": "about",
+            "content": "I'm {{photographer_name}}, a passionate photographer dedicated to capturing the beauty in everyday moments and extraordinary scenes.",
+            "meta_title": "About {{photographer_name}} - {{site_name}}",
+            "meta_description": "Learn about {{photographer_name}}'s photography journey and artistic approach.",
+            "published": true,
+            "language": "{{language}}",
+            "template": "page", 
+            "order": 2
+          },
+          {
+            "id": "contact",
+            "title": "Contact",
+            "slug": "contact",
+            "content": "Get in touch to discuss your photography needs. Whether it's a portrait session, event photography, or a custom project, I'd love to hear from you.",
+            "meta_title": "Contact {{photographer_name}} - {{site_name}}",
+            "meta_description": "Contact {{photographer_name}} for photography services and inquiries.",
+            "published": true,
+            "language": "{{language}}",
+            "template": "contact",
+            "order": 3
+          }
+        ]
+      },
+      {
+        "name": "albums",
+        "description": "Photo albums and galleries",
+        "schema": [
+          "name:string",
+          "description:text",
+          "cover_photo:string",
+          "photos:array",
+          "published:boolean",
+          "order:integer",
+          "tags:array",
+          "location:string",
+          "date_taken:date",
+          "camera_info:json",
+          "created_at:datetime",
+          "updated_at:datetime"
+        ],
+        "indexes": ["published", "order", "tags", "date_taken"],
+        "seed_data": [
+          {
+            "id": "portfolio-highlights",
+            "name": "Portfolio Highlights",
+            "description": "A curated selection of my best work showcasing various photography styles and techniques.",
+            "cover_photo": "highlight_1",
+            "photos": ["highlight_1", "highlight_2", "highlight_3", "highlight_4"],
+            "published": true,
+            "order": 1,
+            "tags": ["portfolio", "highlights", "best"],
+            "location": "Various Locations"
+          }
+        ]
+      },
+      {
+        "name": "images",
+        "description": "Image metadata and information",
+        "schema": [
+          "title:string",
+          "description:text",
+          "filename:string",
+          "url:string",
+          "thumbnail_url:string",
+          "alt_text:string",
+          "tags:array",
+          "camera:string",
+          "lens:string",
+          "settings:json",
+          "location:string",
+          "date_taken:date",
+          "file_size:integer",
+          "dimensions:json",
+          "is_featured:boolean",
+          "created_at:datetime"
+        ],
+        "indexes": ["tags", "date_taken", "camera", "is_featured"]
+      },
+      {
+        "name": "settings",
+        "description": "Site configuration and settings",
+        "schema": [
+          "key:string",
+          "value:text",
+          "type:string",
+          "category:string",
+          "description:text",
+          "updated_at:datetime"
+        ],
+        "indexes": ["key", "category"],
+        "seed_data": [
+          {
+            "id": "site_config",
+            "key": "site_name",
+            "value": "{{site_name}}",
+            "type": "string",
+            "category": "general",
+            "description": "Site name"
+          },
+          {
+            "id": "photographer_config", 
+            "key": "photographer_name",
+            "value": "{{photographer_name}}",
+            "type": "string",
+            "category": "general",
+            "description": "Photographer name"
+          },
+          {
+            "id": "contact_config",
+            "key": "contact_email",
+            "value": "{{contact_email}}",
+            "type": "string",
+            "category": "contact",
+            "description": "Contact email"
+          },
+          {
+            "id": "theme_config",
+            "key": "theme",
+            "value": "{{theme}}",
+            "type": "string",
+            "category": "appearance",
+            "description": "Site theme"
+          },
+          {
+            "id": "language_config",
+            "key": "language",
+            "value": "{{language}}",
+            "type": "string",
+            "category": "general",
+            "description": "Site language"
+          }
+        ]
+      }
+    ],
+    "buckets": [
+      {
+        "name": "images",
+        "description": "Portfolio images and photos",
+        "max_file_size": 10485760,
+        "allowed_types": ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/avif"],
+        "is_public": true
+      },
+      {
+        "name": "thumbnails", 
+        "description": "Thumbnail images for fast loading",
+        "max_file_size": 2097152,
+        "allowed_types": ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+        "is_public": true
+      },
+      {
+        "name": "branding",
+        "description": "Brand assets like logos and favicons",
+        "max_file_size": 5242880,
+        "allowed_types": ["image/jpeg", "image/jpg", "image/png", "image/svg+xml", "image/x-icon"],
+        "is_public": true
+      }
+    ],
+    "cors": {
+      "allowed_origins": [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://localhost:3000",
+        "https://localhost:5173"
+      ],
+      "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+      "allowed_headers": ["Authorization", "Content-Type", "X-API-Key", "X-Requested-With"],
+      "allow_credentials": true,
+      "max_age": 86400
+    }
+  },
+  "dependencies": {
+    "@ekoppen/cloudbox-sdk": "^1.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "framer-motion": "^10.0.0",
+    "lucide-react": "^0.321.0"
+  },
+  "dev_dependencies": {
+    "@types/react": "^18.0.27",
+    "@types/react-dom": "^18.0.10",
+    "@vitejs/plugin-react": "^3.1.0",
+    "autoprefixer": "^10.4.13",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.7",
+    "typescript": "^4.9.4",
+    "vite": "^4.1.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "vite preview --port 3000"
+  },
+  "deployment": {
+    "dockerfile": true,
+    "docker_compose": true,
+    "port": 3000,
+    "environment": [
+      "NODE_ENV=production",
+      "CLOUDBOX_ENDPOINT={{cloudbox_endpoint}}",
+      "CLOUDBOX_PROJECT_ID={{cloudbox_project_id}}",
+      "CLOUDBOX_API_KEY={{cloudbox_api_key}}",
+      "VITE_CLOUDBOX_ENDPOINT={{cloudbox_endpoint}}",
+      "VITE_CLOUDBOX_PROJECT_ID={{cloudbox_project_id}}",
+      "VITE_CLOUDBOX_API_KEY={{cloudbox_api_key}}"
+    ],
+    "build_command": "npm run build",
+    "start_command": "npm start"
+  }
+}

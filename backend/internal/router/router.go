@@ -47,6 +47,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	adminHandler := handlers.NewAdminHandler(db, cfg)
 	portfolioHandler := handlers.NewPortfolioHandler(db, cfg)
 	templateHandler := handlers.NewTemplateHandler(db, cfg)
+	templateDeploymentHandler := handlers.NewTemplateDeploymentHandler(db, cfg)
+	compatibilityHandler := handlers.NewCompatibilityHandler(db, cfg)
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(db, cfg)
 	projectGitHubHandler := handlers.NewProjectGitHubHandler(db, cfg)
 	publicFileHandler := handlers.NewPublicFileHandler(db, cfg)
@@ -474,6 +476,20 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			templates.GET("", templateHandler.ListTemplates)
 			templates.GET("/:template", templateHandler.GetTemplate)
 			templates.POST("/:template/setup", templateHandler.SetupPhotoPortfolio)
+		}
+
+		// Template deployment routes
+		templateDeployments := projectAPI.Group("/template-deployments")
+		{
+			templateDeployments.GET("", templateDeploymentHandler.ListTemplateDeployments)
+			templateDeployments.POST("", templateDeploymentHandler.CreateTemplateDeployment)
+		}
+
+		// Repository compatibility routes
+		compatibility := projectAPI.Group("/compatibility")
+		{
+			compatibility.POST("/check", compatibilityHandler.CheckRepositoryCompatibility)
+			compatibility.GET("/repositories/:id", compatibilityHandler.CheckGitHubRepositoryCompatibility)
 		}
 	}
 
