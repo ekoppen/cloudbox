@@ -19,17 +19,17 @@ The official JavaScript/TypeScript SDK for CloudBox Backend-as-a-Service.
 ## Installation
 
 ```bash
-npm install @cloudbox/sdk
+npm install @ekoppen/cloudbox-sdk
 # or
-yarn add @cloudbox/sdk
+yarn add @ekoppen/cloudbox-sdk
 # or
-pnpm add @cloudbox/sdk
+pnpm add @ekoppen/cloudbox-sdk
 ```
 
 ## Quick Start
 
 ```javascript
-import { CloudBox } from '@cloudbox/sdk';
+import { CloudBox } from '@ekoppen/cloudbox-sdk';
 
 // Initialize CloudBox
 const cloudbox = new CloudBox({
@@ -416,7 +416,7 @@ const activity = await cloudbox.users.getUserActivity(newUser.id, {
 ## Error Handling
 
 ```javascript
-import { CloudBoxError } from '@cloudbox/sdk';
+import { CloudBoxError } from '@ekoppen/cloudbox-sdk';
 
 try {
   const result = await cloudbox.functions.execute('non-existent-function');
@@ -453,7 +453,7 @@ cloudbox.messaging.on('reconnect_failed', () => console.log('Failed to reconnect
 The SDK is written in TypeScript and provides comprehensive type definitions:
 
 ```typescript
-import { CloudBox, User, Document, CloudFunction } from '@cloudbox/sdk';
+import { CloudBox, User, Document, CloudFunction } from '@ekoppen/cloudbox-sdk';
 
 const cloudbox = new CloudBox({
   apiKey: process.env.CLOUDBOX_API_KEY!,
@@ -483,13 +483,13 @@ The SDK works in both browser and Node.js environments:
 
 ```javascript
 // Browser (with bundler like Webpack, Vite, etc.)
-import { CloudBox } from '@cloudbox/sdk';
+import { CloudBox } from '@ekoppen/cloudbox-sdk';
 
 // Node.js (ESM)
-import { CloudBox } from '@cloudbox/sdk';
+import { CloudBox } from '@ekoppen/cloudbox-sdk';
 
 // Node.js (CommonJS)
-const { CloudBox } = require('@cloudbox/sdk');
+const { CloudBox } = require('@ekoppen/cloudbox-sdk');
 ```
 
 ## Examples

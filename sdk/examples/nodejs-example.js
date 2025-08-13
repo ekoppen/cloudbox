@@ -14,8 +14,8 @@
  *   CLOUDBOX_PROJECT_ID=your-project-id
  */
 
-// In a real project, you would import from '@cloudbox/sdk'
-// import { CloudBox } from '@cloudbox/sdk';
+// In a real project, you would import from '@ekoppen/cloudbox-sdk'
+// import { CloudBox } from '@ekoppen/cloudbox-sdk';
 
 // For this demo, we'll simulate the SDK
 class CloudBoxSDKDemo {

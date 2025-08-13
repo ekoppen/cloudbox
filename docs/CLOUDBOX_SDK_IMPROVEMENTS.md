@@ -243,7 +243,7 @@ describe('CloudBox API Patterns', () => {
 
 ### Quick Start Template
 ```javascript
-import { CloudBoxClient } from '@cloudbox/sdk';
+import { CloudBoxClient } from '@ekoppen/cloudbox-sdk';
 
 const cloudbox = new CloudBoxClient({
   endpoint: process.env.VITE_CLOUDBOX_ENDPOINT,

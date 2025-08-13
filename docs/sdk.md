@@ -7,15 +7,15 @@ Official SDKs and client libraries for CloudBox Backend-as-a-Service platform.
 ### Installation
 
 ```bash
-npm install @cloudbox/sdk
+npm install @ekoppen/cloudbox-sdk
 # or
-yarn add @cloudbox/sdk
+yarn add @ekoppen/cloudbox-sdk
 ```
 
 ### Quick Start
 
 ```typescript
-import { CloudBox } from '@cloudbox/sdk';
+import { CloudBox } from '@ekoppen/cloudbox-sdk';
 
 // Initialize with your project configuration
 const cloudbox = new CloudBox({
