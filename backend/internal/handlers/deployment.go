@@ -736,12 +736,8 @@ func (h *DeploymentHandler) configurePhotoPortfolioEnvironment(env map[string]in
 		return
 	}
 	
-	// Get project API key
-	var apiKey models.APIKey
-	if err := h.db.Where("project_id = ? AND is_active = true", projectID).First(&apiKey).Error; err != nil {
-		fmt.Printf("Warning: Could not find API key for project %d: %v\n", projectID, err)
-		return
-	}
+	// Note: API keys are now hashed for security and cannot be retrieved
+	// The deployment process should accept API key as input parameter
 	
 	// CloudBox connection settings
 	cloudboxEndpoint := "http://localhost:8080" // This should come from config
@@ -753,7 +749,12 @@ func (h *DeploymentHandler) configurePhotoPortfolioEnvironment(env map[string]in
 	env["CLOUDBOX_ENDPOINT"] = cloudboxEndpoint
 	env["CLOUDBOX_PROJECT_SLUG"] = project.Slug
 	env["CLOUDBOX_PROJECT_ID"] = fmt.Sprintf("%d", projectID)
-	env["CLOUDBOX_API_KEY"] = apiKey.Key
+	// API Key must be provided by user during deployment
+	if apiKey, exists := env["CLOUDBOX_API_KEY"]; exists {
+		env["CLOUDBOX_API_KEY"] = apiKey
+	} else {
+		env["CLOUDBOX_API_KEY"] = "YOUR_API_KEY_HERE" // User must provide
+	}
 	
 	// API Configuration
 	env["VITE_API_URL"] = fmt.Sprintf("%s/p/%s/api", cloudboxEndpoint, project.Slug)
@@ -783,7 +784,12 @@ func (h *DeploymentHandler) configurePhotoPortfolioEnvironment(env map[string]in
 	env["VITE_CLOUDBOX_ENDPOINT"] = cloudboxEndpoint
 	env["VITE_CLOUDBOX_PROJECT_SLUG"] = project.Slug
 	env["VITE_CLOUDBOX_PROJECT_ID"] = fmt.Sprintf("%d", projectID)
-	env["VITE_CLOUDBOX_API_KEY"] = apiKey.Key
+	// API Key must be provided by user during deployment
+	if apiKey, exists := env["CLOUDBOX_API_KEY"]; exists {
+		env["VITE_CLOUDBOX_API_KEY"] = apiKey
+	} else {
+		env["VITE_CLOUDBOX_API_KEY"] = "YOUR_API_KEY_HERE" // User must provide
+	}
 	env["VITE_API_URL"] = fmt.Sprintf("%s/p/%s/api", cloudboxEndpoint, project.Slug)
 	
 	fmt.Printf("PhotoPortfolio environment configured for project %d (%s)\n", projectID, project.Slug)

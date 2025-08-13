@@ -996,3 +996,413 @@ func contains(slice []string, item string) bool {
 	}
 	return false
 }
+
+// Admin methods for storage management via JWT admin routes
+
+// AdminListBuckets lists buckets for admin management (JWT authenticated)
+func (h *StorageHandler) AdminListBuckets(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	var buckets []models.Bucket
+	if err := h.db.Where("project_id = ?", project.ID).Find(&buckets).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch buckets"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, buckets)
+}
+
+// AdminCreateBucket creates a bucket via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminCreateBucket(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular CreateBucket method
+	h.CreateBucket(c)
+}
+
+// AdminGetBucket gets a bucket via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminGetBucket(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular GetBucket method
+	h.GetBucket(c)
+}
+
+// AdminUpdateBucket updates a bucket via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminUpdateBucket(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular UpdateBucket method
+	h.UpdateBucket(c)
+}
+
+// AdminDeleteBucket deletes a bucket via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminDeleteBucket(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular DeleteBucket method
+	h.DeleteBucket(c)
+}
+
+// AdminListFiles lists files via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminListFiles(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular ListFiles method
+	h.ListFiles(c)
+}
+
+// AdminUploadFile uploads a file via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminUploadFile(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular UploadFile method
+	h.UploadFile(c)
+}
+
+// AdminGetFile gets a file via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminGetFile(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular GetFile method
+	h.GetFile(c)
+}
+
+// AdminMoveFile moves a file via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminMoveFile(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular MoveFile method
+	h.MoveFile(c)
+}
+
+// AdminDeleteFile deletes a file via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminDeleteFile(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular DeleteFile method
+	h.DeleteFile(c)
+}
+
+// AdminListFolders lists folders via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminListFolders(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular ListFolders method
+	h.ListFolders(c)
+}
+
+// AdminCreateFolder creates a folder via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminCreateFolder(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular CreateFolder method
+	h.CreateFolder(c)
+}
+
+// AdminDeleteFolder deletes a folder via admin interface (JWT authenticated)
+func (h *StorageHandler) AdminDeleteFolder(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular DeleteFolder method
+	h.DeleteFolder(c)
+}
+
+// Admin methods for bucket visibility management
+
+// AdminSetBucketVisibility toggles bucket public/private status (JWT authenticated)
+func (h *StorageHandler) AdminSetBucketVisibility(c *gin.Context) {
+	projectID := c.Param("id")
+	bucketName := c.Param("bucket")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	var req struct {
+		IsPublic      bool   `json:"is_public"`
+		ConfirmAction string `json:"confirm_action,omitempty"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+	
+	// Find the bucket
+	var bucket models.Bucket
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	// Update bucket visibility
+	bucket.IsPublic = req.IsPublic
+	bucket.LastModified = time.Now()
+	
+	if err := h.db.Save(&bucket).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bucket visibility"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message":   fmt.Sprintf("Bucket '%s' is now %s", bucketName, map[bool]string{true: "public", false: "private"}[req.IsPublic]),
+		"bucket":    bucket,
+		"is_public": bucket.IsPublic,
+	})
+}
+
+// AdminGetFilePublicURL generates public URL for a file (JWT authenticated)
+func (h *StorageHandler) AdminGetFilePublicURL(c *gin.Context) {
+	projectID := c.Param("id")
+	bucketName := c.Param("bucket")
+	fileID := c.Param("file_id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	var bucket models.Bucket
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	var file models.File
+	if err := h.db.Where("id = ? AND project_id = ? AND bucket_name = ?", fileID, project.ID, bucketName).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+	
+	// Generate public URL
+	var publicURL string
+	if bucket.IsPublic {
+		publicURL = fmt.Sprintf("%s/public/%s/%s/%s", h.cfg.BaseURL, project.Slug, bucketName, file.FilePath)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"public_url": publicURL,
+		"is_public":  bucket.IsPublic,
+		"file":       file,
+		"bucket":     bucket,
+		"shareable_url": publicURL, // Same for now, could be different for signed URLs
+	})
+}
+
+// AdminListPublicBuckets lists all public buckets for a project (JWT authenticated)
+func (h *StorageHandler) AdminListPublicBuckets(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	var buckets []models.Bucket
+	if err := h.db.Where("project_id = ? AND is_public = ?", project.ID, true).Find(&buckets).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public buckets"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, buckets)
+}
+
+// Project API methods for connected apps (API key authentication)
+
+// GetFilePublicURL generates public URL for a file in project API (API key authenticated)
+func (h *StorageHandler) GetFilePublicURL(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	fileID := c.Param("file_id")
+	
+	var bucket models.Bucket
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	var file models.File
+	if err := h.db.Where("id = ? AND project_id = ? AND bucket_name = ?", fileID, project.ID, bucketName).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+	
+	// Generate public URL
+	var publicURL string
+	if bucket.IsPublic {
+		publicURL = fmt.Sprintf("%s/public/%s/%s/%s", h.cfg.BaseURL, project.Slug, bucketName, file.FilePath)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"public_url": publicURL,
+		"is_public":  bucket.IsPublic,
+		"file":       file,
+		"bucket":     bucket,
+		"shareable_url": publicURL,
+	})
+}
+
+// GetBatchFilePublicURLs generates public URLs for multiple files (API key authenticated)
+func (h *StorageHandler) GetBatchFilePublicURLs(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	bucketName := c.Param("bucket")
+	
+	var req struct {
+		FileIDs []string `json:"file_ids"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+	
+	// Check if bucket exists and is public
+	var bucket models.Bucket
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, bucketName).First(&bucket).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bucket not found"})
+		return
+	}
+	
+	// Get files
+	var files []models.File
+	if err := h.db.Where("id IN ? AND project_id = ? AND bucket_name = ?", req.FileIDs, project.ID, bucketName).Find(&files).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch files"})
+		return
+	}
+	
+	// Generate public URLs
+	publicURLs := make(map[string]string)
+	for _, file := range files {
+		if bucket.IsPublic {
+			publicURLs[file.ID] = fmt.Sprintf("%s/public/%s/%s/%s", h.cfg.BaseURL, project.Slug, bucketName, file.FilePath)
+		} else {
+			publicURLs[file.ID] = "" // Empty string for private buckets
+		}
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"public_urls": publicURLs,
+		"is_public":   bucket.IsPublic,
+		"bucket":      bucket,
+		"file_count":  len(files),
+	})
+}

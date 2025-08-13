@@ -272,15 +272,8 @@ func (h *ProjectHandler) ListAPIKeys(c *gin.Context) {
 	// Remove sensitive data from response
 	var safeKeys []gin.H
 	for _, key := range apiKeys {
-		// Mask the key for display (show first 8 and last 4 characters)
-		maskedKey := ""
-		if len(key.Key) > 12 {
-			maskedKey = key.Key[:8] + "..." + key.Key[len(key.Key)-4:]
-		} else if len(key.Key) > 0 {
-			maskedKey = key.Key[:4] + "..." // For shorter keys
-		} else {
-			maskedKey = "••••••••" // For keys where we don't have the plain text
-		}
+		// Since we only store hashed keys for security, show masked placeholder
+		maskedKey := "••••••••••••" // Secure display - no plain text keys stored
 		
 		safeKeys = append(safeKeys, gin.H{
 			"id":           key.ID,
@@ -339,12 +332,10 @@ func (h *ProjectHandler) CreateAPIKey(c *gin.Context) {
 		return
 	}
 
-	// Create API key record with both plain key and hashed key
-	// Plain key is needed for UI display, but we only store the hash for security
+	// Create API key record - only store the hashed version for security
 	key := models.APIKey{
 		Name:        req.Name,
-		Key:         apiKey,        // Store plain key for initial display
-		KeyHash:     string(hashedKey), // Store hashed version for authentication
+		KeyHash:     string(hashedKey), // Only store hashed version for authentication
 		ProjectID:   uint(projectID),
 		Permissions: pq.StringArray(req.Permissions),
 		IsActive:    true,
@@ -463,27 +454,9 @@ func (h *ProjectHandler) UpdateCORSConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "CORS config updated successfully"})
 }
 
-// Project API data handlers (for project-specific APIs)
-
-// GetData handles GET requests to project data
-func (h *ProjectHandler) GetData(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Data API not yet implemented"})
-}
-
-// CreateData handles POST requests to project data
-func (h *ProjectHandler) CreateData(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Data API not yet implemented"})
-}
-
-// UpdateData handles PUT requests to project data
-func (h *ProjectHandler) UpdateData(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Data API not yet implemented"})
-}
-
-// DeleteData handles DELETE requests to project data
-func (h *ProjectHandler) DeleteData(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Data API not yet implemented"})
-}
+// NOTE: Data API methods removed - these are handled by DataHandler
+// Project data access is routed through /p/:project_slug/api/data/* endpoints 
+// which use the DataHandler, not ProjectHandler
 
 // ProjectStatsResponse represents project statistics
 type ProjectStatsResponse struct {

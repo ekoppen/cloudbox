@@ -485,3 +485,160 @@ func isValidCollectionName(name string) bool {
 	
 	return true
 }
+
+// Admin methods for collections management via JWT admin routes
+
+// AdminListCollections lists collections for admin management (JWT authenticated)
+func (h *DataHandler) AdminListCollections(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	var collections []models.Collection
+	if err := h.db.Where("project_id = ?", project.ID).Find(&collections).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch collections"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, collections)
+}
+
+// AdminCreateCollection creates a collection via admin interface (JWT authenticated)
+func (h *DataHandler) AdminCreateCollection(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular CreateCollection method
+	h.CreateCollection(c)
+}
+
+// AdminGetCollection gets a collection via admin interface (JWT authenticated)
+func (h *DataHandler) AdminGetCollection(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular GetCollection method
+	h.GetCollection(c)
+}
+
+// AdminDeleteCollection deletes a collection via admin interface (JWT authenticated)
+func (h *DataHandler) AdminDeleteCollection(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular DeleteCollection method
+	h.DeleteCollection(c)
+}
+
+// AdminListDocuments lists documents via admin interface (JWT authenticated)
+func (h *DataHandler) AdminListDocuments(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular ListDocuments method
+	h.ListDocuments(c)
+}
+
+// AdminCreateDocument creates a document via admin interface (JWT authenticated)
+func (h *DataHandler) AdminCreateDocument(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular CreateDocument method
+	h.CreateDocument(c)
+}
+
+// AdminGetDocument gets a document via admin interface (JWT authenticated)
+func (h *DataHandler) AdminGetDocument(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular GetDocument method
+	h.GetDocument(c)
+}
+
+// AdminUpdateDocument updates a document via admin interface (JWT authenticated)
+func (h *DataHandler) AdminUpdateDocument(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular UpdateDocument method
+	h.UpdateDocument(c)
+}
+
+// AdminDeleteDocument deletes a document via admin interface (JWT authenticated)
+func (h *DataHandler) AdminDeleteDocument(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular DeleteDocument method
+	h.DeleteDocument(c)
+}

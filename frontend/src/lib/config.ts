@@ -69,37 +69,43 @@ export const API_ENDPOINTS = {
       // Storage endpoints for project admin - consistent with project ID approach
       storage: {
         buckets: {
-          list: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets`,
-          create: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets`,
-          get: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}`,
-          update: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}`,
-          delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}`,
+          list: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets`,
+          create: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets`,
+          get: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}`,
+          update: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}`,
+          delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}`,
         },
         files: {
-          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files`,
-          upload: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files`,
-          get: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}`,
-          delete: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}`,
-          move: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}/move`,
+          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/files`,
+          upload: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/files`,
+          get: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}`,
+          delete: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}`,
+          move: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}/move`,
         },
         folders: {
-          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
-          create: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
-          delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/storage/buckets/${bucketName}/folders`,
+          list: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/folders`,
+          create: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/folders`,
+          delete: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/folders`,
         }
+      },
+      // Public access management for admin
+      visibility: {
+        set: (projectId: string, bucketName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/visibility`,
+        publicUrl: (projectId: string, bucketName: string, fileId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/buckets/${bucketName}/files/${fileId}/public-url`,
+        publicBuckets: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/storage/public-buckets`,
       },
       // Collections endpoints for project admin
       collections: {
-        list: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections`,
-        create: (projectId: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections`,
-        get: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}`,
-        delete: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}`,
+        list: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections`,
+        create: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections`,
+        get: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}`,
+        delete: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}`,
         documents: {
-          list: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents`,
-          create: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents`,
-          get: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents/${id}`,
-          update: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents/${id}`,
-          delete: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/admin/projects/${projectId}/collections/${collection}/documents/${id}`,
+          list: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}/documents`,
+          create: (projectId: string, collection: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}/documents`,
+          get: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}/documents/${id}`,
+          update: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}/documents/${id}`,
+          delete: (projectId: string, collection: string, id: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/collections/${collection}/documents/${id}`,
         }
       }
     },
@@ -145,4 +151,14 @@ export function handleApiError(error: Error, showToast: (message: string) => voi
     showToast('Netwerkfout bij communicatie met server');
     return true;
   }
+}
+
+// Helper function to generate public URLs for files
+export function generatePublicFileUrl(projectSlug: string, bucketName: string, filePath: string): string {
+  return `${API_BASE_URL}/public/${projectSlug}/${bucketName}/${filePath}`;
+}
+
+// Helper function to check if a bucket is public (for UI state)
+export function isBucketPublic(bucket: any): boolean {
+  return bucket && bucket.is_public === true;
 }

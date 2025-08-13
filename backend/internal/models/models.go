@@ -186,8 +186,7 @@ type APIKey struct {
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 	
 	Name        string     `json:"name" gorm:"not null"`
-	Key         string     `json:"key" gorm:"uniqueIndex;not null"`
-	KeyHash     string     `json:"-" gorm:"not null"`
+	KeyHash     string     `json:"-" gorm:"uniqueIndex;not null"` // Only store hashed version
 	IsActive    bool       `json:"is_active" gorm:"default:true"`
 	LastUsedAt  *time.Time `json:"last_used_at"`
 	ExpiresAt   *time.Time `json:"expires_at"`

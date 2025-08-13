@@ -1,19 +1,25 @@
 package router
 
 import (
-	"net/http"
-	"strings"
-
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/handlers"
 	"github.com/cloudbox/backend/internal/middleware"
-	"github.com/cloudbox/backend/internal/models"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-// Initialize creates and configures the router
+// Initialize creates and configures the CloudBox API router
+// 
+// Router implements API Architecture Standards:
+// - Global Admin APIs:      /api/v1/{resource}         (JWT authentication)
+// - Project Management:     /api/v1/projects/{id}/{resource} (JWT authentication)  
+// - Project Data APIs:      /p/{project_slug}/api/{resource} (API Key authentication)
+// - Public Project APIs:    /p/{project_slug}/api/{resource} (No authentication)
+//
+// Authentication Standards:
+// - JWT Bearer Token: Admin/Management endpoints (/api/v1/*)
+// - API Key (X-API-Key): Project data operations (/p/{slug}/api/*)
+// - Single auth method per route group (no mixed authentication)
 func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r := gin.New()
 
@@ -21,7 +27,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	
-	// Global CORS middleware for all requests
+	// Global CORS middleware for admin and standard API requests
 	r.Use(middleware.CORS(cfg))
 	
 	// Initialize handlers
@@ -43,8 +49,13 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	templateHandler := handlers.NewTemplateHandler(db, cfg)
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(db, cfg)
 	projectGitHubHandler := handlers.NewProjectGitHubHandler(db, cfg)
+	publicFileHandler := handlers.NewPublicFileHandler(db, cfg)
 
-	// Health check
+	// ===========================================
+	// SYSTEM & HEALTH ENDPOINTS
+	// ===========================================
+	
+	// Health check endpoint (no authentication required)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
@@ -53,15 +64,31 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		})
 	})
 
+	// ===========================================
+	// PUBLIC WEBHOOK ENDPOINTS
+	// ===========================================
 	
-
 	// Public webhook endpoint (no authentication required)
 	webhooks := r.Group("/api/v1/deploy")
 	{
 		webhooks.POST("/webhook/:repo_id", deploymentHandler.HandleWebhook)
 	}
 
-	// API routes
+	// ===========================================
+	// PUBLIC FILE SERVING ENDPOINTS
+	// ===========================================
+	
+	// Public file access (no authentication required)
+	public := r.Group("/public")
+	{
+		public.GET("/:project_slug/:bucket_name/*file_path", publicFileHandler.ServePublicFile)
+	}
+
+	// ===========================================
+	// GLOBAL ADMIN API ROUTES (/api/v1/*)
+	// JWT Bearer Token Authentication Required
+	// ===========================================
+	
 	api := r.Group("/api/v1")
 	{
 		// Authentication routes
@@ -204,6 +231,43 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.POST("/:id/github/config/test", projectGitHubHandler.TestProjectGitHubConfig)
 				projects.GET("/:id/github/instructions", projectGitHubHandler.GetProjectGitHubInstructions)
 				
+				// Admin Storage management endpoints
+				projects.GET("/:id/storage/buckets", storageHandler.AdminListBuckets)
+				projects.POST("/:id/storage/buckets", storageHandler.AdminCreateBucket)
+				projects.GET("/:id/storage/buckets/:bucket", storageHandler.AdminGetBucket)
+				projects.PUT("/:id/storage/buckets/:bucket", storageHandler.AdminUpdateBucket)
+				projects.DELETE("/:id/storage/buckets/:bucket", storageHandler.AdminDeleteBucket)
+				
+				// Admin File management endpoints
+				projects.GET("/:id/storage/buckets/:bucket/files", storageHandler.AdminListFiles)
+				projects.POST("/:id/storage/buckets/:bucket/files", storageHandler.AdminUploadFile)
+				projects.GET("/:id/storage/buckets/:bucket/files/:file_id", storageHandler.AdminGetFile)
+				projects.PUT("/:id/storage/buckets/:bucket/files/:file_id/move", storageHandler.AdminMoveFile)
+				projects.DELETE("/:id/storage/buckets/:bucket/files/:file_id", storageHandler.AdminDeleteFile)
+				
+				// Admin Folder management endpoints
+				projects.GET("/:id/storage/buckets/:bucket/folders", storageHandler.AdminListFolders)
+				projects.POST("/:id/storage/buckets/:bucket/folders", storageHandler.AdminCreateFolder)
+				projects.DELETE("/:id/storage/buckets/:bucket/folders", storageHandler.AdminDeleteFolder)
+				
+				// Admin Collections management endpoints
+				projects.GET("/:id/collections", dataHandler.AdminListCollections)
+				projects.POST("/:id/collections", dataHandler.AdminCreateCollection)
+				projects.GET("/:id/collections/:collection", dataHandler.AdminGetCollection)
+				projects.DELETE("/:id/collections/:collection", dataHandler.AdminDeleteCollection)
+				
+				// Admin Documents management endpoints
+				projects.GET("/:id/collections/:collection/documents", dataHandler.AdminListDocuments)
+				projects.POST("/:id/collections/:collection/documents", dataHandler.AdminCreateDocument)
+				projects.GET("/:id/collections/:collection/documents/:document_id", dataHandler.AdminGetDocument)
+				projects.PUT("/:id/collections/:collection/documents/:document_id", dataHandler.AdminUpdateDocument)
+				projects.DELETE("/:id/collections/:collection/documents/:document_id", dataHandler.AdminDeleteDocument)
+				
+				// Admin bucket visibility management endpoints
+				projects.PUT("/:id/storage/buckets/:bucket/visibility", storageHandler.AdminSetBucketVisibility)
+				projects.GET("/:id/storage/buckets/:bucket/files/:file_id/public-url", storageHandler.AdminGetFilePublicURL)
+				projects.GET("/:id/storage/public-buckets", storageHandler.AdminListPublicBuckets)
+				
 				// Messaging API (simplified - only endpoints that frontend uses)
 				projects.GET("/:id/messaging/messages", messagingHandler.ListAllMessages)
 				projects.GET("/:id/messaging/templates", messagingHandler.ListTemplates)
@@ -281,115 +345,18 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			}
 		}
 		
-		// Admin project endpoints (separate from protected group to handle both JWT and API key auth)
-		adminProjects := api.Group("/admin/projects/:id")
-		adminProjects.Use(func(c *gin.Context) {
-			// Enhanced middleware to load project by ID and support both JWT and API key auth
-			projectID := c.Param("id")
-			if projectID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Project ID required"})
-				c.Abort()
-				return
-			}
-			
-			var project models.Project
-			if err := db.Where("id = ?", projectID).First(&project).Error; err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
-				c.Abort()
-				return
-			}
-			
-			// Check for API key authentication first
-			apiKey := c.GetHeader("X-API-Key")
-			if apiKey != "" {
-				// Validate API key for this project
-				var apiKeys []models.APIKey
-				if err := db.Where("project_id = ? AND is_active = true", project.ID).Find(&apiKeys).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-					c.Abort()
-					return
-				}
-				
-				// Check each API key hash (keys are stored hashed for security)
-				validKey := false
-				for _, k := range apiKeys {
-					if err := bcrypt.CompareHashAndPassword([]byte(k.KeyHash), []byte(apiKey)); err == nil {
-						validKey = true
-						break
-					}
-				}
-				
-				if !validKey {
-					c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
-					c.Abort()
-					return
-				}
-				
-				// API key authentication successful - set context for handlers
-				c.Set("auth_method", "api_key")
-				c.Set("project", project)
-				c.Next()
-				return
-			}
-			
-			// Check for JWT authentication
-			authHeader := c.GetHeader("Authorization")
-			if authHeader != "" {
-				// Extract token from "Bearer <token>"
-				parts := strings.SplitN(authHeader, " ", 2)
-				if len(parts) == 2 && parts[0] == "Bearer" {
-					// Parse and validate token (simplified version)
-					// In production, use proper JWT validation
-					c.Set("auth_method", "jwt")
-					c.Set("project", project)
-					c.Next()
-					return
-				}
-			}
-			
-			// No valid authentication found
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required (JWT Bearer token or X-API-Key)"})
-			c.Abort()
-		})
-		{
-			// Storage management
-			adminProjects.GET("/storage/buckets", storageHandler.ListBuckets)
-			adminProjects.POST("/storage/buckets", storageHandler.CreateBucket)
-			adminProjects.GET("/storage/buckets/:bucket", storageHandler.GetBucket)
-			adminProjects.PUT("/storage/buckets/:bucket", storageHandler.UpdateBucket)
-			adminProjects.DELETE("/storage/buckets/:bucket", storageHandler.DeleteBucket)
-			
-			// File management
-			adminProjects.GET("/storage/buckets/:bucket/files", storageHandler.ListFiles)
-			adminProjects.POST("/storage/buckets/:bucket/files", storageHandler.UploadFile)
-			adminProjects.GET("/storage/buckets/:bucket/files/:file_id", storageHandler.GetFile)
-			adminProjects.PUT("/storage/buckets/:bucket/files/:file_id/move", storageHandler.MoveFile)
-			adminProjects.DELETE("/storage/buckets/:bucket/files/:file_id", storageHandler.DeleteFile)
-			
-			// Folder management
-			adminProjects.GET("/storage/buckets/:bucket/folders", storageHandler.ListFolders)
-			adminProjects.POST("/storage/buckets/:bucket/folders", storageHandler.CreateFolder)
-			adminProjects.DELETE("/storage/buckets/:bucket/folders", storageHandler.DeleteFolder)
-			
-			// Database management (collections and documents)
-			adminProjects.GET("/collections", dataHandler.ListCollections)
-			adminProjects.POST("/collections", dataHandler.CreateCollection)
-			adminProjects.GET("/collections/:collection", dataHandler.GetCollection)
-			adminProjects.DELETE("/collections/:collection", dataHandler.DeleteCollection)
-			
-			// Document management
-			adminProjects.GET("/collections/:collection/documents", dataHandler.ListDocuments)
-			adminProjects.POST("/collections/:collection/documents", dataHandler.CreateDocument)
-			adminProjects.GET("/collections/:collection/documents/:id", dataHandler.GetDocument)
-			adminProjects.PUT("/collections/:collection/documents/:id", dataHandler.UpdateDocument)
-			adminProjects.DELETE("/collections/:collection/documents/:id", dataHandler.DeleteDocument)
-		}
+		// Note: Collection management moved to project data API routes
+		// Admin can access collections via /p/{project_slug}/api/collections with proper auth
 	}
 
-	// Project API routes (project-specific namespaced APIs)
-	// Protected project routes (authentication required)
+	// ===========================================
+	// PROJECT DATA API ROUTES (/p/{slug}/api/*)
+	// API Key (X-API-Key) Authentication Required
+	// ===========================================
+	
+	// Protected project routes (API key authentication required)
 	projectAPI := r.Group("/p/:project_slug/api")
-	projectAPI.Use(middleware.ProjectAuthOrJWT(cfg, db))
+	projectAPI.Use(middleware.ProjectAuthOrJWT(cfg, db)) // API key authentication
 	projectAPI.Use(middleware.ProjectCORS(cfg, db))
 	{
 		// Collections management
@@ -398,19 +365,12 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.GET("/collections/:collection", dataHandler.GetCollection)
 		projectAPI.DELETE("/collections/:collection", dataHandler.DeleteCollection)
 		
-		// Documents management (legacy /data endpoints for compatibility)
+		// Documents management (standardized endpoints)
 		projectAPI.GET("/data/:collection", dataHandler.ListDocuments)
 		projectAPI.POST("/data/:collection", dataHandler.CreateDocument)
 		projectAPI.GET("/data/:collection/:id", dataHandler.GetDocument)
 		projectAPI.PUT("/data/:collection/:id", dataHandler.UpdateDocument)
 		projectAPI.DELETE("/data/:collection/:id", dataHandler.DeleteDocument)
-		
-		// Documents management (new /documents endpoints)
-		projectAPI.GET("/documents/:collection", dataHandler.ListDocuments)
-		projectAPI.POST("/documents/:collection", dataHandler.CreateDocument)
-		projectAPI.GET("/documents/:collection/:id", dataHandler.GetDocument)
-		projectAPI.PUT("/documents/:collection/:id", dataHandler.UpdateDocument)
-		projectAPI.DELETE("/documents/:collection/:id", dataHandler.DeleteDocument)
 		
 		// Storage management
 		projectAPI.GET("/storage/buckets", storageHandler.ListBuckets)
@@ -431,6 +391,10 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.POST("/storage/:bucket/folders", storageHandler.CreateFolder)
 		projectAPI.DELETE("/storage/:bucket/folders", storageHandler.DeleteFolder)
 		
+		// Public URL generation for connected apps
+		projectAPI.GET("/storage/:bucket/files/:file_id/public-url", storageHandler.GetFilePublicURL)
+		projectAPI.POST("/storage/:bucket/files/batch-public-urls", storageHandler.GetBatchFilePublicURLs)
+		
 		// User management
 		projectAPI.GET("/users", userHandler.ListUsers)
 		projectAPI.POST("/users", userHandler.CreateUser)
@@ -438,12 +402,10 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.PUT("/users/:user_id", userHandler.UpdateUser)
 		projectAPI.DELETE("/users/:user_id", userHandler.DeleteUser)
 		
-		// User authentication (authenticated endpoints only)
+		// User authentication and session management
 		projectAPI.POST("/users/logout", userHandler.LogoutUser)
 		projectAPI.GET("/users/me", userHandler.GetCurrentUser)
 		projectAPI.PUT("/users/:user_id/password", userHandler.ChangePassword)
-		
-		// Session management
 		projectAPI.GET("/users/:user_id/sessions", userHandler.ListSessions)
 		projectAPI.DELETE("/users/:user_id/sessions/:session_id", userHandler.RevokeSession)
 		
@@ -515,6 +477,11 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		}
 	}
 
+	// ===========================================
+	// PUBLIC PROJECT API ROUTES (/p/{slug}/api/*)
+	// No Authentication Required
+	// ===========================================
+	
 	// Public project routes (no authentication required) - registered AFTER protected routes
 	projectPublic := r.Group("/p/:project_slug/api")
 	projectPublic.Use(middleware.ProjectOnly(cfg, db)) // Only validate project exists
@@ -524,6 +491,10 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectPublic.POST("/users/login", userHandler.LoginUser)
 	}
 
+	// ===========================================
+	// STATIC FILE SERVING
+	// ===========================================
+	
 	// Static file serving for deployments
 	r.Static("/static", "./uploads/deployments")
 	
