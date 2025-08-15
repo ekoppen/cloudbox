@@ -79,11 +79,19 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	// Generate unique slug from name
 	slug := generateSlug(req.Name)
 	
-	// Ensure slug is unique
+	// Ensure slug is unique among non-deleted projects
+	// With our partial unique index, we only need to check active (non-deleted) projects
 	var count int64
-	h.db.Model(&models.Project{}).Where("slug = ?", slug).Count(&count)
+	h.db.Model(&models.Project{}).Where("slug = ? AND deleted_at IS NULL", slug).Count(&count)
 	if count > 0 {
-		slug = fmt.Sprintf("%s-%d", slug, count+1)
+		// Find the next available slug by checking incrementally
+		originalSlug := slug
+		counter := 1
+		for count > 0 {
+			slug = fmt.Sprintf("%s-%d", originalSlug, counter)
+			h.db.Model(&models.Project{}).Where("slug = ? AND deleted_at IS NULL", slug).Count(&count)
+			counter++
+		}
 	}
 
 	// Validate organization (required)

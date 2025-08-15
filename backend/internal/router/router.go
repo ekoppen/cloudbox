@@ -374,6 +374,25 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectAPI.PUT("/data/:collection/:id", dataHandler.UpdateDocument)
 		projectAPI.DELETE("/data/:collection/:id", dataHandler.DeleteDocument)
 		
+		// Generic documents endpoints (BaaS standard - alias to /data/{collection})
+		projectAPI.GET("/documents/:collection", dataHandler.ListDocuments)
+		projectAPI.POST("/documents/:collection", dataHandler.CreateDocument)
+		projectAPI.GET("/documents/:collection/:id", dataHandler.GetDocument)
+		projectAPI.PUT("/documents/:collection/:id", dataHandler.UpdateDocument)
+		projectAPI.DELETE("/documents/:collection/:id", dataHandler.DeleteDocument)
+		
+		// Advanced document operations (BaaS standard)
+		projectAPI.POST("/data/:collection/query", dataHandler.QueryDocuments)
+		projectAPI.GET("/data/:collection/count", dataHandler.CountDocuments)
+		projectAPI.POST("/data/:collection/batch", dataHandler.BatchCreateDocuments)
+		projectAPI.DELETE("/data/:collection/batch", dataHandler.BatchDeleteDocuments)
+		
+		// Advanced document operations (documents alias)
+		projectAPI.POST("/documents/:collection/query", dataHandler.QueryDocuments)
+		projectAPI.GET("/documents/:collection/count", dataHandler.CountDocuments)
+		projectAPI.POST("/documents/:collection/batch", dataHandler.BatchCreateDocuments)
+		projectAPI.DELETE("/documents/:collection/batch", dataHandler.BatchDeleteDocuments)
+		
 		// Storage management
 		projectAPI.GET("/storage/buckets", storageHandler.ListBuckets)
 		projectAPI.POST("/storage/buckets", storageHandler.CreateBucket)

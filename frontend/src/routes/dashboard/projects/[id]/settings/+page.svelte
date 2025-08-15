@@ -125,9 +125,13 @@
         console.error('Failed to load API keys:', response.status, response.statusText);
         const errorData = await response.json();
         console.error('Error data:', errorData);
+        // Set loaded to true even if no keys exist, to stop spinner
+        apiKeysLoaded = true;
       }
     } catch (err) {
       console.error('Error loading API keys:', err);
+      // Set loaded to true even on error, to stop spinner
+      apiKeysLoaded = true;
     }
   }
 
@@ -536,7 +540,7 @@
         }"
       >
         <Icon name="settings" size={16} />
-        <span>Notities</span>
+        <span>Algemeen</span>
       </button>
     </nav>
   </div>
@@ -765,14 +769,14 @@
   {#if activeTab === 'general'}
     <div class="space-y-6">
       <div>
-        <h2 class="text-lg font-medium text-foreground">Project Notities</h2>
-        <p class="text-sm text-muted-foreground">Bewaar notities en opmerkingen over dit project</p>
+        <h2 class="text-lg font-medium text-foreground">Algemene Instellingen</h2>
+        <p class="text-sm text-muted-foreground">Project notities en andere algemene instellingen</p>
       </div>
 
       <Card class="p-6">
         <form on:submit|preventDefault={saveProjectNotes} class="space-y-6">
           <div>
-            <Label for="project-notes">Notities</Label>
+            <Label for="project-notes">Project Notities</Label>
             <Textarea
               id="project-notes"
               bind:value={projectNotes}
@@ -796,7 +800,7 @@
               {:else}
                 <Icon name="backup" size={16} />
               {/if}
-              <span>{savingNotes ? 'Opslaan...' : 'Notities Opslaan'}</span>
+              <span>{savingNotes ? 'Opslaan...' : 'Opslaan'}</span>
             </Button>
           </div>
         </form>

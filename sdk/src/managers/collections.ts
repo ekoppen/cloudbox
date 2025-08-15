@@ -125,30 +125,33 @@ export class CollectionManager {
     collection: string, 
     query: QueryOptions
   ): Promise<PaginatedResponse<Document>> {
-    const params: any = {};
+    const requestBody: any = {};
     
-    if (query.limit) params.limit = query.limit;
-    if (query.offset) params.offset = query.offset;
-    if (query.select) params.select = query.select.join(',');
+    if (query.limit) requestBody.limit = query.limit;
+    if (query.offset) requestBody.offset = query.offset;
+    if (query.select) requestBody.select = query.select;
     
     if (query.filters) {
-      query.filters.forEach((filter, index) => {
-        params[`filter[${index}][field]`] = filter.field;
-        params[`filter[${index}][operator]`] = filter.operator;
-        params[`filter[${index}][value]`] = filter.value;
-      });
+      requestBody.filters = query.filters.map(filter => ({
+        field: filter.field,
+        operator: filter.operator,
+        value: filter.value
+      }));
     }
     
     if (query.sort) {
-      query.sort.forEach((sort, index) => {
-        params[`sort[${index}][field]`] = sort.field;
-        params[`sort[${index}][direction]`] = sort.direction;
-      });
+      requestBody.sort = query.sort.map(sort => ({
+        field: sort.field,
+        direction: sort.direction
+      }));
     }
 
     return this.client.request<PaginatedResponse<Document>>(
       `/data/${collection}/query`, 
-      { params }
+      { 
+        method: 'POST',
+        body: requestBody
+      }
     );
   }
 

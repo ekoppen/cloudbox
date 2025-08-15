@@ -432,6 +432,252 @@ func (h *DataHandler) DeleteDocument(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
 }
 
+// QueryDocuments handles advanced document querying with filters and sorting
+func (h *DataHandler) QueryDocuments(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	collectionName := c.Param("collection")
+	
+	// Verify collection exists
+	if !h.collectionExists(project.ID, collectionName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
+	
+	// Parse request body for query options
+	var queryReq struct {
+		Limit     int                      `json:"limit"`
+		Offset    int                      `json:"offset"`
+		Select    []string                 `json:"select"`
+		Filters   []map[string]interface{} `json:"filters"`
+		Sort      []map[string]string      `json:"sort"`
+	}
+	
+	if err := c.ShouldBindJSON(&queryReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+	
+	// Set defaults
+	if queryReq.Limit <= 0 || queryReq.Limit > 100 {
+		queryReq.Limit = 25
+	}
+	if queryReq.Offset < 0 {
+		queryReq.Offset = 0
+	}
+	
+	// Build base query
+	query := h.db.Where("project_id = ? AND collection_name = ?", project.ID, collectionName)
+	
+	// Apply filters (simplified for security)
+	for _, filter := range queryReq.Filters {
+		if field, exists := filter["field"].(string); exists {
+			if operator, exists := filter["operator"].(string); exists {
+				if value, exists := filter["value"]; exists {
+					switch operator {
+					case "eq", "=":
+						// Use JSON containment for safe filtering
+						filterJSON := fmt.Sprintf(`{"%s": %s}`, field, fmt.Sprintf("%v", value))
+						query = query.Where("data @> ?", filterJSON)
+					case "like":
+						// Safe text search
+						query = query.Where("data->>? ILIKE ?", field, fmt.Sprintf("%%%v%%", value))
+					}
+				}
+			}
+		}
+	}
+	
+	// Apply sorting
+	orderBy := "created_at DESC"
+	for _, sort := range queryReq.Sort {
+		if field, exists := sort["field"]; exists {
+			if direction, exists := sort["direction"]; exists && (direction == "ASC" || direction == "DESC") {
+				if field == "created_at" || field == "updated_at" {
+					orderBy = fmt.Sprintf("%s %s", field, direction)
+					break
+				}
+			}
+		}
+	}
+	
+	var documents []models.Document
+	if err := query.Order(orderBy).Limit(queryReq.Limit).Offset(queryReq.Offset).Find(&documents).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Query failed"})
+		return
+	}
+	
+	// Get total count
+	var total int64
+	query.Model(&models.Document{}).Count(&total)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"data":     documents,
+		"total":    total,
+		"limit":    queryReq.Limit,
+		"offset":   queryReq.Offset,
+	})
+}
+
+// CountDocuments returns document count for a collection
+func (h *DataHandler) CountDocuments(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	collectionName := c.Param("collection")
+	
+	// Verify collection exists
+	if !h.collectionExists(project.ID, collectionName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
+	
+	var count int64
+	if err := h.db.Model(&models.Document{}).Where("project_id = ? AND collection_name = ?", project.ID, collectionName).Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Count failed"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
+// BatchCreateDocuments creates multiple documents at once
+func (h *DataHandler) BatchCreateDocuments(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	collectionName := c.Param("collection")
+	
+	// Verify collection exists
+	if !h.collectionExists(project.ID, collectionName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
+	
+	// Parse request body
+	var batchReq struct {
+		Documents []map[string]interface{} `json:"documents" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&batchReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid batch request"})
+		return
+	}
+	
+	// Validate batch size
+	if len(batchReq.Documents) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No documents provided"})
+		return
+	}
+	if len(batchReq.Documents) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Batch size too large (max 100 documents)"})
+		return
+	}
+	
+	// Get API key info for author
+	apiKey := c.MustGet("api_key").(models.APIKey)
+	author := fmt.Sprintf("api_key:%s", apiKey.Name)
+	
+	// Prepare documents for batch insert
+	var documents []models.Document
+	for _, data := range batchReq.Documents {
+		// Sanitize document data
+		delete(data, "id")
+		delete(data, "_sql")
+		delete(data, "__proto__")
+		delete(data, "constructor")
+		
+		// Generate ID
+		docID := uuid.New().String()
+		if id, exists := data["id"]; exists {
+			if idStr, ok := id.(string); ok && idStr != "" {
+				docID = idStr
+			}
+		}
+		delete(data, "id")
+		
+		documents = append(documents, models.Document{
+			ID:             docID,
+			CollectionName: collectionName,
+			ProjectID:      project.ID,
+			Data:           data,
+			Version:        1,
+			Author:         author,
+		})
+	}
+	
+	// Use transaction for batch creation
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	
+	if err := tx.CreateInBatches(documents, 50).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Batch creation failed"})
+		return
+	}
+	
+	// Update collection stats
+	if err := h.updateCollectionStatsInTx(tx, project.ID, collectionName); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update collection stats"})
+		return
+	}
+	
+	tx.Commit()
+	
+	c.JSON(http.StatusCreated, gin.H{
+		"documents": documents,
+		"count":     len(documents),
+	})
+}
+
+// BatchDeleteDocuments deletes multiple documents by IDs
+func (h *DataHandler) BatchDeleteDocuments(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	collectionName := c.Param("collection")
+	
+	// Verify collection exists
+	if !h.collectionExists(project.ID, collectionName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
+	
+	// Parse request body
+	var batchReq struct {
+		IDs []string `json:"ids" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&batchReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid batch delete request"})
+		return
+	}
+	
+	// Validate batch size
+	if len(batchReq.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No document IDs provided"})
+		return
+	}
+	if len(batchReq.IDs) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Batch size too large (max 100 documents)"})
+		return
+	}
+	
+	// Delete documents
+	result := h.db.Where("project_id = ? AND collection_name = ? AND id IN ?", project.ID, collectionName, batchReq.IDs).Delete(&models.Document{})
+	
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Batch deletion failed"})
+		return
+	}
+	
+	// Update collection stats
+	h.updateCollectionStats(project.ID, collectionName)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Documents deleted successfully",
+		"count":   result.RowsAffected,
+	})
+}
+
 // Helper functions
 
 // collectionExists checks if a collection exists

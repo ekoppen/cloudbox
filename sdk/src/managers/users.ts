@@ -76,7 +76,7 @@ export class UserManager {
    * Authenticate a user with email and password
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    return this.client.request<LoginResponse>('/auth/login', {
+    return this.client.request<LoginResponse>('/users/login', {
       method: 'POST',
       body: credentials
     });
@@ -86,7 +86,7 @@ export class UserManager {
    * Register a new user (if registration is enabled)
    */
   async register(userData: CreateUserRequest): Promise<LoginResponse> {
-    return this.client.request<LoginResponse>('/auth/register', {
+    return this.client.request<LoginResponse>('/users/register', {
       method: 'POST',
       body: userData
     });
@@ -96,7 +96,7 @@ export class UserManager {
    * Logout a user (invalidate token)
    */
   async logout(token: string): Promise<void> {
-    await this.client.request('/auth/logout', {
+    await this.client.request('/users/logout', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`

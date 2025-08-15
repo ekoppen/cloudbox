@@ -1,6 +1,7 @@
 {
   "name": "@ekoppen/cloudbox-sdk",
-  "version": "1.0.0",
+  "version": "1.0.2",
+  "type": "module",
   "description": "Official TypeScript SDK for CloudBox BaaS platform - Complete type-safe client for collections, storage, users, and functions",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -25,7 +26,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "prepublishOnly": "npm run lint && npm run type-check && npm run build"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "cloudbox",

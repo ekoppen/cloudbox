@@ -35,14 +35,16 @@ export default [
     output: {
       file: 'dist/index.esm.js',
       format: 'esm',
-      sourcemap: true
+      sourcemap: true,
+      exports: 'named'
     },
     plugins: [
       resolve({ browser: true, preferBuiltins: false }),
       commonjs(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       }),
       !isDev && terser()
     ].filter(Boolean),
@@ -57,6 +59,7 @@ export default [
       format: 'umd',
       name: 'CloudBoxSDK',
       sourcemap: true,
+      exports: 'named',
       globals: {}
     },
     plugins: [
@@ -64,7 +67,8 @@ export default [
       commonjs(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       }),
       !isDev && terser()
     ].filter(Boolean),

@@ -46,7 +46,9 @@ func Migrate(db *gorm.DB) error {
 		return fmt.Errorf("failed to migrate projects with organization: %w", err)
 	}
 
-	// Continue with the rest of the migrations
+	// Continue with the rest of the migrations 
+	// Note: We skip creating unique constraints for projects.slug
+	// because we use a partial unique index (migration 010)
 	if err := db.AutoMigrate(
 		&models.Project{},
 		&models.ProjectGitHubConfig{},
@@ -81,6 +83,11 @@ func Migrate(db *gorm.DB) error {
 	// Post-migration: Apply NOT NULL constraint after data migration
 	if err := ApplyProjectOrganizationConstraints(db); err != nil {
 		return fmt.Errorf("failed to apply organization constraints: %w", err)
+	}
+
+	// Post-migration: Remove any full unique constraint on slug that GORM might have created
+	if err := EnsurePartialSlugConstraint(db); err != nil {
+		return fmt.Errorf("failed to ensure partial slug constraint: %w", err)
 	}
 
 	return nil
@@ -217,6 +224,42 @@ func ApplyProjectOrganizationConstraints(db *gorm.DB) error {
 		log.Printf("Could not apply NOT NULL constraint to organization_id: %v", err)
 	} else {
 		log.Printf("Successfully applied NOT NULL constraint to projects.organization_id")
+	}
+
+	return nil
+}
+
+// EnsurePartialSlugConstraint ensures we have the correct partial unique constraint and removes full constraints
+func EnsurePartialSlugConstraint(db *gorm.DB) error {
+	// Drop any full unique constraint that GORM might have created
+	constraints := []string{"idx_projects_slug", "projects_slug_key", "projects_slug_idx"}
+	
+	for _, constraint := range constraints {
+		// Try to drop as constraint first
+		if err := db.Exec("ALTER TABLE projects DROP CONSTRAINT IF EXISTS " + constraint).Error; err != nil {
+			log.Printf("Could not drop constraint %s: %v", constraint, err)
+		}
+		
+		// Try to drop as index
+		if err := db.Exec("DROP INDEX IF EXISTS " + constraint).Error; err != nil {
+			log.Printf("Could not drop index %s: %v", constraint, err)
+		}
+	}
+
+	// Ensure our partial unique index exists
+	var count int64
+	if err := db.Raw("SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'projects' AND indexname = 'idx_projects_slug_unique_active'").Scan(&count).Error; err != nil {
+		log.Printf("Could not check for partial unique index: %v", err)
+		return nil
+	}
+
+	if count == 0 {
+		// Create the partial unique index if it doesn't exist
+		if err := db.Exec("CREATE UNIQUE INDEX idx_projects_slug_unique_active ON projects(slug) WHERE deleted_at IS NULL").Error; err != nil {
+			log.Printf("Could not create partial unique index: %v", err)
+		} else {
+			log.Printf("Created partial unique index idx_projects_slug_unique_active")
+		}
 	}
 
 	return nil

@@ -133,7 +133,7 @@ type Project struct {
 	
 	Name        string `json:"name" gorm:"not null"`
 	Description string `json:"description"`
-	Slug        string `json:"slug" gorm:"uniqueIndex;not null"`
+	Slug        string `json:"slug" gorm:"not null"`
 	Notes       string `json:"notes" gorm:"type:text"` // Project notes
 	IsActive    bool   `json:"is_active" gorm:"default:true"`
 	
@@ -700,6 +700,10 @@ type Function struct {
 	// Runtime info
 	BuildLogs      string `json:"build_logs" gorm:"type:text"`
 	DeploymentLogs string `json:"deployment_logs" gorm:"type:text"`
+	
+	// Relationships
+	ProjectID uint    `json:"project_id" gorm:"not null;uniqueIndex:idx_project_function_name"`
+	Project   Project `json:"project,omitempty"`
 }
 
 // TemplateDeployment represents a deployment created from a template

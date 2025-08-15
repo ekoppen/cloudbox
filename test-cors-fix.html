@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CloudBox CORS Test</title>
+</head>
+<body>
+    <h1>CloudBox CORS Test</h1>
+    <button onclick="testWrongEndpoint()">Test Wrong Endpoint (/auth/login)</button>
+    <button onclick="testCorrectEndpoint()">Test Correct Endpoint (/users/login)</button>
+    <pre id="results"></pre>
+
+    <script>
+        const log = (message) => {
+            document.getElementById('results').textContent += message + '\n';
+        };
+
+        const testWrongEndpoint = async () => {
+            log('Testing wrong endpoint /p/3/api/auth/login...');
+            try {
+                const response = await fetch('http://localhost:8080/p/3/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'test@test.com',
+                        password: 'test'
+                    })
+                });
+                log(`Response: ${response.status} ${response.statusText}`);
+                const data = await response.text();
+                log(`Data: ${data}`);
+            } catch (error) {
+                log(`Error: ${error.message}`);
+            }
+        };
+
+        const testCorrectEndpoint = async () => {
+            log('Testing correct endpoint /p/3/api/users/login...');
+            try {
+                const response = await fetch('http://localhost:8080/p/3/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'test@test.com',
+                        password: 'test'
+                    })
+                });
+                log(`Response: ${response.status} ${response.statusText}`);
+                const data = await response.text();
+                log(`Data: ${data}`);
+            } catch (error) {
+                log(`Error: ${error.message}`);
+            }
+        };
+    </script>
+</body>
+</html>
