@@ -227,7 +227,7 @@ type Collection struct {
 	
 	Name        string         `json:"name" gorm:"not null"`
 	Description string         `json:"description"`
-	Schema      []string `json:"schema" gorm:"type:jsonb;serializer:json"` // JSON schema for validation
+	Schema      map[string]interface{} `json:"schema" gorm:"type:jsonb;serializer:json"` // JSON schema for validation
 	Indexes     []string `json:"indexes" gorm:"type:jsonb;serializer:json"` // Database indexes
 	
 	// Project relation
@@ -1045,6 +1045,309 @@ type AuditLog struct {
 	// Success/failure
 	Success   bool   `json:"success" gorm:"default:true"`
 	ErrorMsg  string `json:"error_msg,omitempty"`
+}
+
+// PluginRegistry represents a plugin in the registry
+type PluginRegistry struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Plugin identification
+	Name         string `json:"name" gorm:"uniqueIndex;not null"`
+	Version      string `json:"version" gorm:"not null"`
+	Description  string `json:"description"`
+	Author       string `json:"author" gorm:"not null"`
+	Repository   string `json:"repository" gorm:"not null"`
+	License      string `json:"license"`
+	Type         string `json:"type" gorm:"default:'dashboard-plugin'"`
+	MainFile     string `json:"main_file"`
+
+	// Security and validation
+	Checksum    string `json:"checksum"`
+	Signature   string `json:"signature"`
+	IsVerified  bool   `json:"is_verified" gorm:"default:false"`
+	IsApproved  bool   `json:"is_approved" gorm:"default:false"`
+
+	// Metadata
+	Permissions      pq.StringArray         `json:"permissions" gorm:"type:text[]"`
+	Dependencies     map[string]interface{} `json:"dependencies" gorm:"type:jsonb;serializer:json"`
+	UIConfig         map[string]interface{} `json:"ui_config" gorm:"type:jsonb;serializer:json"`
+
+	// Status and lifecycle
+	Status        string    `json:"status" gorm:"default:'available'"`
+	DownloadCount int       `json:"download_count" gorm:"default:0"`
+	InstallCount  int       `json:"install_count" gorm:"default:0"`
+	PublishedAt   *time.Time `json:"published_at"`
+	DeprecatedAt  *time.Time `json:"deprecated_at"`
+
+	// Registry metadata
+	RegistrySource   string                 `json:"registry_source" gorm:"default:'github'"`
+	SourceMetadata   map[string]interface{} `json:"source_metadata" gorm:"type:jsonb;serializer:json"`
+}
+
+// PluginInstallation represents an installed plugin in a project
+type PluginInstallation struct {
+	ID            uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Plugin information
+	PluginName    string `json:"plugin_name" gorm:"not null"`
+	PluginVersion string `json:"plugin_version" gorm:"not null"`
+	ProjectID     uint   `json:"project_id" gorm:"not null"`
+
+	// Installation state
+	Status           string `json:"status" gorm:"default:'disabled'"`
+	InstallationPath string `json:"installation_path"`
+
+	// Installation metadata
+	InstalledBy      uint       `json:"installed_by" gorm:"not null"`
+	InstalledAt      time.Time  `json:"installed_at"`
+	LastEnabledAt    *time.Time `json:"last_enabled_at"`
+	LastDisabledAt   *time.Time `json:"last_disabled_at"`
+
+	// Configuration
+	Config      map[string]interface{} `json:"config" gorm:"type:jsonb;serializer:json"`
+	Environment map[string]interface{} `json:"environment" gorm:"type:jsonb;serializer:json"`
+
+	// Error tracking
+	ErrorMessage  string     `json:"error_message"`
+	LastErrorAt   *time.Time `json:"last_error_at"`
+
+	// Relationships
+	Project Project `json:"project,omitempty"`
+}
+
+// PluginState represents real-time plugin state
+type PluginState struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Plugin identification
+	PluginName string `json:"plugin_name" gorm:"not null"`
+	ProjectID  uint   `json:"project_id" gorm:"not null"`
+
+	// Current state
+	CurrentStatus string `json:"current_status" gorm:"default:'disabled'"`
+	ProcessID     *int   `json:"process_id"`
+	Port          *int   `json:"port"`
+
+	// Health monitoring
+	LastHealthCheck *time.Time             `json:"last_health_check"`
+	HealthStatus    string                 `json:"health_status" gorm:"default:'unknown'"`
+	HealthDetails   map[string]interface{} `json:"health_details" gorm:"type:jsonb;serializer:json"`
+
+	// Performance metrics
+	CPUUsage      *float64 `json:"cpu_usage"`
+	MemoryUsage   *int64   `json:"memory_usage"`
+	UptimeSeconds *int     `json:"uptime_seconds"`
+
+	// State transitions
+	StateChangedAt time.Time `json:"state_changed_at"`
+	StateChangedBy *uint     `json:"state_changed_by"`
+
+	// Relationships
+	Project Project `json:"project,omitempty"`
+}
+
+// ApprovedRepository represents an approved plugin repository
+type ApprovedRepository struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Repository information
+	RepositoryURL   string `json:"repository_url" gorm:"uniqueIndex;not null"`
+	RepositoryOwner string `json:"repository_owner" gorm:"not null"`
+	RepositoryName  string `json:"repository_name" gorm:"not null"`
+
+	// Approval metadata
+	ApprovedBy     uint   `json:"approved_by" gorm:"not null"`
+	ApprovedAt     time.Time `json:"approved_at"`
+	ApprovalReason string `json:"approval_reason"`
+
+	// Repository metadata
+	RepositoryType string `json:"repository_type" gorm:"default:'github'"`
+	IsOfficial     bool   `json:"is_official" gorm:"default:false"`
+	TrustLevel     int    `json:"trust_level" gorm:"default:1"`
+
+	// Status
+	IsActive           bool       `json:"is_active" gorm:"default:true"`
+	LastValidatedAt    *time.Time `json:"last_validated_at"`
+	ValidationStatus   string     `json:"validation_status" gorm:"default:'pending'"`
+
+	// Security tracking
+	SecurityIssues     []string   `json:"security_issues" gorm:"type:jsonb;serializer:json"`
+	LastSecurityScan   *time.Time `json:"last_security_scan"`
+}
+
+// PluginDownload represents a plugin download/installation attempt
+type PluginDownload struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Plugin information
+	PluginName    string `json:"plugin_name" gorm:"not null"`
+	PluginVersion string `json:"plugin_version" gorm:"not null"`
+	ProjectID     uint   `json:"project_id" gorm:"not null"`
+	UserID        uint   `json:"user_id" gorm:"not null"`
+
+	// Download details
+	DownloadSource string `json:"download_source" gorm:"not null"`
+	DownloadStatus string `json:"download_status" gorm:"default:'started'"`
+
+	// File information
+	FileSize           *int64 `json:"file_size"`
+	DownloadTimeMs     *int   `json:"download_time_ms"`
+	ChecksumVerified   bool   `json:"checksum_verified" gorm:"default:false"`
+	SignatureVerified  bool   `json:"signature_verified" gorm:"default:false"`
+
+	// Error tracking
+	ErrorMessage string `json:"error_message"`
+	ErrorCode    string `json:"error_code"`
+
+	// Network information
+	ClientIP  string `json:"client_ip"`
+	UserAgent string `json:"user_agent"`
+
+	// Timestamps
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at"`
+	FailedAt    *time.Time `json:"failed_at"`
+
+	// Relationships
+	Project Project `json:"project,omitempty"`
+	User    User    `json:"user,omitempty"`
+}
+
+// PluginAuditLog represents security audit trail for plugin operations (from plugins.go)
+type PluginAuditLog struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	UserID      uint      `json:"user_id"`
+	UserEmail   string    `json:"user_email"`
+	Action      string    `json:"action"`      // enable, disable, install, uninstall
+	PluginName  string    `json:"plugin_name"`
+	OldStatus   string    `json:"old_status,omitempty"`
+	NewStatus   string    `json:"new_status,omitempty"`
+	IPAddress   string    `json:"ip_address"`
+	UserAgent   string    `json:"user_agent"`
+	Success     bool      `json:"success"`
+	ErrorMsg    string    `json:"error_msg,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// PluginSubmission represents a plugin submission for marketplace approval
+type PluginSubmission struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Plugin information
+	PluginName    string                 `json:"plugin_name" gorm:"not null"`
+	Repository    string                 `json:"repository" gorm:"not null"`
+	Version       string                 `json:"version" gorm:"not null"`
+	Description   string                 `json:"description" gorm:"not null"`
+	Author        string                 `json:"author" gorm:"not null"`
+	Category      string                 `json:"category" gorm:"not null"`
+	Tags          pq.StringArray         `json:"tags" gorm:"type:text[]"`
+	License       string                 `json:"license" gorm:"not null"`
+	Website       string                 `json:"website"`
+	SupportEmail  string                 `json:"support_email" gorm:"not null"`
+	Screenshots   pq.StringArray         `json:"screenshots" gorm:"type:text[]"`
+	DemoURL       string                 `json:"demo_url"`
+	Permissions   pq.StringArray         `json:"permissions" gorm:"type:text[]"`
+	Dependencies  map[string]interface{} `json:"dependencies" gorm:"type:jsonb;serializer:json"`
+	Configuration map[string]interface{} `json:"configuration" gorm:"type:jsonb;serializer:json"`
+
+	// Submission status
+	Status         string `json:"status" gorm:"default:'submitted'"` // submitted, reviewing, approved, rejected
+	ReviewComments string `json:"review_comments"`
+	ReviewScore    int    `json:"review_score"`
+
+	// Submission metadata
+	SubmittedBy uint      `json:"submitted_by" gorm:"not null"`
+	SubmittedAt time.Time `json:"submitted_at"`
+	ReviewedBy  uint      `json:"reviewed_by"`
+	ReviewedAt  time.Time `json:"reviewed_at"`
+
+	// Relationships
+	Submitter User `json:"submitter,omitempty"`
+	Reviewer  User `json:"reviewer,omitempty"`
+}
+
+// RepositoryApprovalRequest represents a request to approve a repository for plugin submissions
+type RepositoryApprovalRequest struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Repository information
+	RepositoryURL    string `json:"repository_url" gorm:"not null"`
+	OrganizationName string `json:"organization_name" gorm:"not null"`
+	ContactEmail     string `json:"contact_email" gorm:"not null"`
+	SecurityLevel    string `json:"security_level"`
+	AutoApprove      bool   `json:"auto_approve"`
+	Verified         bool   `json:"verified"`
+	Reason           string `json:"reason" gorm:"not null"`
+
+	// Request status
+	Status         string `json:"status" gorm:"default:'pending'"` // pending, approved, rejected
+	ReviewComments string `json:"review_comments"`
+
+	// Request metadata
+	RequestedBy uint      `json:"requested_by" gorm:"not null"`
+	RequestedAt time.Time `json:"requested_at"`
+	ReviewedBy  uint      `json:"reviewed_by"`
+	ReviewedAt  time.Time `json:"reviewed_at"`
+
+	// Relationships
+	Requester User `json:"requester,omitempty"`
+	Reviewer  User `json:"reviewer,omitempty"`
+}
+
+// PluginMarketplace represents a plugin in the marketplace
+type PluginMarketplace struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Plugin information
+	PluginName   string                 `json:"plugin_name" gorm:"uniqueIndex;not null"`
+	Repository   string                 `json:"repository" gorm:"not null"`
+	Version      string                 `json:"version" gorm:"not null"`
+	Description  string                 `json:"description" gorm:"not null"`
+	Author       string                 `json:"author" gorm:"not null"`
+	Category     string                 `json:"category" gorm:"not null"`
+	Tags         pq.StringArray         `json:"tags" gorm:"type:text[]"`
+	License      string                 `json:"license" gorm:"not null"`
+	Website      string                 `json:"website"`
+	SupportEmail string                 `json:"support_email" gorm:"not null"`
+	Screenshots  pq.StringArray         `json:"screenshots" gorm:"type:text[]"`
+	DemoURL      string                 `json:"demo_url"`
+	Permissions  pq.StringArray         `json:"permissions" gorm:"type:text[]"`
+	Dependencies map[string]interface{} `json:"dependencies" gorm:"type:jsonb;serializer:json"`
+
+	// Marketplace metadata
+	Verified     bool   `json:"verified" gorm:"default:false"`
+	Official     bool   `json:"official" gorm:"default:false"`
+	Featured     bool   `json:"featured" gorm:"default:false"`
+	Status       string `json:"status" gorm:"default:'active'"` // active, deprecated, removed
+	Rating       float64 `json:"rating" gorm:"default:0"`
+	DownloadCount int   `json:"download_count" gorm:"default:0"`
+
+	// Timestamps
+	PublishedAt time.Time `json:"published_at"`
 }
 
 // AfterFind hook to populate computed fields

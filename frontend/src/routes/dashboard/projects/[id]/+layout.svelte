@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
+  import { pluginManager, dynamicProjectMenuItems } from '$lib/stores/plugins';
   import Icon from '$lib/components/ui/icon.svelte';
   
   interface Project {
@@ -29,7 +30,16 @@
 
   onMount(() => {
     loadProject();
+    
+    // Load plugins for dynamic menu items
+    pluginManager.loadPlugins();
   });
+
+  // Watch for projectId changes and reload plugins if needed
+  $: if (projectId) {
+    console.log('Project ID changed, reloading plugins for context:', projectId);
+    pluginManager.loadPlugins();
+  }
 
   async function loadProject() {
     loading = true;
@@ -58,7 +68,7 @@
   }
 
   // Navigation items Appwrite-style - make reactive so they update when projectId changes
-  $: navItems = [
+  $: staticNavItems = [
     { id: 'overview', name: 'Overzicht', icon: 'dashboard', href: `/dashboard/projects/${projectId}` },
     { id: 'database', name: 'Database', icon: 'database', href: `/dashboard/projects/${projectId}/database` },
     { id: 'auth', name: 'Authenticatie', icon: 'auth', href: `/dashboard/projects/${projectId}/auth` },
@@ -79,6 +89,16 @@
       ]
     },
     { id: 'settings', name: 'Instellingen', icon: 'settings', href: `/dashboard/projects/${projectId}/settings` },
+  ];
+
+  // Combine static nav items with dynamic plugin items
+  $: navItems = [
+    ...staticNavItems.slice(0, 2), // overview, database
+    ...($dynamicProjectMenuItems || []).map(plugin => ({
+      ...plugin,
+      href: plugin.href.replace('{projectId}', projectId)
+    })), // Plugin items after database
+    ...staticNavItems.slice(2) // rest of static items
   ];
 
   $: currentPath = $page.url.pathname;

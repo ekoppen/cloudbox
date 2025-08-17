@@ -1,7 +1,10 @@
 import { PUBLIC_API_URL } from '$env/static/public';
+import { dev } from '$app/environment';
 
-// API Configuration - use relative URL for proxy in development, fallback to full URL
-export const API_BASE_URL = PUBLIC_API_URL ? PUBLIC_API_URL : '';
+// API Configuration - use localhost backend in development, env var in production
+export const API_BASE_URL = dev ? 'http://localhost:8080' : (PUBLIC_API_URL || '');
+
+console.log('Config: dev mode:', dev, 'API_BASE_URL:', API_BASE_URL);
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -115,7 +118,20 @@ export const API_ENDPOINTS = {
       restart: `${API_BASE_URL}/api/v1/admin/system/restart`,
       clearCache: `${API_BASE_URL}/api/v1/admin/system/clear-cache`,
       backup: `${API_BASE_URL}/api/v1/admin/system/backup`,
+    },
+    plugins: {
+      list: `${API_BASE_URL}/api/v1/admin/plugins`,
+      install: `${API_BASE_URL}/api/v1/admin/plugins/install`,
+      enable: (name: string) => `${API_BASE_URL}/api/v1/admin/plugins/${name}/enable`,
+      disable: (name: string) => `${API_BASE_URL}/api/v1/admin/plugins/${name}/disable`,
+      uninstall: (name: string) => `${API_BASE_URL}/api/v1/admin/plugins/${name}`,
+      reload: `${API_BASE_URL}/api/v1/admin/plugins/reload`,
+      marketplace: `${API_BASE_URL}/api/v1/admin/plugins/marketplace`,
+      search: `${API_BASE_URL}/api/v1/admin/plugins/marketplace/search`,
     }
+  },
+  plugins: {
+    active: `${API_BASE_URL}/api/v1/plugins/active`,
   }
 } as const;
 

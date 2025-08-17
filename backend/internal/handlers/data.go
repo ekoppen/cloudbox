@@ -48,10 +48,10 @@ func (h *DataHandler) CreateCollection(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	
 	var req struct {
-		Name        string   `json:"name" binding:"required"`
-		Description string   `json:"description"`
-		Schema      []string `json:"schema"`
-		Indexes     []string `json:"indexes"`
+		Name        string                 `json:"name" binding:"required"`
+		Description string                 `json:"description"`
+		Schema      map[string]interface{} `json:"schema"`
+		Indexes     []string               `json:"indexes"`
 	}
 	
 	if err := c.ShouldBindJSON(&req); err != nil {

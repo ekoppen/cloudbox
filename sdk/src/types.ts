@@ -49,13 +49,20 @@ export interface Collection {
   id: number;
   name: string;
   description?: string;
-  schema: SchemaField[];
-  indexes: string[];
+  schema?: Record<string, SchemaField> | Record<string, any>;
+  indexes?: string[];
   project_id: number;
   document_count: number;
   last_modified: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateCollectionRequest {
+  name: string;
+  description?: string;
+  schema?: Record<string, SchemaField> | Record<string, any>;
+  indexes?: string[];
 }
 
 export interface SchemaField {
@@ -91,8 +98,37 @@ export interface UpdateDocumentRequest {
 export interface ListDocumentsOptions {
   limit?: number;
   offset?: number;
-  sort?: string;
-  filter?: Record<string, any>;
+  orderBy?: string;
+  filter?: string | Record<string, any>;
+}
+
+export interface ListDocumentsResponse {
+  documents: Document[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface CountDocumentsResponse {
+  count: number;
+}
+
+export interface BatchCreateRequest {
+  documents: CreateDocumentRequest[];
+}
+
+export interface BatchCreateResponse {
+  documents: Document[];
+  count: number;
+}
+
+export interface BatchDeleteRequest {
+  ids: string[];
+}
+
+export interface BatchDeleteResponse {
+  message: string;
+  count: number;
 }
 
 // ===============================
@@ -163,6 +199,53 @@ export interface BatchPublicUrlsResponse {
   is_public: boolean;
   bucket: Bucket;
   file_count: number;
+}
+
+// ===============================
+// AUTHENTICATION TYPES
+// ===============================
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+  token: string;
+  refresh_token: string;
+  expires_at: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name?: string;
+  role: string;
+  is_active: boolean;
+  last_login_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RefreshTokenRequest {
+  refresh_token: string;
+}
+
+export interface UpdateProfileRequest {
+  name?: string;
+  email?: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
 }
 
 // ===============================

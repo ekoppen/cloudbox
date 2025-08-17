@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -205,12 +204,9 @@ func (h *TemplateHandler) setupCollection(projectID uint, template CollectionTem
 	var existingCollection models.Collection
 	if err := h.db.Where("project_id = ? AND name = ?", projectID, template.Name).First(&existingCollection).Error; err == nil {
 		// Collection exists, update it
-		schemaJSON, _ := json.Marshal(template.Schema)
-		indexesJSON, _ := json.Marshal(template.Indexes)
-		
 		existingCollection.Description = template.Description
-		existingCollection.Schema = []string{string(schemaJSON)}
-		existingCollection.Indexes = []string{string(indexesJSON)}
+		existingCollection.Schema = template.Schema
+		existingCollection.Indexes = template.Indexes
 		existingCollection.LastModified = time.Now()
 		
 		if err := h.db.Save(&existingCollection).Error; err != nil {
@@ -226,14 +222,11 @@ func (h *TemplateHandler) setupCollection(projectID uint, template CollectionTem
 	}
 
 	// Create new collection
-	schemaJSON, _ := json.Marshal(template.Schema)
-	indexesJSON, _ := json.Marshal(template.Indexes)
-	
 	collection := models.Collection{
 		Name:          template.Name,
 		Description:   template.Description,
-		Schema:        []string{string(schemaJSON)},
-		Indexes:       []string{string(indexesJSON)},
+		Schema:        template.Schema,
+		Indexes:       template.Indexes,
 		ProjectID:     projectID,
 		DocumentCount: 0,
 		LastModified:  time.Now(),

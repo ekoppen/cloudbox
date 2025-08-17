@@ -1,23 +1,24 @@
-# CloudBox SDK for TypeScript/JavaScript
+# 🚀 CloudBox SDK v2.0
 
-[![NPM Version](https://img.shields.io/npm/v/@ekoppen/cloudbox-sdk.svg)](https://www.npmjs.com/package/@ekoppen/cloudbox-sdk)
+**Production-ready TypeScript SDK for CloudBox BaaS platform**
+
+[![npm version](https://badge.fury.io/js/@ekoppen%2Fcloudbox-sdk.svg)](https://badge.fury.io/js/@ekoppen%2Fcloudbox-sdk)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/npm/l/@ekoppen/cloudbox-sdk.svg)](https://github.com/ekoppen/cloudbox/blob/main/sdk/typescript/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Official TypeScript/JavaScript SDK for CloudBox BaaS (Backend-as-a-Service) platform. Build powerful applications with collections, storage, authentication, and serverless functions.
+CloudBox SDK provides a complete, type-safe interface to the CloudBox Backend-as-a-Service platform. Build modern applications with authentication, real-time data, file storage, and serverless functions.
 
 > 📍 **Location**: This SDK is part of the [CloudBox monorepo](https://github.com/ekoppen/cloudbox) at `/sdk/typescript/`
 
-## 🚀 Features
+## 🌟 Features
 
-- **🔒 Type-Safe**: Full TypeScript support with comprehensive type definitions
-- **📊 Collections**: NoSQL database with schemas, queries, and relationships  
-- **📁 Storage**: File storage with buckets, public access, and metadata
-- **👥 Users**: Authentication, registration, and user management
-- **⚡ Functions**: Serverless function execution and management
-- **🌐 Cross-Platform**: Works in Node.js, browsers, React Native, and more
-- **📦 Lightweight**: Minimal dependencies, optimized bundle size
-- **🛠️ Developer-Friendly**: Intuitive API with comprehensive error handling
+- **🔐 Complete Authentication** - JWT-based user auth with registration, login, profile management
+- **📊 Advanced Queries** - MongoDB-style queries with filtering, sorting, and pagination  
+- **🚀 Batch Operations** - Efficient bulk create/delete operations
+- **🏗️ Schema Validation** - Type-safe collection schemas with validation
+- **💾 File Storage** - Bucket-based file management with public/private access
+- **⚡ TypeScript First** - Full type safety with comprehensive interfaces
+- **🔄 Backward Compatible** - Smooth migration from v1.x
 
 ## 📦 Installation
 

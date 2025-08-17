@@ -15,6 +15,7 @@ export { CollectionManager } from './managers/collections';
 export { StorageManager } from './managers/storage';
 export { UserManager } from './managers/users';
 export { FunctionManager } from './managers/functions';
+export { AuthManager } from './managers/auth';
 
 // Export all types
 export * from './types';

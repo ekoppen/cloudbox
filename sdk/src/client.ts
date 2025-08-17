@@ -18,6 +18,7 @@ import { CollectionManager } from './managers/collections';
 import { StorageManager } from './managers/storage';
 import { UserManager } from './managers/users';
 import { FunctionManager } from './managers/functions';
+import { AuthManager } from './managers/auth';
 
 /**
  * Main CloudBox SDK Client
@@ -55,12 +56,14 @@ import { FunctionManager } from './managers/functions';
 export class CloudBoxClient {
   private readonly config: Required<CloudBoxConfig>;
   private readonly baseUrl: string;
+  private authToken?: string;
   
   // Service managers
   public readonly collections: CollectionManager;
   public readonly storage: StorageManager;
   public readonly users: UserManager;
   public readonly functions: FunctionManager;
+  public readonly auth: AuthManager;
 
   /**
    * Create a new CloudBox client instance
@@ -92,6 +95,7 @@ export class CloudBoxClient {
     this.storage = new StorageManager(this);
     this.users = new UserManager(this);
     this.functions = new FunctionManager(this);
+    this.auth = new AuthManager(this);
   }
 
   /**
@@ -111,15 +115,32 @@ export class CloudBoxClient {
    * ```
    */
   async request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    // Determine if this is an admin/auth endpoint
+    const isAdminEndpoint = path.startsWith('/api/v1/');
+    const url = isAdminEndpoint 
+      ? `${this.config.endpoint}${path}` 
+      : `${this.baseUrl}${path}`;
     
     // Prepare request headers with authentication
     const headers: Record<string, string> = {
-      'X-API-Key': this.config.apiKey,
       'Content-Type': 'application/json',
       'User-Agent': 'CloudBoxSDK/1.0.0',
       ...options.headers
     };
+
+    // Add appropriate authentication header
+    if (isAdminEndpoint) {
+      // Admin endpoints use Bearer token if available, otherwise API key
+      const authToken = options.headers?.['Authorization'] || this.authToken;
+      if (authToken) {
+        headers['Authorization'] = authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`;
+      } else {
+        headers['X-API-Key'] = this.config.apiKey;
+      }
+    } else {
+      // Project endpoints use API key
+      headers['X-API-Key'] = this.config.apiKey;
+    }
 
     // Prepare request body
     let body: string | FormData | undefined;
@@ -301,5 +322,46 @@ export class CloudBoxClient {
       ...this.config,
       ...config
     });
+  }
+
+  /**
+   * Set authentication token for admin/auth requests
+   * 
+   * @param token - JWT token from login response
+   * 
+   * @example
+   * ```typescript
+   * const { token } = await client.auth.login({ 
+   *   email: 'user@example.com', 
+   *   password: 'password' 
+   * });
+   * 
+   * client.setAuthToken(token);
+   * ```
+   */
+  setAuthToken(token: string): void {
+    this.authToken = token;
+  }
+
+  /**
+   * Clear authentication token
+   * 
+   * @example
+   * ```typescript
+   * await client.auth.logout();
+   * client.clearAuthToken();
+   * ```
+   */
+  clearAuthToken(): void {
+    this.authToken = undefined;
+  }
+
+  /**
+   * Get current authentication token
+   * 
+   * @returns Current auth token or undefined
+   */
+  getAuthToken(): string | undefined {
+    return this.authToken;
   }
 }

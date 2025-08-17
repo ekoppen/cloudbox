@@ -16,6 +16,8 @@ A self-hosted Backend-as-a-Service (BaaS) platform that provides essential backe
 🛠 **Developer Tools**
 - **Admin Dashboard** - Real-time statistics and system health monitoring
 - **Project Management** - Multi-project organization with encrypted API keys
+- **Plugin Marketplace** - GitHub-based plugin ecosystem with security validation
+- **Script Runner** - Universal SQL/JavaScript execution with project templates
 - **User Analytics** - Growth metrics and usage statistics based on actual data
 - **System Monitoring** - Live performance tracking and resource utilization
 - **SSH Management** - Secure SSH key management with host verification
@@ -101,6 +103,8 @@ open http://localhost:3000
 
 - [Getting Started](./docs/getting-started.md)
 - [Installation Guide](./docs/installation.md)
+- [Plugin System](./docs/PLUGIN_SYSTEM.md)
+- [Plugin Marketplace](./docs/PLUGIN_MARKETPLACE.md)
 - [API Reference](./docs/api-reference.md)
 - [SDK Documentation](./docs/sdk.md)
 - [Configuration](./docs/configuration.md)

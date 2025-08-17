@@ -1,0 +1,48 @@
+{
+  "name": "cloudbox-script-runner",
+  "version": "1.0.0",
+  "description": "Universal Script Runner for CloudBox - Database scripts en project setup (zoals Supabase SQL Editor)",
+  "author": "CloudBox Development Team",
+  "type": "dashboard-plugin",
+  "main": "index.js",
+  "dependencies": {
+    "cloudbox-sdk": "^1.0.0"
+  },
+  "permissions": [
+    "database:read",
+    "database:write", 
+    "functions:deploy",
+    "webhooks:create",
+    "scheduler:create",
+    "projects:manage"
+  ],
+  "ui": {
+    "dashboard_tab": {
+      "title": "Script Runner",
+      "icon": "terminal",
+      "path": "/script-runner"
+    },
+    "project_menu": {
+      "title": "Database Scripts",
+      "icon": "database",
+      "path": "/project/{projectId}/scripts"
+    }
+  },
+  "features": [
+    "sql-execution",
+    "javascript-execution", 
+    "project-setup-automation",
+    "dependency-management",
+    "rollback-support",
+    "template-library",
+    "multi-project-support"
+  ],
+  "configuration": {
+    "default_timeout": 300000,
+    "max_script_size": "1MB",
+    "enable_rollback": true,
+    "audit_logging": true,
+    "supported_databases": ["mysql", "postgresql", "sqlite"],
+    "supported_script_types": ["sql", "javascript", "setup", "migration"]
+  }
+}

@@ -11,8 +11,16 @@ import {
   CreateDocumentRequest,
   UpdateDocumentRequest,
   ListDocumentsOptions,
-  PaginatedResponse,
-  QueryOptions
+  ListDocumentsResponse,
+  CountDocumentsResponse,
+  BatchCreateRequest,
+  BatchCreateResponse,
+  BatchDeleteRequest,
+  BatchDeleteResponse,
+  CreateCollectionRequest,
+  QueryOptions,
+  QueryFilter,
+  QuerySort
 } from '../types';
 
 import type { CloudBoxClient } from '../client';
@@ -35,20 +43,49 @@ export class CollectionManager {
   }
 
   /**
-   * Create a new collection
+   * Create a new collection with schema validation
+   * 
+   * @param data - Collection creation data
+   * @returns Promise resolving to created collection
+   * 
+   * @example
+   * ```typescript
+   * const collection = await client.collections.create({
+   *   name: 'goals',
+   *   description: 'User goals collection',
+   *   schema: {
+   *     user_id: { type: 'string', required: true },
+   *     title: { type: 'string', required: true, maxLength: 100 },
+   *     is_active: { type: 'boolean', default: true }
+   *   },
+   *   indexes: ['user_id', 'created_at']
+   * });
+   * ```
    */
-  async create(
+  async create(data: CreateCollectionRequest): Promise<Collection> {
+    return this.client.request<Collection>('/collections', {
+      method: 'POST',
+      body: data
+    });
+  }
+
+  /**
+   * Create a new collection (legacy method - backward compatibility)
+   * 
+   * @deprecated Use create(data: CreateCollectionRequest) instead
+   */
+  async createLegacy(
     name: string, 
     schema: SchemaField[] = [], 
     description?: string
   ): Promise<Collection> {
-    return this.client.request<Collection>('/collections', {
-      method: 'POST',
-      body: {
-        name,
-        schema,
-        description
-      }
+    return this.create({
+      name,
+      description,
+      schema: schema.reduce((acc, field) => {
+        acc[field.name] = field;
+        return acc;
+      }, {} as Record<string, SchemaField>)
     });
   }
 
@@ -64,13 +101,30 @@ export class CollectionManager {
   // DOCUMENT OPERATIONS
 
   /**
-   * List documents in a collection
+   * List documents in a collection with pagination
+   * 
+   * @param collection - Collection name
+   * @param options - List options (limit, offset, orderBy, filter)
+   * @returns Promise resolving to paginated documents response
+   * 
+   * @example
+   * ```typescript
+   * const response = await client.collections.listDocuments('goals', {
+   *   limit: 25,
+   *   offset: 0,
+   *   orderBy: 'created_at DESC',
+   *   filter: JSON.stringify({ user_id: 'user123' })
+   * });
+   * 
+   * console.log(response.documents); // Array of documents
+   * console.log(response.total);     // Total count
+   * ```
    */
   async listDocuments(
     collection: string, 
     options: ListDocumentsOptions = {}
-  ): Promise<Document[]> {
-    return this.client.request<Document[]>(`/data/${collection}`, {
+  ): Promise<ListDocumentsResponse> {
+    return this.client.request<ListDocumentsResponse>(`/data/${collection}`, {
       params: options
     });
   }
@@ -120,11 +174,30 @@ export class CollectionManager {
 
   /**
    * Query documents with advanced filtering and sorting
+   * 
+   * @param collection - Collection name
+   * @param query - Query options with filters, sorting, pagination
+   * @returns Promise resolving to query results
+   * 
+   * @example
+   * ```typescript
+   * const results = await client.collections.query('goals', {
+   *   filters: [
+   *     { field: 'user_id', operator: 'eq', value: 'user123' },
+   *     { field: 'is_active', operator: 'eq', value: true }
+   *   ],
+   *   sort: [
+   *     { field: 'created_at', direction: 'desc' }
+   *   ],
+   *   limit: 10,
+   *   offset: 0
+   * });
+   * ```
    */
   async query(
     collection: string, 
     query: QueryOptions
-  ): Promise<PaginatedResponse<Document>> {
+  ): Promise<{ data: Document[]; total: number; limit: number; offset: number }> {
     const requestBody: any = {};
     
     if (query.limit) requestBody.limit = query.limit;
@@ -146,7 +219,7 @@ export class CollectionManager {
       }));
     }
 
-    return this.client.request<PaginatedResponse<Document>>(
+    return this.client.request<{ data: Document[]; total: number; limit: number; offset: number }>(
       `/data/${collection}/query`, 
       { 
         method: 'POST',
@@ -157,10 +230,20 @@ export class CollectionManager {
 
   /**
    * Count documents in a collection
+   * 
+   * @param collection - Collection name
+   * @param filter - Optional filter to count specific documents
+   * @returns Promise resolving to document count
+   * 
+   * @example
+   * ```typescript
+   * const totalGoals = await client.collections.count('goals');
+   * const activeGoals = await client.collections.count('goals', { is_active: true });
+   * ```
    */
   async count(collection: string, filter?: Record<string, any>): Promise<number> {
-    const params = filter ? { filter } : {};
-    const result = await this.client.request<{ count: number }>(
+    const params = filter ? { filter: JSON.stringify(filter) } : {};
+    const result = await this.client.request<CountDocumentsResponse>(
       `/data/${collection}/count`, 
       { params }
     );
@@ -168,25 +251,123 @@ export class CollectionManager {
   }
 
   /**
-   * Create multiple documents at once
+   * Create multiple documents at once (batch operation)
+   * 
+   * @param collection - Collection name
+   * @param documents - Array of documents to create
+   * @returns Promise resolving to created documents with count
+   * 
+   * @example
+   * ```typescript
+   * const result = await client.collections.batchCreate('goals', [
+   *   { title: 'Goal 1', user_id: 'user123' },
+   *   { title: 'Goal 2', user_id: 'user123' },
+   *   { title: 'Goal 3', user_id: 'user123' }
+   * ]);
+   * 
+   * console.log(`Created ${result.count} documents`);
+   * ```
    */
-  async createMany(
+  async batchCreate(
     collection: string, 
     documents: CreateDocumentRequest[]
-  ): Promise<Document[]> {
-    return this.client.request<Document[]>(`/data/${collection}/batch`, {
+  ): Promise<BatchCreateResponse> {
+    return this.client.request<BatchCreateResponse>(`/data/${collection}/batch`, {
       method: 'POST',
       body: { documents }
     });
   }
 
   /**
-   * Delete multiple documents by IDs
+   * Delete multiple documents by IDs (batch operation)
+   * 
+   * @param collection - Collection name
+   * @param ids - Array of document IDs to delete
+   * @returns Promise resolving to deletion result
+   * 
+   * @example
+   * ```typescript
+   * const result = await client.collections.batchDelete('goals', [
+   *   'goal1', 'goal2', 'goal3'
+   * ]);
+   * 
+   * console.log(result.message); // "Documents deleted successfully"
+   * ```
    */
-  async deleteMany(collection: string, ids: string[]): Promise<void> {
-    await this.client.request(`/data/${collection}/batch`, {
+  async batchDelete(collection: string, ids: string[]): Promise<BatchDeleteResponse> {
+    return this.client.request<BatchDeleteResponse>(`/data/${collection}/batch`, {
       method: 'DELETE',
       body: { ids }
     });
+  }
+
+  // Legacy methods for backward compatibility
+  
+  /**
+   * @deprecated Use batchCreate instead
+   */
+  async createMany(collection: string, documents: CreateDocumentRequest[]): Promise<Document[]> {
+    const result = await this.batchCreate(collection, documents);
+    return result.documents;
+  }
+
+  /**
+   * @deprecated Use batchDelete instead
+   */
+  async deleteMany(collection: string, ids: string[]): Promise<void> {
+    await this.batchDelete(collection, ids);
+  }
+
+  /**
+   * MongoDB-style find method for easier migration
+   * 
+   * @param collection - Collection name
+   * @param options - MongoDB-style find options
+   * @returns Promise resolving to documents
+   * 
+   * @example
+   * ```typescript
+   * const goals = await client.collections.find('goals', {
+   *   filter: { user_id: 'user123', is_active: true },
+   *   sort: { created_at: -1 },
+   *   limit: 10,
+   *   skip: 0
+   * });
+   * ```
+   */
+  async find(
+    collection: string, 
+    options: {
+      filter?: Record<string, any>;
+      sort?: Record<string, 1 | -1>;
+      limit?: number;
+      skip?: number;
+      select?: string[];
+    } = {}
+  ): Promise<Document[]> {
+    // Convert MongoDB-style options to CloudBox query format
+    const queryOptions: QueryOptions = {};
+
+    if (options.filter) {
+      queryOptions.filters = Object.entries(options.filter).map(([field, value]) => ({
+        field,
+        operator: 'eq' as const,
+        value
+      }));
+    }
+
+    if (options.sort) {
+      queryOptions.sort = Object.entries(options.sort).map(([field, direction]) => ({
+        field,
+        direction: direction === 1 ? 'asc' as const : 'desc' as const
+      }));
+    }
+
+    if (options.limit) queryOptions.limit = options.limit;
+    if (options.skip) queryOptions.offset = options.skip;
+    if (options.select) queryOptions.select = options.select;
+
+    const result = await this.query(collection, queryOptions);
+    return result.data;
   }
 }

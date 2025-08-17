@@ -36,6 +36,9 @@ type Config struct {
 	
 	// Backup settings
 	BackupDir     string
+	
+	// GitHub integration
+	GitHubToken   string
 }
 
 // Load reads configuration from environment variables and config files
@@ -96,6 +99,7 @@ func Load() (*Config, error) {
 		AllowedTypes: viper.GetStringSlice("ALLOWED_TYPES"),
 		
 		BackupDir:    getEnvOrDefault("BACKUP_DIR", "/var/lib/cloudbox/backups"),
+		GitHubToken:  getEnvOrDefault("GITHUB_TOKEN", ""),
 	}
 
 	return config, nil

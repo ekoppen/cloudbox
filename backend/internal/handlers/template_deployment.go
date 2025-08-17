@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/cloudbox/backend/internal/config"
@@ -70,7 +70,6 @@ type TemplateDeploymentResponse struct {
 		Name        string `json:"name"`
 		FullName    string `json:"full_name"`
 		CloneURL    string `json:"clone_url"`
-		HTMLURL     string `json:"html_url"`
 		IsPrivate   bool   `json:"is_private"`
 		Description string `json:"description"`
 	} `json:"github_repo"`
@@ -79,8 +78,7 @@ type TemplateDeploymentResponse struct {
 	Deployment struct {
 		ID           uint      `json:"id"`
 		Status       string    `json:"status"`
-		URL          string    `json:"url"`
-		DeploymentURL string   `json:"deployment_url"`
+		Domain       string    `json:"domain"`
 		BuildLogs    string    `json:"build_logs,omitempty"`
 		CreatedAt    time.Time `json:"created_at"`
 	} `json:"deployment"`
@@ -218,7 +216,6 @@ func (h *TemplateDeploymentHandler) CreateTemplateDeployment(c *gin.Context) {
 			Name        string `json:"name"`
 			FullName    string `json:"full_name"`
 			CloneURL    string `json:"clone_url"`
-			HTMLURL     string `json:"html_url"`
 			IsPrivate   bool   `json:"is_private"`
 			Description string `json:"description"`
 		}{
@@ -226,23 +223,20 @@ func (h *TemplateDeploymentHandler) CreateTemplateDeployment(c *gin.Context) {
 			Name:        githubRepo.Name,
 			FullName:    githubRepo.FullName,
 			CloneURL:    githubRepo.CloneURL,
-			HTMLURL:     githubRepo.HTMLURL,
 			IsPrivate:   githubRepo.IsPrivate,
 			Description: githubRepo.Description,
 		},
 		Deployment: struct {
 			ID           uint      `json:"id"`
 			Status       string    `json:"status"`
-			URL          string    `json:"url"`
-			DeploymentURL string   `json:"deployment_url"`
+			Domain       string    `json:"domain"`
 			BuildLogs    string    `json:"build_logs,omitempty"`
 			CreatedAt    time.Time `json:"created_at"`
 		}{
-			ID:            deployment.ID,
-			Status:        deployment.Status,
-			URL:           deployment.URL,
-			DeploymentURL: deployment.DeploymentURL,
-			CreatedAt:     deployment.CreatedAt,
+			ID:        deployment.ID,
+			Status:    deployment.Status,
+			Domain:    deployment.Domain,
+			CreatedAt: deployment.CreatedAt,
 		},
 		ProjectConfig: struct {
 			APIKey      string                 `json:"api_key"`
@@ -355,13 +349,8 @@ func (h *TemplateDeploymentHandler) createGitHubRepositoryFromTemplate(
 		return nil, fmt.Errorf("failed to generate template content: %v", err)
 	}
 
-	// Create GitHub repository
-	repoData := map[string]interface{}{
-		"name":        githubConfig.Name,
-		"description": githubConfig.Description,
-		"private":     githubConfig.IsPrivate,
-		"auto_init":   true,
-	}
+	// GitHub repository data would be used for API calls
+	// (removed unused variable)
 
 	// TODO: Implement actual GitHub API calls to create repository
 	// For now, create a local record
@@ -369,12 +358,9 @@ func (h *TemplateDeploymentHandler) createGitHubRepositoryFromTemplate(
 		Name:        githubConfig.Name,
 		FullName:    fmt.Sprintf("%s/%s", githubConfig.Owner, githubConfig.Name),
 		CloneURL:    fmt.Sprintf("https://github.com/%s/%s.git", githubConfig.Owner, githubConfig.Name),
-		HTMLURL:     fmt.Sprintf("https://github.com/%s/%s", githubConfig.Owner, githubConfig.Name),
 		IsPrivate:   githubConfig.IsPrivate,
 		Description: githubConfig.Description,
-		ProjectID:   project.ID,
 		Branch:      "main",
-		CreatedAt:   time.Now(),
 	}
 
 	if err := h.db.Create(githubRepo).Error; err != nil {
@@ -420,21 +406,17 @@ func (h *TemplateDeploymentHandler) createDeploymentConfig(
 
 	// Create deployment record
 	deployment := &models.Deployment{
-		ProjectID:        projectID,
-		GitHubRepositoryID: githubRepoID,
 		Name:             fmt.Sprintf("%s-deployment", project.Slug),
+		Description:      fmt.Sprintf("Template deployment for %s", project.Name),
+		Version:          "1.0.0",
+		Domain:           fmt.Sprintf("%s.cloudbox.dev", project.Slug),
+		Subdomain:        project.Slug,
+		Port:             3000, // Default port
 		Status:           "pending",
-		URL:              fmt.Sprintf("https://%s.cloudbox.dev", project.Slug),
-		DeploymentURL:    fmt.Sprintf("https://%s-app.cloudbox.dev", project.Slug),
 		Branch:           "main",
 		BuildCommand:     buildCommand,
 		StartCommand:     startCommand,
-		AppPort:          appPort,
 		Environment:      deployConfig.Environment,
-		AutoDeploy:       deployConfig.AutoDeploy,
-		CustomDomain:     deployConfig.CustomDomain,
-		SSLEnabled:       deployConfig.SSLEnabled,
-		CreatedAt:        time.Now(),
 	}
 
 	if err := h.db.Create(deployment).Error; err != nil {
@@ -447,7 +429,7 @@ func (h *TemplateDeploymentHandler) createDeploymentConfig(
 // generateDeploymentAPIKey generates an API key for the deployment
 func (h *TemplateDeploymentHandler) generateDeploymentAPIKey(projectID uint, repoName string) (string, error) {
 	// Generate API key
-	apiKey := fmt.Sprintf("cb_%s_%d", generateRandomString(32), time.Now().Unix())
+	apiKey := fmt.Sprintf("cb_%s_%d", generateTemplateRandomString(32), time.Now().Unix())
 	
 	// Hash the API key
 	hashedKey, err := hashAPIKey(apiKey)
@@ -648,7 +630,7 @@ func (h *TemplateDeploymentHandler) generateEcommerceContent(variables map[strin
 }
 
 // Helper functions
-func generateRandomString(length int) string {
+func generateTemplateRandomString(length int) string {
 	bytes := make([]byte, length)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)[:length]

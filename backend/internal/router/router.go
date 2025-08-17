@@ -52,6 +52,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(db, cfg)
 	projectGitHubHandler := handlers.NewProjectGitHubHandler(db, cfg)
 	publicFileHandler := handlers.NewPublicFileHandler(db, cfg)
+	pluginHandler := handlers.NewPluginHandler(db, cfg)
+	scriptRunnerHandler := handlers.NewScriptRunnerHandler(db, cfg)
 
 	// ===========================================
 	// SYSTEM & HEALTH ENDPOINTS
@@ -125,6 +127,28 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		projectGitHubOAuth := api.Group("/projects/:id/github/oauth")
 		{
 			projectGitHubOAuth.GET("/callback", projectGitHubHandler.HandleProjectOAuthCallback)
+		}
+
+		// Plugin API routes (public endpoints for active plugins only)
+		plugins := api.Group("/plugins")
+		{
+			// Only allow public access to active plugins list
+			plugins.GET("/active", pluginHandler.GetActivePlugins)
+			
+			// Script Runner Plugin Routes (require project-level authentication)
+			scriptRunner := plugins.Group("/script-runner")
+			scriptRunner.Use(middleware.RequireAuth(cfg))
+			scriptRunner.Use(middleware.RequireAdminOrSuperAdmin())
+			{
+				scriptRunner.GET("/scripts/:projectId", scriptRunnerHandler.GetProjectScripts)
+				scriptRunner.POST("/scripts/:projectId", scriptRunnerHandler.CreateScript)
+				scriptRunner.PUT("/scripts/:projectId/:scriptId", scriptRunnerHandler.UpdateScript)
+				scriptRunner.DELETE("/scripts/:projectId/:scriptId", scriptRunnerHandler.DeleteScript)
+				scriptRunner.POST("/execute/:projectId/:scriptId", scriptRunnerHandler.ExecuteScript)
+				scriptRunner.POST("/execute-raw/:projectId", scriptRunnerHandler.ExecuteRawSQL)
+				scriptRunner.GET("/templates", scriptRunnerHandler.GetTemplates)
+				scriptRunner.POST("/setup-project/:projectId/:templateName", scriptRunnerHandler.SetupProjectTemplate)
+			}
 		}
 
 		// Protected routes (requires authentication)
@@ -302,8 +326,32 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				admin.GET("/system/github-instructions", systemSettingsHandler.GetGitHubInstructions)
 				admin.POST("/system/test-github-oauth", systemSettingsHandler.TestGitHubOAuth)
 
+				// Plugin management endpoints (admin/superadmin only with enhanced security)
+				admin.GET("/plugins", pluginHandler.GetAllPlugins)
+				admin.POST("/plugins/install", pluginHandler.InstallPlugin)
+				admin.POST("/plugins/:pluginName/enable", pluginHandler.EnablePlugin)
+				admin.POST("/plugins/:pluginName/disable", pluginHandler.DisablePlugin)
+				admin.DELETE("/plugins/:pluginName", pluginHandler.UninstallPlugin)
+				admin.POST("/plugins/reload", pluginHandler.ReloadPlugins)
+				admin.POST("/plugins/:pluginName/reload", pluginHandler.HotReloadPlugin)
+				admin.GET("/plugins/repositories", pluginHandler.GetApprovedRepositories)
+				admin.GET("/plugins/audit-logs", pluginHandler.GetAuditLogs)
+				
+				// Plugin marketplace endpoints
+				admin.GET("/plugins/marketplace", pluginHandler.GetMarketplace)
+				admin.GET("/plugins/marketplace/search", pluginHandler.SearchMarketplace)
+				admin.GET("/plugins/marketplace/:pluginName", pluginHandler.GetPluginDetails)
+				admin.POST("/plugins/marketplace/install", pluginHandler.InstallFromMarketplace)
+				
+				// Plugin health and configuration endpoints
+				admin.GET("/plugins/health", pluginHandler.GetPluginHealth)
+				admin.PUT("/plugins/:pluginName/config", pluginHandler.UpdatePluginConfig)
+
 				// Basic admin project endpoint (accessible to JWT authenticated users)
 				admin.GET("/projects/:id", projectHandler.GetProject)
+				
+				// Security monitoring endpoints (admin only)
+				admin.GET("/security/plugin-activity", pluginHandler.GetAuditLogs)
 			}
 
 			// Super Admin only routes

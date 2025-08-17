@@ -133,8 +133,7 @@ func (h *FunctionHandler) CreateFunction(c *gin.Context) {
 		req.Dependencies = make(map[string]interface{})
 	}
 
-	// Generate function URL
-	functionURL := fmt.Sprintf("%s/p/%d/functions/%s", h.cfg.BaseURL, projectID, strings.ToLower(req.Name))
+	// Function URL generation removed - not stored in model
 
 	// Create function record
 	function := models.Function{
@@ -148,12 +147,7 @@ func (h *FunctionHandler) CreateFunction(c *gin.Context) {
 		Memory:       req.Memory,
 		Environment:  req.Environment,
 		Commands:     req.Commands,
-		Dependencies: req.Dependencies,
 		Status:       "draft",
-		Version:      1,
-		FunctionURL:  functionURL,
-		IsActive:     true,
-		IsPublic:     req.IsPublic,
 		ProjectID:    uint(projectID),
 	}
 

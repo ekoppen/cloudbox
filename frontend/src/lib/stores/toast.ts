@@ -71,6 +71,11 @@ function createToastStore(): ToastStore {
 export const toastStore = createToastStore();
 export const toast = toastStore; // Alias for backward compatibility
 
+// Helper function aliases
+export const addToast = (message: string, type: ToastType = 'info', title?: string) => {
+  toastStore.add({ type, message, title });
+};
+
 // Helper function to get current store value
 function get<T>(store: { subscribe: (fn: (value: T) => void) => () => void }): T {
   let value: T;

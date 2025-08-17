@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {
+      "name": "cloudbox-script-runner",
+      "path": "./plugins/script-runner",
+      "enabled": true,
+      "installed_at": "2025-08-16T12:56:34Z"
+    }
+  ]
+}

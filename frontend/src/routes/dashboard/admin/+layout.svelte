@@ -40,6 +40,19 @@
       <Icon name="user" size={16} />
       <span>Gebruikersbeheer</span>
     </a>
+    <a 
+      href="/dashboard/admin/plugins" 
+      class="flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors"
+      class:border-primary={$page.url.pathname === '/dashboard/admin/plugins'}
+      class:text-primary={$page.url.pathname === '/dashboard/admin/plugins'}
+      class:border-transparent={$page.url.pathname !== '/dashboard/admin/plugins'}
+      class:text-muted-foreground={$page.url.pathname !== '/dashboard/admin/plugins'}
+      class:hover:text-foreground={$page.url.pathname !== '/dashboard/admin/plugins'}
+      class:hover:border-border={$page.url.pathname !== '/dashboard/admin/plugins'}
+    >
+      <Icon name="puzzle" size={16} />
+      <span>Plugin Management</span>
+    </a>
   </div>
 
   <!-- Page Content -->

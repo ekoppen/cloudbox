@@ -1,0 +1,52 @@
+{
+  "name": "Basic Web Application",
+  "description": "Essential database schema voor web applicaties met gebruikers, sessies en API keys",
+  "category": "webapp",
+  "framework": "universal",
+  "scripts": [
+    {
+      "id": "webapp-users-table",
+      "name": "Create Users Table",
+      "description": "Basis gebruikers tabel met authenticatie",
+      "type": "sql",
+      "run_order": 1,
+      "content": "-- Basic Users Table\nCREATE TABLE IF NOT EXISTS {{table_prefix}}users (\n    id SERIAL PRIMARY KEY,\n    email VARCHAR(255) UNIQUE NOT NULL,\n    username VARCHAR(100) UNIQUE,\n    password_hash VARCHAR(255) NOT NULL,\n    first_name VARCHAR(100),\n    last_name VARCHAR(100),\n    email_verified BOOLEAN DEFAULT false,\n    email_verified_at TIMESTAMP NULL,\n    profile_data JSONB DEFAULT '{}',\n    preferences JSONB DEFAULT '{}',\n    last_login TIMESTAMP NULL,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n-- Create indexes\nCREATE INDEX IF NOT EXISTS idx_users_email ON {{table_prefix}}users(email);\nCREATE INDEX IF NOT EXISTS idx_users_username ON {{table_prefix}}users(username);\nCREATE INDEX IF NOT EXISTS idx_users_email_verified ON {{table_prefix}}users(email_verified);\nCREATE INDEX IF NOT EXISTS idx_users_created ON {{table_prefix}}users(created_at);\n\n-- Insert default admin user\nINSERT INTO {{table_prefix}}users (email, username, password_hash, first_name, last_name, email_verified)\nVALUES ('admin@{{domain}}', 'admin', '$2b$10$dummy.hash.for.admin.user', 'Admin', 'User', true)\nON CONFLICT (email) DO NOTHING;\n\nSELECT 'Users table created successfully' as result;"
+    },
+    {
+      "id": "webapp-sessions-table", 
+      "name": "Create Sessions Table",
+      "description": "Sessie management voor gebruikers",
+      "type": "sql",
+      "run_order": 2,
+      "dependencies": ["webapp-users-table"],
+      "content": "-- User Sessions Table\nCREATE TABLE IF NOT EXISTS {{table_prefix}}sessions (\n    id VARCHAR(128) PRIMARY KEY,\n    user_id INTEGER,\n    ip_address INET,\n    user_agent TEXT,\n    device_info JSONB DEFAULT '{}',\n    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    expires_at TIMESTAMP NOT NULL,\n    is_active BOOLEAN DEFAULT true,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    \n    FOREIGN KEY (user_id) REFERENCES {{table_prefix}}users(id) ON DELETE CASCADE\n);\n\n-- Create indexes\nCREATE INDEX IF NOT EXISTS idx_sessions_user ON {{table_prefix}}sessions(user_id);\nCREATE INDEX IF NOT EXISTS idx_sessions_active ON {{table_prefix}}sessions(is_active, expires_at);\nCREATE INDEX IF NOT EXISTS idx_sessions_expires ON {{table_prefix}}sessions(expires_at);\n\nSELECT 'Sessions table created successfully' as result;"
+    },
+    {
+      "id": "webapp-api-keys-table",
+      "name": "Create API Keys Table", 
+      "description": "API key management voor externe integraties",
+      "type": "sql",
+      "run_order": 3,
+      "dependencies": ["webapp-users-table"],
+      "content": "-- API Keys Table\nCREATE TABLE IF NOT EXISTS {{table_prefix}}api_keys (\n    id SERIAL PRIMARY KEY,\n    user_id INTEGER,\n    key_name VARCHAR(100) NOT NULL,\n    api_key VARCHAR(64) UNIQUE NOT NULL,\n    api_secret VARCHAR(128),\n    \n    -- Permissions and limits\n    permissions JSONB DEFAULT '[]',\n    rate_limit INTEGER DEFAULT 1000,\n    daily_limit INTEGER DEFAULT 10000,\n    \n    -- Usage tracking\n    total_requests INTEGER DEFAULT 0,\n    last_used TIMESTAMP NULL,\n    \n    -- Status\n    is_active BOOLEAN DEFAULT true,\n    expires_at TIMESTAMP NULL,\n    \n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    \n    FOREIGN KEY (user_id) REFERENCES {{table_prefix}}users(id) ON DELETE CASCADE\n);\n\n-- Create indexes\nCREATE INDEX IF NOT EXISTS idx_api_keys_user ON {{table_prefix}}api_keys(user_id);\nCREATE INDEX IF NOT EXISTS idx_api_keys_active ON {{table_prefix}}api_keys(is_active);\nCREATE INDEX IF NOT EXISTS idx_api_keys_key ON {{table_prefix}}api_keys(api_key);\n\nSELECT 'API Keys table created successfully' as result;"
+    },
+    {
+      "id": "webapp-user-functions",
+      "name": "Deploy User Management Functions",
+      "description": "CloudBox functions voor gebruikersbeheer",
+      "type": "javascript",
+      "run_order": 4,
+      "dependencies": ["webapp-users-table", "webapp-sessions-table"],
+      "content": "// Deploy User Management Functions\nconst functions = CloudBox.functions;\nconst db = CloudBox.database;\n\nasync function deployUserFunctions() {\n    console.log('Deploying user management functions...');\n    \n    // Deploy authentication function\n    await functions.deploy('user-auth', {\n        runtime: 'nodejs18',\n        port: {{auth_port}},\n        memory: '256MB',\n        environment: {\n            DB_NAME: '{{database_name}}',\n            JWT_SECRET: '{{jwt_secret}}',\n            SESSION_TIMEOUT: '{{session_timeout}}'\n        }\n    });\n    \n    // Deploy user profile function\n    await functions.deploy('user-profile', {\n        runtime: 'nodejs18', \n        port: {{profile_port}},\n        memory: '256MB',\n        environment: {\n            DB_NAME: '{{database_name}}'\n        }\n    });\n    \n    console.log('User management functions deployed successfully');\n    return { success: true, functions: ['user-auth', 'user-profile'] };\n}\n\nreturn deployUserFunctions();"
+    }
+  ],
+  "default_variables": {
+    "table_prefix": "",
+    "domain": "localhost",
+    "database_name": "webapp_db",
+    "auth_port": "3001",
+    "profile_port": "3002", 
+    "jwt_secret": "your-jwt-secret-here",
+    "session_timeout": "7200"
+  }
+}

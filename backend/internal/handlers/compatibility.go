@@ -371,7 +371,7 @@ func (h *CompatibilityHandler) analyzeSourceCode(files map[string]string, respon
 			for _, match := range envMatches {
 				if len(match) > 1 {
 					envVar := match[1]
-					if !contains(response.EnvVariables, envVar) {
+					if !containsString(response.EnvVariables, envVar) {
 						response.EnvVariables = append(response.EnvVariables, envVar)
 					}
 				}
@@ -428,14 +428,14 @@ func (h *CompatibilityHandler) analyzeEnvFile(content string, response *Compatib
 			parts := strings.SplitN(line, "=", 2)
 			if len(parts) == 2 {
 				envVar := strings.TrimSpace(parts[0])
-				if !contains(response.EnvVariables, envVar) {
+				if !containsString(response.EnvVariables, envVar) {
 					response.EnvVariables = append(response.EnvVariables, envVar)
 				}
 				
 				// Check for CloudBox-specific variables
 				if strings.HasPrefix(envVar, "CLOUDBOX_") {
 					response.HasCloudBoxConfig = true
-					if !contains(response.RequiredEnvVars, envVar) {
+					if !containsString(response.RequiredEnvVars, envVar) {
 						response.RequiredEnvVars = append(response.RequiredEnvVars, envVar)
 					}
 				}
@@ -486,8 +486,8 @@ func (h *CompatibilityHandler) analyzeEnvironmentVariables(files map[string]stri
 
 	// Check which standard variables are used/configured
 	for _, stdVar := range standardCloudBoxVars {
-		if contains(response.EnvVariables, stdVar) {
-			if !contains(response.RequiredEnvVars, stdVar) {
+		if containsString(response.EnvVariables, stdVar) {
+			if !containsString(response.RequiredEnvVars, stdVar) {
 				response.RequiredEnvVars = append(response.RequiredEnvVars, stdVar)
 			}
 		}
@@ -505,7 +505,7 @@ func (h *CompatibilityHandler) calculateCompatibilityScore(response *Compatibili
 	score := 0
 
 	// Base score for having package.json
-	if contains(response.AnalyzedFiles, "package.json") {
+	if containsString(response.AnalyzedFiles, "package.json") {
 		score += 10
 	}
 
@@ -620,7 +620,7 @@ func (h *CompatibilityHandler) getFileType(filename string) string {
 	return "unknown"
 }
 
-func contains(slice []string, item string) bool {
+func containsString(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
 			return true

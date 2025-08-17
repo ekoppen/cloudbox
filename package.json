@@ -26,13 +26,14 @@
   "author": "CloudBox Team",
   "license": "MIT",
   "dependencies": {
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "playwright": "^1.54.2"
   },
   "engines": {
     "node": ">=16.0.0"
   },
   "repository": {
-    "type": "git", 
+    "type": "git",
     "url": "https://github.com/your-org/cloudbox.git"
   },
   "bugs": {

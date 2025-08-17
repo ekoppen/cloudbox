@@ -1,0 +1,72 @@
+{
+  "name": "cloudbox-script-runner",
+  "version": "1.0.0",
+  "description": "Universal Script Runner for CloudBox - Database scripts en project setup (zoals Supabase SQL Editor)",
+  "author": "CloudBox Development Team",
+  "type": "dashboard-plugin",
+  "main": "index.js",
+  "dependencies": {
+    "cloudbox-sdk": "^1.0.0"
+  },
+  "permissions": [
+    "database:read",
+    "database:write",
+    "functions:deploy",
+    "webhooks:create",
+    "projects:manage"
+  ],
+  "ui": {
+    "dashboard_tab": {
+      "title": "Script Runner",
+      "icon": "terminal",
+      "path": "/script-runner"
+    },
+    "project_menu": {
+      "title": "Scripts",
+      "icon": "terminal",
+      "path": "/dashboard/projects/{projectId}/scripts"
+    }
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/plugins/script-runner/scripts/:projectId",
+      "handler": "getProjectScripts"
+    },
+    {
+      "method": "POST", 
+      "path": "/api/v1/plugins/script-runner/scripts/:projectId",
+      "handler": "createScript"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/plugins/script-runner/scripts/:projectId/:scriptId", 
+      "handler": "updateScript"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/plugins/script-runner/scripts/:projectId/:scriptId",
+      "handler": "deleteScript"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plugins/script-runner/execute/:projectId/:scriptId",
+      "handler": "executeScript"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plugins/script-runner/execute-raw/:projectId",
+      "handler": "executeRawSQL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plugins/script-runner/templates",
+      "handler": "getTemplates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plugins/script-runner/setup-project/:projectId/:templateName",
+      "handler": "setupProjectTemplate"
+    }
+  ]
+}

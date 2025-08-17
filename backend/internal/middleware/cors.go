@@ -42,7 +42,14 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 			}
 			
 			c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
-			c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
+			
+			// Handle AllowedHeaders - if wildcard, allow common headers including Authorization
+			if len(cfg.AllowedHeaders) == 1 && cfg.AllowedHeaders[0] == "*" {
+				c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-API-Key")
+			} else {
+				c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
+			}
+			
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Access-Control-Max-Age", "86400")
 			c.AbortWithStatus(http.StatusNoContent)
@@ -66,7 +73,14 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 				allowedMethods = append(allowedMethods, "PATCH")
 			}
 			c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
-			c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
+			
+			// Handle AllowedHeaders - if wildcard, allow common headers including Authorization
+			if len(cfg.AllowedHeaders) == 1 && cfg.AllowedHeaders[0] == "*" {
+				c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-API-Key")
+			} else {
+				c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
+			}
+			
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Access-Control-Max-Age", "86400")
 		}
