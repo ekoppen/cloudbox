@@ -184,33 +184,14 @@
         <div class="flex space-x-4">
           <button
             on:click={() => theme.setTheme('cloudbox')}
-            class="flex items-center space-x-3 p-5 border-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
-            class:border-primary={$theme.theme === 'cloudbox'}
-            class:border-border={$theme.theme !== 'cloudbox'}
-            class:bg-primary={$theme.theme === 'cloudbox'}
-            class:text-primary-foreground={$theme.theme === 'cloudbox'}
-            class:bg-card={$theme.theme !== 'cloudbox'}
-            class:hover:bg-muted={$theme.theme !== 'cloudbox'}
-            class:shadow-lg={$theme.theme === 'cloudbox'}
-            class:shadow-primary/20={$theme.theme === 'cloudbox'}
+            class="flex items-center space-x-3 p-5 border-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm {$theme.theme === 'cloudbox' ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'border-border bg-card hover:bg-muted'}"
           >
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 class:bg-primary-foreground={$theme.theme === 'cloudbox'}
-                 class:text-primary={$theme.theme === 'cloudbox'}
-                 class:bg-primary/10={$theme.theme !== 'cloudbox'}
-                 class:text-primary={$theme.theme !== 'cloudbox'}
-            >
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center {$theme.theme === 'cloudbox' ? 'bg-primary-foreground text-primary' : 'bg-primary/10 text-primary'}">
               <Icon name="sun" size={20} />
             </div>
             <div class="text-left">
-              <div class="font-semibold" 
-                   class:text-primary-foreground={$theme.theme === 'cloudbox'}
-                   class:text-card-foreground={$theme.theme !== 'cloudbox'}
-              >Licht Thema</div>
-              <div class="text-sm" 
-                   class:text-primary-foreground/80={$theme.theme === 'cloudbox'}
-                   class:text-muted-foreground={$theme.theme !== 'cloudbox'}
-              >Heldere achtergrond</div>
+              <div class="font-semibold {$theme.theme === 'cloudbox' ? 'text-primary-foreground' : 'text-card-foreground'}">Licht Thema</div>
+              <div class="text-sm {$theme.theme === 'cloudbox' ? 'text-primary-foreground/80' : 'text-muted-foreground'}">Heldere achtergrond</div>
             </div>
             {#if $theme.theme === 'cloudbox'}
               <div class="ml-auto">
@@ -221,33 +202,14 @@
           
           <button
             on:click={() => theme.setTheme('cloudbox-dark')}
-            class="flex items-center space-x-3 p-5 border-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
-            class:border-primary={$theme.theme === 'cloudbox-dark'}
-            class:border-border={$theme.theme !== 'cloudbox-dark'}
-            class:bg-primary={$theme.theme === 'cloudbox-dark'}
-            class:text-primary-foreground={$theme.theme === 'cloudbox-dark'}
-            class:bg-card={$theme.theme !== 'cloudbox-dark'}
-            class:hover:bg-muted={$theme.theme !== 'cloudbox-dark'}
-            class:shadow-lg={$theme.theme === 'cloudbox-dark'}
-            class:shadow-primary/20={$theme.theme === 'cloudbox-dark'}
+            class="flex items-center space-x-3 p-5 border-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm {$theme.theme === 'cloudbox-dark' ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'border-border bg-card hover:bg-muted'}"
           >
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 class:bg-primary-foreground={$theme.theme === 'cloudbox-dark'}
-                 class:text-primary={$theme.theme === 'cloudbox-dark'}
-                 class:bg-primary/10={$theme.theme !== 'cloudbox-dark'}
-                 class:text-primary={$theme.theme !== 'cloudbox-dark'}
-            >
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center {$theme.theme === 'cloudbox-dark' ? 'bg-primary-foreground text-primary' : 'bg-primary/10 text-primary'}">
               <Icon name="moon" size={20} />
             </div>
             <div class="text-left">
-              <div class="font-semibold" 
-                   class:text-primary-foreground={$theme.theme === 'cloudbox-dark'}
-                   class:text-card-foreground={$theme.theme !== 'cloudbox-dark'}
-              >Donker Thema</div>
-              <div class="text-sm" 
-                   class:text-primary-foreground/80={$theme.theme === 'cloudbox-dark'}
-                   class:text-muted-foreground={$theme.theme !== 'cloudbox-dark'}
-              >Donkere achtergrond</div>
+              <div class="font-semibold {$theme.theme === 'cloudbox-dark' ? 'text-primary-foreground' : 'text-card-foreground'}">Donker Thema</div>
+              <div class="text-sm {$theme.theme === 'cloudbox-dark' ? 'text-primary-foreground/80' : 'text-muted-foreground'}">Donkere achtergrond</div>
             </div>
             {#if $theme.theme === 'cloudbox-dark'}
               <div class="ml-auto">
@@ -265,11 +227,7 @@
           {#each accentColors as color}
             <button
               on:click={() => handleAccentColorChange(color.name)}
-              class="flex items-center space-x-3 p-3 border-2 rounded-lg transition-all duration-200 hover:scale-105"
-              class:border-primary={$theme.accentColor === color.name}
-              class:border-border={$theme.accentColor !== color.name}
-              class:bg-muted={$theme.accentColor === color.name}
-              class:shadow-md={$theme.accentColor === color.name}
+              class="flex items-center space-x-3 p-3 border-2 rounded-lg transition-all duration-200 hover:scale-105 {$theme.accentColor === color.name ? 'border-primary bg-muted shadow-md' : 'border-border'}"
             >
               <div class="w-5 h-5 rounded-full {$theme.theme === 'cloudbox-dark' ? color.darkPreview : color.preview} shadow-sm"></div>
               <span class="font-medium text-card-foreground">{color.label}</span>

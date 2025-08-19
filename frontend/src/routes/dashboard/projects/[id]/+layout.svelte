@@ -212,18 +212,8 @@
           <!-- Right side: Status + Theme Toggle + User menu -->
           <div class="flex items-center space-x-4">
             <!-- Project Status -->
-            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border"
-                  class:bg-success/10={project.is_active}
-                  class:text-success={project.is_active}
-                  class:border-success/20={project.is_active}
-                  class:bg-destructive/10={!project.is_active}
-                  class:text-destructive={!project.is_active}
-                  class:border-destructive/20={!project.is_active}
-            >
-              <div class="w-1.5 h-1.5 rounded-full mr-2"
-                   class:bg-success={project.is_active}
-                   class:bg-destructive={!project.is_active}
-              ></div>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border {project.is_active ? 'bg-success/10 text-success border-success/20' : 'bg-destructive/10 text-destructive border-destructive/20'}">
+              <div class="w-1.5 h-1.5 rounded-full mr-2 {project.is_active ? 'bg-success' : 'bg-destructive'}"></div>
               {project.is_active ? 'Actief' : 'Inactief'}
             </span>
             

@@ -763,11 +763,48 @@ func (h *DataHandler) AdminCreateCollection(c *gin.Context) {
 		return
 	}
 	
-	// Set the project in context for the regular handler
-	c.Set("project", project)
+	var req struct {
+		Name        string                 `json:"name" binding:"required"`
+		Description string                 `json:"description"`
+		Schema      map[string]interface{} `json:"schema"`
+		Indexes     []string               `json:"indexes"`
+	}
 	
-	// Call the regular CreateCollection method
-	h.CreateCollection(c)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Validate collection name (no spaces, special chars)
+	if !isValidCollectionName(req.Name) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid collection name. Use only letters, numbers, and underscores"})
+		return
+	}
+	
+	// Check if collection already exists
+	var existingCollection models.Collection
+	if err := h.db.Where("project_id = ? AND name = ?", project.ID, req.Name).First(&existingCollection).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Collection already exists"})
+		return
+	}
+	
+	// Create collection
+	collection := models.Collection{
+		Name:          req.Name,
+		Description:   req.Description,
+		Schema:        req.Schema,
+		Indexes:       req.Indexes,
+		ProjectID:     project.ID,
+		DocumentCount: 0,
+		LastModified:  time.Now(),
+	}
+	
+	if err := h.db.Create(&collection).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create collection"})
+		return
+	}
+	
+	c.JSON(http.StatusCreated, collection)
 }
 
 // AdminGetCollection gets a collection via admin interface (JWT authenticated)
@@ -807,6 +844,7 @@ func (h *DataHandler) AdminDeleteCollection(c *gin.Context) {
 // AdminListDocuments lists documents via admin interface (JWT authenticated)
 func (h *DataHandler) AdminListDocuments(c *gin.Context) {
 	projectID := c.Param("id")
+	collectionName := c.Param("collection")
 	
 	var project models.Project
 	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
@@ -814,16 +852,91 @@ func (h *DataHandler) AdminListDocuments(c *gin.Context) {
 		return
 	}
 	
-	// Set the project in context for the regular handler
-	c.Set("project", project)
+	// Verify collection exists
+	if !h.collectionExists(project.ID, collectionName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
 	
-	// Call the regular ListDocuments method
-	h.ListDocuments(c)
+	// Parse query parameters
+	limit := 25 // Default limit
+	offset := 0
+	orderBy := "created_at DESC"
+	
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+	
+	if o := c.Query("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+	
+	if order := c.Query("orderBy"); order != "" {
+		// Strict validation for order by to prevent SQL injection
+		validOrderPattern := regexp.MustCompile(`^(created_at|updated_at)\s+(ASC|DESC)$|^(created_at|updated_at)$`)
+		if validOrderPattern.MatchString(strings.TrimSpace(order)) {
+			orderBy = strings.TrimSpace(order)
+		}
+	}
+	
+	var documents []models.Document
+	query := h.db.Where("project_id = ? AND collection_name = ?", project.ID, collectionName).
+		Limit(limit).
+		Offset(offset).
+		Order(orderBy)
+	
+	// Add secure JSON filtering if provided
+	if filter := c.Query("filter"); filter != "" {
+		// Validate filter is valid JSON to prevent injection
+		var filterJSON map[string]interface{}
+		if err := json.Unmarshal([]byte(filter), &filterJSON); err == nil {
+			// Use parameterized query with JSON containment operator
+			query = query.Where("data @> ?", filter)
+		} else {
+			// Fallback to safe text search with proper escaping
+			safeFilter := strings.ReplaceAll(filter, "'", "''")
+			query = query.Where("data::text ILIKE ?", "%"+safeFilter+"%")
+		}
+	}
+	
+	if err := query.Find(&documents).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch documents"})
+		return
+	}
+	
+	// Get total count efficiently in single query
+	var total int64
+	countQuery := h.db.Model(&models.Document{}).Where("project_id = ? AND collection_name = ?", project.ID, collectionName)
+	
+	// Apply same filter to count query
+	if filter := c.Query("filter"); filter != "" {
+		var filterJSON map[string]interface{}
+		if err := json.Unmarshal([]byte(filter), &filterJSON); err == nil {
+			countQuery = countQuery.Where("data @> ?", filter)
+		} else {
+			safeFilter := strings.ReplaceAll(filter, "'", "''")
+			countQuery = countQuery.Where("data::text ILIKE ?", "%"+safeFilter+"%")
+		}
+	}
+	
+	countQuery.Count(&total)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"documents": documents,
+		"total":     total,
+		"limit":     limit,
+		"offset":    offset,
+	})
 }
 
 // AdminCreateDocument creates a document via admin interface (JWT authenticated)
 func (h *DataHandler) AdminCreateDocument(c *gin.Context) {
 	projectID := c.Param("id")
+	collectionName := c.Param("collection")
 	
 	var project models.Project
 	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
@@ -831,11 +944,82 @@ func (h *DataHandler) AdminCreateDocument(c *gin.Context) {
 		return
 	}
 	
-	// Set the project in context for the regular handler
-	c.Set("project", project)
+	// Verify collection exists
+	if !h.collectionExists(project.ID, collectionName) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
 	
-	// Call the regular CreateDocument method
-	h.CreateDocument(c)
+	// Parse and validate request body as JSON
+	var data map[string]interface{}
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+	
+	// Validate document size (prevent DOS attacks)
+	if len(data) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Document too large (max 100 fields)"})
+		return
+	}
+	
+	// Sanitize document data (remove potentially dangerous fields)
+	delete(data, "_sql")
+	delete(data, "__proto__")
+	delete(data, "constructor")
+	
+	// Generate ID if not provided
+	docID := uuid.New().String()
+	if id, exists := data["id"]; exists {
+		if idStr, ok := id.(string); ok && idStr != "" {
+			docID = idStr
+		}
+	}
+	
+	// Remove id from data if it exists (stored separately)
+	delete(data, "id")
+	
+	// For admin interface, use admin as author
+	author := "admin:jwt"
+	
+	// Create document
+	document := models.Document{
+		ID:             docID,
+		CollectionName: collectionName,
+		ProjectID:      project.ID,
+		Data:           data,
+		Version:        1,
+		Author:         author,
+	}
+	
+	// Use transaction for document creation
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	
+	if err := tx.Create(&document).Error; err != nil {
+		tx.Rollback()
+		if strings.Contains(err.Error(), "duplicate key") {
+			c.JSON(http.StatusConflict, gin.H{"error": "Document with this ID already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create document"})
+		return
+	}
+	
+	// Update collection stats in same transaction
+	if err := h.updateCollectionStatsInTx(tx, project.ID, collectionName); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update collection stats"})
+		return
+	}
+	
+	tx.Commit()
+	
+	c.JSON(http.StatusCreated, document)
 }
 
 // AdminGetDocument gets a document via admin interface (JWT authenticated)
@@ -858,6 +1042,8 @@ func (h *DataHandler) AdminGetDocument(c *gin.Context) {
 // AdminUpdateDocument updates a document via admin interface (JWT authenticated)
 func (h *DataHandler) AdminUpdateDocument(c *gin.Context) {
 	projectID := c.Param("id")
+	collectionName := c.Param("collection")
+	documentID := c.Param("document_id")
 	
 	var project models.Project
 	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
@@ -865,11 +1051,71 @@ func (h *DataHandler) AdminUpdateDocument(c *gin.Context) {
 		return
 	}
 	
-	// Set the project in context for the regular handler
-	c.Set("project", project)
+	// Parse and validate request body
+	var data map[string]interface{}
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
 	
-	// Call the regular UpdateDocument method
-	h.UpdateDocument(c)
+	// Validate document size
+	if len(data) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Document too large (max 100 fields)"})
+		return
+	}
+	
+	// Sanitize document data
+	delete(data, "id")
+	delete(data, "_sql")
+	delete(data, "__proto__")
+	delete(data, "constructor")
+	
+	// For admin interface, use admin as author
+	author := "admin:jwt"
+	
+	// Update document with transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	
+	result := tx.Model(&models.Document{}).
+		Where("project_id = ? AND collection_name = ? AND id = ?", project.ID, collectionName, documentID).
+		Updates(models.Document{
+			Data:   data,
+			Author: author,
+		}).
+		Update("version", gorm.Expr("version + 1"))
+	
+	if result.Error != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update document"})
+		return
+	}
+	
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
+		return
+	}
+	
+	// Get updated document
+	var document models.Document
+	tx.Where("project_id = ? AND collection_name = ? AND id = ?", 
+		project.ID, collectionName, documentID).First(&document)
+	
+	// Update collection stats in same transaction
+	if err := h.updateCollectionStatsInTx(tx, project.ID, collectionName); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update collection stats"})
+		return
+	}
+	
+	tx.Commit()
+	
+	c.JSON(http.StatusOK, document)
 }
 
 // AdminDeleteDocument deletes a document via admin interface (JWT authenticated)

@@ -301,6 +301,15 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.GET("/:id/messaging/channels", messagingHandler.ListChannels)
 				projects.DELETE("/:id/messaging/messages/:message_id", messagingHandler.DeleteMessage)
 				
+				// Admin User management endpoints for projects
+				projects.GET("/:id/auth/users", userHandler.AdminListUsers)
+				projects.POST("/:id/auth/users", userHandler.AdminCreateUser)
+				projects.GET("/:id/auth/users/:user_id", userHandler.AdminGetUser)
+				projects.PUT("/:id/auth/users/:user_id", userHandler.AdminUpdateUser)
+				projects.DELETE("/:id/auth/users/:user_id", userHandler.AdminDeleteUser)
+				projects.GET("/:id/auth/settings", userHandler.AdminGetAuthSettings)
+				projects.PUT("/:id/auth/settings", userHandler.AdminUpdateAuthSettings)
+				
 				// Project-level plugin management routes
 				projects.GET("/:id/plugins/available", pluginHandler.GetAvailablePlugins)
 				projects.GET("/:id/plugins/installed", pluginHandler.GetInstalledPlugins)

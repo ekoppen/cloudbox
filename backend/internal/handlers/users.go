@@ -631,6 +631,127 @@ func (h *UserHandler) UpdateAuthProvider(c *gin.Context) {
 	})
 }
 
+// Admin methods for user management via JWT admin routes
+
+// AdminListUsers lists users for admin management (JWT authenticated)
+func (h *UserHandler) AdminListUsers(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular ListUsers method
+	h.ListUsers(c)
+}
+
+// AdminCreateUser creates a user via admin interface (JWT authenticated)
+func (h *UserHandler) AdminCreateUser(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular CreateUser method
+	h.CreateUser(c)
+}
+
+// AdminGetUser gets a user via admin interface (JWT authenticated)
+func (h *UserHandler) AdminGetUser(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular GetUser method
+	h.GetUser(c)
+}
+
+// AdminUpdateUser updates a user via admin interface (JWT authenticated)
+func (h *UserHandler) AdminUpdateUser(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular UpdateUser method
+	h.UpdateUser(c)
+}
+
+// AdminDeleteUser deletes a user via admin interface (JWT authenticated)
+func (h *UserHandler) AdminDeleteUser(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular DeleteUser method
+	h.DeleteUser(c)
+}
+
+// AdminGetAuthSettings gets auth settings via admin interface (JWT authenticated)
+func (h *UserHandler) AdminGetAuthSettings(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular GetAuthSettings method
+	h.GetAuthSettings(c)
+}
+
+// AdminUpdateAuthSettings updates auth settings via admin interface (JWT authenticated)
+func (h *UserHandler) AdminUpdateAuthSettings(c *gin.Context) {
+	projectID := c.Param("id")
+	
+	var project models.Project
+	if err := h.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	
+	// Set the project in context for the regular handler
+	c.Set("project", project)
+	
+	// Call the regular UpdateAuthSettings method
+	h.UpdateAuthSettings(c)
+}
+
 // Helper functions
 
 // generateSecureToken generates a cryptographically secure token

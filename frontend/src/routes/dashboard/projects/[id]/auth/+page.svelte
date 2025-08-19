@@ -60,7 +60,7 @@
 
   async function loadUsers() {
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/users`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -94,7 +94,7 @@
 
   async function loadAuthSettings() {
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/settings`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/settings`, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
@@ -147,7 +147,7 @@
 
       const newStatus = user.status === 'active' ? 'suspended' : 'active';
       
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/users/${userId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -174,7 +174,7 @@
     if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -199,7 +199,7 @@
 
     loading = true;
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -238,7 +238,7 @@
 
       const newEnabled = !provider.enabled;
       
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/providers/${providerId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/providers/${providerId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -264,7 +264,7 @@
   async function saveAuthSettings() {
     loading = true;
     try {
-      const response = await fetch(`${API_BASE_URL}/p/${projectId}/api/auth/settings`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/auth/settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
