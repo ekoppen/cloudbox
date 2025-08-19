@@ -23,10 +23,11 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	// Auto-migrate database schemas
-	if err := database.Migrate(db); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
-	}
+	// Auto-migrate database schemas - TEMPORARY SKIP DUE TO GORM ISSUE
+	log.Println("Skipping AutoMigrate due to GORM issue - database tables exist from SQL migrations")
+	// if err := database.Migrate(db); err != nil {
+	//	log.Fatalf("Failed to migrate database: %v", err)
+	// }
 
 	// Create default superadmin user if none exists
 	if err := database.CreateDefaultSuperAdmin(db); err != nil {

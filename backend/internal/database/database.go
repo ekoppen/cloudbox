@@ -76,6 +76,16 @@ func Migrate(db *gorm.DB) error {
 		&models.AuditLog{},
 		&models.SystemSetting{},
 		&utils.HostKeyEntry{}, // Add host key management
+		// Plugin management models
+		&models.PluginRegistry{},
+		&models.PluginInstallation{},
+		&models.PluginState{},
+		&models.ApprovedRepository{},
+		&models.PluginDownload{},
+		&models.PluginAuditLog{},
+		&models.PluginSubmission{},
+		&models.RepositoryApprovalRequest{},
+		&models.PluginMarketplace{},
 	); err != nil {
 		return fmt.Errorf("failed to run auto migrations: %w", err)
 	}

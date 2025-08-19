@@ -1,8 +1,8 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-export type Theme = 'light' | 'dark';
-export type AccentColor = 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'pink';
+export type Theme = 'cloudbox' | 'cloudbox-dark';
+export type AccentColor = 'blue' | 'green' | 'purple';
 
 export interface ThemeState {
   theme: Theme;
@@ -11,7 +11,7 @@ export interface ThemeState {
 
 // Initial state
 const initialState: ThemeState = {
-  theme: 'dark',
+  theme: 'cloudbox',
   accentColor: 'blue',
 };
 
@@ -28,7 +28,11 @@ function createThemeStore() {
         const savedTheme = localStorage.getItem('cloudbox_theme') as Theme;
         const savedAccentColor = localStorage.getItem('cloudbox_accent_color') as AccentColor;
         
-        const finalTheme = savedTheme || initialState.theme;
+        // Handle legacy theme values
+        let finalTheme = savedTheme || initialState.theme;
+        if (finalTheme === 'light' as any) finalTheme = 'cloudbox';
+        if (finalTheme === 'dark' as any) finalTheme = 'cloudbox-dark';
+        
         const finalAccentColor = savedAccentColor || initialState.accentColor;
         
         console.log('Theme store: initializing with theme', finalTheme, 'and accent', finalAccentColor);
@@ -47,7 +51,7 @@ function createThemeStore() {
     toggleTheme() {
       const store = this;
       update(state => {
-        const newTheme = state.theme === 'light' ? 'dark' : 'light';
+        const newTheme = state.theme === 'cloudbox' ? 'cloudbox-dark' : 'cloudbox';
         store.applyTheme(newTheme, state.accentColor);
         
         if (browser) {
@@ -94,27 +98,33 @@ function createThemeStore() {
         
         console.log('Theme store: applying theme', theme, 'with accent', accentColor);
         
-        // Remove existing theme classes from both html and body
+        // Remove existing theme classes and data attributes
         [root, body].forEach(element => {
           if (element) {
-            element.classList.remove('light', 'dark');
-            element.classList.remove('accent-blue', 'accent-green', 'accent-purple', 'accent-orange', 'accent-red', 'accent-pink');
+            element.classList.remove('light', 'dark', 'cloudbox', 'cloudbox-dark');
+            element.classList.remove('accent-blue', 'accent-green', 'accent-purple');
+            element.removeAttribute('data-theme');
           }
         });
         
-        // Add new theme classes to both html and body
+        // Set DaisyUI data-theme attribute
+        root.setAttribute('data-theme', theme);
+        
+        // Add theme classes for backwards compatibility and accent colors
+        const isDark = theme === 'cloudbox-dark';
         [root, body].forEach(element => {
           if (element) {
             element.classList.add(theme);
+            element.classList.add(isDark ? 'dark' : 'light');
             element.classList.add(`accent-${accentColor}`);
           }
         });
         
-        // Force style recalculation
-        root.style.setProperty('color-scheme', theme);
+        // Set color-scheme for browser UI
+        root.style.setProperty('color-scheme', isDark ? 'dark' : 'light');
         
-        console.log('Theme store: applied classes to html:', root.classList.toString());
-        console.log('Theme store: applied classes to body:', body?.classList.toString());
+        console.log('Theme store: applied theme', theme, 'to html with classes:', root.classList.toString());
+        console.log('Theme store: data-theme attribute:', root.getAttribute('data-theme'));
         
         // Verify CSS variables are working
         const computedStyle = getComputedStyle(root);

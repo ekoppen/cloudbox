@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS plugin_installations (
     -- Timestamps
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP,
     
     -- Constraints
     UNIQUE(plugin_name, project_id) -- One installation per plugin per project
@@ -170,6 +171,36 @@ CREATE TABLE IF NOT EXISTS plugin_downloads (
     failed_at TIMESTAMP
 );
 
+-- Create plugin marketplace table for enhanced plugin discovery
+CREATE TABLE IF NOT EXISTS plugin_marketplace (
+    id SERIAL PRIMARY KEY,
+    plugin_name VARCHAR(64) NOT NULL UNIQUE,
+    repository VARCHAR(255) NOT NULL,
+    version VARCHAR(32) NOT NULL,
+    description TEXT,
+    author VARCHAR(128),
+    category VARCHAR(64),
+    tags TEXT[], -- Array of tags for search and filtering
+    license VARCHAR(32),
+    website VARCHAR(255),
+    support_email VARCHAR(128),
+    screenshots TEXT[], -- Array of screenshot URLs
+    demo_url VARCHAR(255),
+    permissions TEXT[], -- Array of required permissions
+    dependencies JSONB, -- Package dependencies as JSON
+    pricing_model VARCHAR(32) DEFAULT 'free', -- free, paid, freemium, subscription
+    price DECIMAL(10,2) DEFAULT 0.00,
+    currency VARCHAR(3) DEFAULT 'USD',
+    installation_count INTEGER DEFAULT 0,
+    rating DECIMAL(3,2) DEFAULT 0.0, -- Average rating 0.0-5.0
+    review_count INTEGER DEFAULT 0,
+    featured BOOLEAN DEFAULT false,
+    status VARCHAR(32) DEFAULT 'draft', -- draft, review, published, deprecated
+    metadata JSONB, -- Additional metadata as JSON
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_plugin_registry_name ON plugin_registry(name);
 CREATE INDEX idx_plugin_registry_status ON plugin_registry(status);
@@ -200,6 +231,13 @@ CREATE INDEX idx_plugin_downloads_user_id ON plugin_downloads(user_id);
 CREATE INDEX idx_plugin_downloads_status ON plugin_downloads(download_status);
 CREATE INDEX idx_plugin_downloads_started_at ON plugin_downloads(started_at);
 
+CREATE INDEX idx_plugin_marketplace_name ON plugin_marketplace(plugin_name);
+CREATE INDEX idx_plugin_marketplace_category ON plugin_marketplace(category);
+CREATE INDEX idx_plugin_marketplace_status ON plugin_marketplace(status);
+CREATE INDEX idx_plugin_marketplace_featured ON plugin_marketplace(featured);
+CREATE INDEX idx_plugin_marketplace_pricing_model ON plugin_marketplace(pricing_model);
+CREATE INDEX idx_plugin_marketplace_rating ON plugin_marketplace(rating);
+
 -- Create updated_at triggers for automatic timestamp management
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -213,6 +251,7 @@ CREATE TRIGGER update_plugin_registry_updated_at BEFORE UPDATE ON plugin_registr
 CREATE TRIGGER update_plugin_installations_updated_at BEFORE UPDATE ON plugin_installations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_plugin_states_updated_at BEFORE UPDATE ON plugin_states FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_approved_repositories_updated_at BEFORE UPDATE ON approved_repositories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_plugin_marketplace_updated_at BEFORE UPDATE ON plugin_marketplace FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default approved repositories
 INSERT INTO approved_repositories (repository_url, repository_owner, repository_name, approved_by, approval_reason, is_official, trust_level)
@@ -229,6 +268,7 @@ COMMENT ON TABLE plugin_installations IS 'Tracks plugin installations per projec
 COMMENT ON TABLE plugin_states IS 'Real-time plugin states for fast status lookups and health monitoring';
 COMMENT ON TABLE approved_repositories IS 'Dynamic whitelist of approved plugin source repositories';
 COMMENT ON TABLE plugin_downloads IS 'Audit trail of plugin download and installation attempts';
+COMMENT ON TABLE plugin_marketplace IS 'Enhanced marketplace entries for plugin discovery with rich metadata';
 
 COMMENT ON COLUMN plugin_registry.permissions IS 'Array of permission strings required by the plugin';
 COMMENT ON COLUMN plugin_registry.dependencies IS 'JSON object of plugin dependencies and versions';
@@ -238,6 +278,9 @@ COMMENT ON COLUMN plugin_installations.environment IS 'Environment variables for
 COMMENT ON COLUMN plugin_states.health_details IS 'Detailed health check results and metrics';
 COMMENT ON COLUMN approved_repositories.trust_level IS 'Repository trust level: 1=basic, 2=verified, 3=official';
 COMMENT ON COLUMN approved_repositories.security_issues IS 'Array of known security issues for this repository';
+COMMENT ON COLUMN plugin_marketplace.tags IS 'Array of tags for search and filtering';
+COMMENT ON COLUMN plugin_marketplace.dependencies IS 'Package dependencies as JSON';
+COMMENT ON COLUMN plugin_marketplace.metadata IS 'Additional metadata as JSON';
 
 -- Grant appropriate permissions (uncomment when setting up production database)
 -- GRANT SELECT, INSERT, UPDATE ON plugin_registry TO cloudbox_app;
@@ -245,4 +288,5 @@ COMMENT ON COLUMN approved_repositories.security_issues IS 'Array of known secur
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON plugin_states TO cloudbox_app;
 -- GRANT SELECT ON approved_repositories TO cloudbox_app;
 -- GRANT SELECT, INSERT ON plugin_downloads TO cloudbox_app;
+-- GRANT SELECT, INSERT, UPDATE ON plugin_marketplace TO cloudbox_app;
 -- GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO cloudbox_app;

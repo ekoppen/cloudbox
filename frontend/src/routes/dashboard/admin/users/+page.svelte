@@ -339,68 +339,83 @@
   <!-- Page Header -->
   <div class="flex items-center justify-between">
     <div>
-      <h2 class="text-2xl font-bold text-foreground">Gebruikersbeheer</h2>
-      <p class="text-muted-foreground mt-1">Beheer CloudBox gebruikers en rollen</p>
+      <h2 class="text-3xl font-bold text-foreground font-['Inter']">User Management</h2>
+      <p class="text-muted-foreground mt-2 text-base">Manage CloudBox users and permissions</p>
     </div>
-    <Button on:click={() => showCreateModal = true}>
-      <Icon name="user" size={16} className="mr-2" />
-      Nieuwe Gebruiker
+    <Button on:click={() => showCreateModal = true} className="h-10 px-6">
+      <Icon name="user-plus" size={16} className="mr-2" />
+      New User
     </Button>
   </div>
 
   {#if loading}
-    <div class="text-center py-8">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      <p class="mt-2 text-muted-foreground">Gebruikers laden...</p>
+    <div class="p-16 text-center">
+      <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+      </div>
+      <p class="text-foreground font-medium">Loading users...</p>
+      <p class="text-sm text-muted-foreground mt-1">Please wait while we fetch user data</p>
     </div>
   {:else}
     <!-- Users Table -->
-    <Card class="p-6">
-      <div class="flex items-center space-x-3 mb-6">
-        <Icon name="user" size={24} />
-        <h2 class="text-xl font-semibold text-card-foreground">Alle Gebruikers ({users.length})</h2>
+    <div class="bg-background border border-border rounded-2xl overflow-hidden">
+      <div class="px-8 py-6 border-b border-border">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+            <Icon name="users" size={20} className="text-primary" />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-foreground">All Users ({users.length})</h2>
+            <p class="text-sm text-muted-foreground">Manage user accounts and permissions</p>
+          </div>
+        </div>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="border-b border-border">
-              <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Gebruiker</th>
-              <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rol</th>
-              <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Organizations</th>
-              <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-              <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Laatste Login</th>
-              <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Acties</th>
+            <tr class="border-b border-border bg-muted/30">
+              <th class="text-left py-4 px-6 text-sm font-semibold text-foreground">User</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-foreground">Role</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-foreground">Organizations</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-foreground">Status</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-foreground">Last Login</th>
+              <th class="text-right py-4 px-6 text-sm font-semibold text-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
             {#each users as user (user.id)}
-              <tr class="border-b border-border hover:bg-muted/50">
-                <td class="py-3 px-4">
-                  <div>
-                    <div class="font-medium text-foreground">{user.name}</div>
-                    <div class="text-sm text-muted-foreground">{user.email}</div>
+              <tr class="border-b border-border hover:bg-muted/30 transition-colors">
+                <td class="py-6 px-6">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <Icon name="user" size={16} className="text-primary" />
+                    </div>
+                    <div>
+                      <div class="font-semibold text-foreground">{user.name}</div>
+                      <div class="text-sm text-muted-foreground">{user.email}</div>
+                    </div>
                   </div>
                 </td>
-                <td class="py-3 px-4">
-                  <Badge variant={getRoleBadgeVariant(user.role)}>
+                <td class="py-6 px-6">
+                  <Badge variant={getRoleBadgeVariant(user.role)} className="font-medium">
                     {getRoleLabel(user.role)}
                   </Badge>
                 </td>
-                <td class="py-3 px-4">
+                <td class="py-6 px-6">
                   {#if user.organization_admins && user.organization_admins.length > 0}
-                    <div class="flex flex-wrap gap-1">
+                    <div class="flex flex-wrap gap-2">
                       {#each user.organization_admins as orgAdmin}
-                        <div class="flex items-center space-x-1 bg-muted px-2 py-1 rounded text-xs">
+                        <div class="flex items-center space-x-2 bg-muted px-3 py-1 rounded-full text-sm">
                           <div 
                             class="w-2 h-2 rounded-full"
                             style="background-color: {orgAdmin.organization.color}"
                           ></div>
-                          <span>{orgAdmin.organization.name}</span>
+                          <span class="font-medium">{orgAdmin.organization.name}</span>
                           <button
                             on:click={() => revokeOrganizationAdmin(user.id, orgAdmin.organization_id)}
-                            class="text-red-600 hover:text-red-700 ml-1"
-                            title="Intrekken"
+                            class="text-red-600 hover:text-red-700 ml-1 p-0.5 rounded-full hover:bg-red-50"
+                            title="Remove assignment"
                           >
                             <Icon name="x" size={12} />
                           </button>
@@ -408,45 +423,47 @@
                       {/each}
                     </div>
                   {:else}
-                    <span class="text-xs text-muted-foreground">Geen toewijzingen</span>
+                    <span class="text-sm text-muted-foreground">No assignments</span>
                   {/if}
                 </td>
-                <td class="py-3 px-4">
-                  <Badge variant={user.is_active ? "default" : "secondary"}>
-                    {user.is_active ? 'Actief' : 'Inactief'}
+                <td class="py-6 px-6">
+                  <Badge variant={user.is_active ? "default" : "secondary"} className="font-medium">
+                    {user.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </td>
-                <td class="py-3 px-4 text-sm text-muted-foreground">
-                  {user.last_login_at ? formatDate(user.last_login_at) : 'Nooit'}
+                <td class="py-6 px-6 text-sm text-muted-foreground">
+                  {user.last_login_at ? formatDate(user.last_login_at) : 'Never'}
                 </td>
-                <td class="py-3 px-4 text-right">
+                <td class="py-6 px-6 text-right">
                   <div class="flex items-center justify-end space-x-2">
                     {#if user.role === 'admin'}
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         on:click={() => openOrgAdminModal(user)}
-                        title="Wijs toe aan organization"
+                        title="Assign to organization"
+                        className="text-muted-foreground hover:text-foreground"
                       >
-                        <Icon name="package" size={14} />
+                        <Icon name="building" size={16} />
                       </Button>
                     {/if}
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       on:click={() => openEditModal(user)}
+                      className="text-muted-foreground hover:text-foreground"
                     >
-                      <Icon name="edit" size={14} />
+                      <Icon name="edit" size={16} />
                     </Button>
                     {#if user.id !== $auth.user?.id}
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         disabled={deleting}
                         on:click={() => deleteUser(user)}
-                        class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        <Icon name="x" size={14} />
+                        <Icon name="trash" size={16} />
                       </Button>
                     {/if}
                   </div>
@@ -456,7 +473,7 @@
           </tbody>
         </table>
       </div>
-    </Card>
+    </div>
   {/if}
 </div>
 

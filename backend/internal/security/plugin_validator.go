@@ -77,13 +77,24 @@ func (pv *PluginValidator) ValidateGitHubRepository(repoURL string) (*GitHubRepo
 		return nil, fmt.Errorf("invalid repository URL: %v", err)
 	}
 
-	// Ensure it's a GitHub URL
-	if parsedURL.Host != "github.com" {
-		return nil, fmt.Errorf("only GitHub repositories are allowed")
+	// Handle both https://github.com/user/repo and github.com/user/repo formats
+	var path string
+	if parsedURL.Host == "" {
+		// Handle github.com/user/repo format (no protocol)
+		if !strings.HasPrefix(repoURL, "github.com/") {
+			return nil, fmt.Errorf("only GitHub repositories are allowed")
+		}
+		path = strings.TrimPrefix(repoURL, "github.com")
+	} else {
+		// Handle https://github.com/user/repo format
+		if parsedURL.Host != "github.com" {
+			return nil, fmt.Errorf("only GitHub repositories are allowed")
+		}
+		path = parsedURL.Path
 	}
 
 	// Extract owner and repo name
-	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(pathParts) != 2 {
 		return nil, fmt.Errorf("invalid GitHub repository format")
 	}
@@ -371,11 +382,23 @@ func AddApprovedRepository(repoURL string) error {
 		return fmt.Errorf("invalid repository URL: %v", err)
 	}
 
-	if parsedURL.Host != "github.com" {
-		return fmt.Errorf("only GitHub repositories are supported")
+	// Handle both https://github.com/user/repo and github.com/user/repo formats
+	var path string
+	if parsedURL.Host == "" {
+		// Handle github.com/user/repo format (no protocol)
+		if !strings.HasPrefix(repoURL, "github.com/") {
+			return fmt.Errorf("only GitHub repositories are supported")
+		}
+		path = strings.TrimPrefix(repoURL, "github.com")
+	} else {
+		// Handle https://github.com/user/repo format
+		if parsedURL.Host != "github.com" {
+			return fmt.Errorf("only GitHub repositories are supported")
+		}
+		path = parsedURL.Path
 	}
 
-	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(pathParts) != 2 {
 		return fmt.Errorf("invalid GitHub repository format")
 	}
@@ -393,7 +416,23 @@ func RemoveApprovedRepository(repoURL string) error {
 		return fmt.Errorf("invalid repository URL: %v", err)
 	}
 
-	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	// Handle both https://github.com/user/repo and github.com/user/repo formats
+	var path string
+	if parsedURL.Host == "" {
+		// Handle github.com/user/repo format (no protocol)
+		if !strings.HasPrefix(repoURL, "github.com/") {
+			return fmt.Errorf("only GitHub repositories are supported")
+		}
+		path = strings.TrimPrefix(repoURL, "github.com")
+	} else {
+		// Handle https://github.com/user/repo format
+		if parsedURL.Host != "github.com" {
+			return fmt.Errorf("only GitHub repositories are supported")
+		}
+		path = parsedURL.Path
+	}
+
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(pathParts) != 2 {
 		return fmt.Errorf("invalid GitHub repository format")
 	}

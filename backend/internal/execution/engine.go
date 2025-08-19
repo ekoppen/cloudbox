@@ -449,14 +449,14 @@ import (
 func main() {
 	inputFile, err := os.Open("input.json")
 	if err != nil {
-		fmt.Printf("Failed to open input file: %%v\n", err)
+		fmt.Printf("Failed to open input file: %v\n", err)
 		os.Exit(1)
 	}
 	defer inputFile.Close()
 
 	var inputData map[string]interface{}
 	if err := json.NewDecoder(inputFile).Decode(&inputData); err != nil {
-		fmt.Printf("Failed to decode input: %%v\n", err)
+		fmt.Printf("Failed to decode input: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -473,13 +473,13 @@ func main() {
 
 	outputFile, err := os.Create("output.json")
 	if err != nil {
-		fmt.Printf("Failed to create output file: %%v\n", err)
+		fmt.Printf("Failed to create output file: %v\n", err)
 		os.Exit(1)
 	}
 	defer outputFile.Close()
 
 	if err := json.NewEncoder(outputFile).Encode(outputData); err != nil {
-		fmt.Printf("Failed to encode output: %%v\n", err)
+		fmt.Printf("Failed to encode output: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -706,14 +706,14 @@ import (
 func main() {
 	inputFile, err := os.Open("input.json")
 	if err != nil {
-		fmt.Printf("Failed to open input file: %%v\n", err)
+		fmt.Printf("Failed to open input file: %v\n", err)
 		os.Exit(1)
 	}
 	defer inputFile.Close()
 
 	var inputData map[string]interface{}
 	if err := json.NewDecoder(inputFile).Decode(&inputData); err != nil {
-		fmt.Printf("Failed to decode input: %%v\n", err)
+		fmt.Printf("Failed to decode input: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -729,13 +729,13 @@ func main() {
 
 	outputFile, err := os.Create("output.json")
 	if err != nil {
-		fmt.Printf("Failed to create output file: %%v\n", err)
+		fmt.Printf("Failed to create output file: %v\n", err)
 		os.Exit(1)
 	}
 	defer outputFile.Close()
 
 	if err := json.NewEncoder(outputFile).Encode(outputData); err != nil {
-		fmt.Printf("Failed to encode output: %%v\n", err)
+		fmt.Printf("Failed to encode output: %v\n", err)
 		os.Exit(1)
 	}
 

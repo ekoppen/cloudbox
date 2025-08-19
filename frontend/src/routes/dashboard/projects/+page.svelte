@@ -10,6 +10,7 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  import ProjectCard from '$lib/components/ui/project-card.svelte';
   
   interface Organization {
     id: number;
@@ -176,65 +177,44 @@
 <div class="space-y-8">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <div class="flex items-center space-x-4">
-      <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-        <Icon name="package" size={24} color="white" />
-      </div>
-      <div>
-        <h1 class="text-3xl font-bold text-foreground">Projecten</h1>
-        <p class="text-muted-foreground">
-          Beheer al je CloudBox projecten op één plek
-        </p>
-      </div>
+    <div>
+      <h1 class="text-2xl font-semibold text-foreground">Projecten</h1>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Beheer al je CloudBox projecten op één plek
+      </p>
     </div>
-    <div class="flex items-center space-x-3">
-      <Button
-        variant="outline"
-        href="/dashboard"
-        size="lg"
-        class="flex items-center space-x-2"
-      >
-        <Icon name="arrow-left" size={16} />
-        <span>Terug naar Dashboard</span>
-      </Button>
-      <Button
-        on:click={() => showCreateModal = true}
-        size="lg"
-        class="flex items-center space-x-2"
-      >
-        <Icon name="plus" size={16} />
-        <span>Nieuw Project</span>
-      </Button>
-    </div>
+    <Button
+      on:click={() => showCreateModal = true}
+      class="flex items-center space-x-2"
+    >
+      <Icon name="plus" size={16} />
+      <span>Nieuw Project</span>
+    </Button>
   </div>
 
-  <!-- Stats and Search -->
-  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-    <!-- Quick Stats -->
-    <div class="flex items-center space-x-6">
-      <div class="text-center">
-        <p class="text-2xl font-bold text-foreground">{projects.length}</p>
-        <p class="text-sm text-muted-foreground">Totaal</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-green-600">{projects.filter(p => p.is_active).length}</p>
-        <p class="text-sm text-muted-foreground">Actief</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-gray-400">{projects.filter(p => !p.is_active).length}</p>
-        <p class="text-sm text-muted-foreground">Inactief</p>
-      </div>
-    </div>
-
+  <!-- Search and Stats -->
+  <div class="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
     <!-- Search -->
-    <div class="relative max-w-md">
+    <div class="relative max-w-sm">
       <Icon name="search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
       <Input
         type="text"
         placeholder="Zoek projecten..."
         bind:value={searchTerm}
-        class="pl-10"
+        class="pl-10 h-10"
       />
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="flex items-center space-x-6 text-sm">
+      <div class="flex items-center space-x-2">
+        <div class="h-2 w-2 rounded-full bg-primary"></div>
+        <span class="text-muted-foreground">{projects.length} projecten</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div class="h-2 w-2 rounded-full bg-success"></div>
+        <span class="text-muted-foreground">{projects.filter(p => p.is_active).length} actief</span>
+      </div>
     </div>
   </div>
 
@@ -257,136 +237,53 @@
 
   <!-- Projects Grid -->
   {#if loading}
-    <Card class="p-12">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        <p class="mt-4 text-muted-foreground">Projecten laden...</p>
-      </div>
-    </Card>
+    <div class="text-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+      <p class="mt-4 text-muted-foreground">Projecten laden...</p>
+    </div>
   {:else if filteredProjects.length === 0 && searchTerm}
-    <Card class="p-12">
-      <div class="text-center">
-        <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-          <Icon name="search" size={32} className="text-muted-foreground" />
-        </div>
-        <h3 class="text-lg font-medium text-foreground mb-2">Geen resultaten</h3>
-        <p class="text-muted-foreground mb-6 max-w-sm mx-auto">
-          Geen projecten gevonden voor "{searchTerm}". Probeer een andere zoekterm.
-        </p>
-        <Button
-          variant="outline"
-          on:click={() => searchTerm = ''}
-          size="lg"
-          class="flex items-center space-x-2"
-        >
-          <Icon name="x" size={16} />
-          <span>Zoekterm Wissen</span>
-        </Button>
+    <div class="text-center py-12">
+      <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon name="search" size={24} className="text-muted-foreground" />
       </div>
-    </Card>
+      <h3 class="mb-2 text-lg font-medium text-foreground">Geen resultaten</h3>
+      <p class="mb-6 text-sm text-muted-foreground max-w-sm mx-auto">
+        Geen projecten gevonden voor "{searchTerm}". Probeer een andere zoekterm.
+      </p>
+      <Button
+        variant="outline"
+        on:click={() => searchTerm = ''}
+        class="flex items-center space-x-2"
+      >
+        <Icon name="x" size={16} />
+        <span>Zoekterm wissen</span>
+      </Button>
+    </div>
   {:else if projects.length === 0}
-    <Card class="p-12">
-      <div class="text-center">
-        <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-          <Icon name="package" size={32} className="text-muted-foreground" />
-        </div>
-        <h3 class="text-lg font-medium text-foreground mb-2">Nog geen projecten</h3>
-        <p class="text-muted-foreground mb-6 max-w-sm mx-auto">
-          Maak je eerste CloudBox project aan om te beginnen met je Backend-as-a-Service
-        </p>
-        <Button
-          on:click={() => showCreateModal = true}
-          size="lg"
-          class="flex items-center space-x-2"
-        >
-          <Icon name="plus" size={16} />
-          <span>Eerste Project Aanmaken</span>
-        </Button>
+    <div class="text-center py-12">
+      <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon name="package" size={24} className="text-muted-foreground" />
       </div>
-    </Card>
+      <h3 class="mb-2 text-lg font-medium text-foreground">Nog geen projecten</h3>
+      <p class="mb-6 text-sm text-muted-foreground max-w-sm mx-auto">
+        Maak je eerste CloudBox project aan om te beginnen met je Backend-as-a-Service
+      </p>
+      <Button
+        on:click={() => showCreateModal = true}
+        class="flex items-center space-x-2"
+      >
+        <Icon name="plus" size={16} />
+        <span>Eerste project aanmaken</span>
+      </Button>
+    </div>
   {:else}
     <!-- Projects Grid -->
-    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {#each filteredProjects as project}
-        <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20 flex flex-col">
-          <div class="flex items-start justify-between mb-4">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Icon name="package" size={20} className="text-primary" />
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors">
-                  {project.name}
-                </h3>
-                {#if project.organization}
-                  <div class="flex items-center space-x-1 text-xs">
-                    <div 
-                      class="w-2 h-2 rounded-full"
-                      style="background-color: {project.organization.color}"
-                    ></div>
-                    <span class="text-muted-foreground">{project.organization.name}</span>
-                  </div>
-                {:else}
-                  <p class="text-xs text-muted-foreground">
-                    Geen organization
-                  </p>
-                {/if}
-              </div>
-            </div>
-            <Badge variant={project.is_active ? "default" : "secondary"} class="flex items-center space-x-1">
-              <div class="w-2 h-2 rounded-full {project.is_active ? 'bg-green-500' : 'bg-gray-400'}"></div>
-              <span>{project.is_active ? 'Actief' : 'Inactief'}</span>
-            </Badge>
-          </div>
-          
-          <!-- Description with fixed height for alignment -->
-          <div class="flex-1 mb-4">
-            {#if project.description}
-              <p class="text-muted-foreground text-sm line-clamp-2">{project.description}</p>
-            {:else}
-              <div class="h-10"></div>
-            {/if}
-          </div>
-          
-          <div class="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-muted-foreground">API Slug:</span>
-              <code class="bg-background px-2 py-1 rounded text-xs font-mono">{project.slug}</code>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-muted-foreground">Aangemaakt:</span>
-              <span class="text-foreground">{formatDate(project.created_at)}</span>
-            </div>
-          </div>
-          
-          <div class="flex space-x-2 mt-auto">
-            <Button
-              href="/dashboard/projects/{project.id}"
-              size="sm"
-              class="flex-1 flex items-center justify-center space-x-2"
-            >
-              <Icon name="settings" size={14} />
-              <span>Beheren</span>
-            </Button>
-          </div>
-        </Card>
+        <ProjectCard {project} />
       {/each}
     </div>
 
-    <!-- Load more / Pagination would go here -->
-    {#if filteredProjects.length > 0}
-      <div class="text-center">
-        <Button
-          variant="outline"
-          on:click={loadProjects}
-          size="lg"
-          class="flex items-center space-x-2"
-        >
-          <Icon name="refresh" size={16} />
-          <span>Vernieuwen</span>
-        </Button>
-      </div>
-    {/if}
   {/if}
 </div>
 

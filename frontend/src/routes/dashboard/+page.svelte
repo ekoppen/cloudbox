@@ -9,6 +9,7 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  import ProjectCard from '$lib/components/ui/project-card.svelte';
   
   interface Organization {
     id: number;
@@ -116,58 +117,54 @@
 <div class="space-y-8">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <div class="flex items-center space-x-4">
-      <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-        <Icon name="dashboard" size={24} color="white" />
-      </div>
-      <div>
-        <h1 class="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p class="text-muted-foreground">
-          Beheer je CloudBox projecten en API's
-        </p>
-      </div>
+    <div>
+      <h1 class="text-heading-1">
+        Welkom terug, {$auth.user?.name?.split(' ')[0] || 'User'}
+      </h1>
+      <p class="mt-1 text-body-sm">
+        Hier is een overzicht van je CloudBox projecten
+      </p>
     </div>
     <Button
       href="/dashboard/projects"
-      size="lg"
       class="flex items-center space-x-2"
     >
-      <Icon name="package" size={16} />
-      <span>Nieuw Project</span>
+      <Icon name="plus" size={16} />
+      <span>Nieuw project</span>
     </Button>
   </div>
 
   <!-- Quick Stats -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-    <Card class="p-6">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="rounded-xl border border-border bg-card p-6">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-muted-foreground">Totaal Projecten</p>
-          <p class="text-2xl font-bold text-foreground">{projects.length}</p>
+          <p class="text-caption-lg">Projecten</p>
+          <p class="text-heading-3">{projects.length}</p>
         </div>
-        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-          <Icon name="package" size={20} className="text-blue-600 dark:text-blue-400" />
+        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <Icon name="package" size={20} className="text-primary" />
         </div>
       </div>
-    </Card>
+    </div>
     
-    <Card class="p-6">
+    <div class="rounded-xl border border-border bg-card p-6">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-muted-foreground">Actieve API's</p>
-          <p class="text-2xl font-bold text-foreground">{projects.filter(p => p.is_active).length}</p>
+          <p class="text-caption-lg">Actief</p>
+          <p class="text-heading-3">{projects.filter(p => p.is_active).length}</p>
         </div>
-        <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-          <Icon name="database" size={20} className="text-green-600 dark:text-green-400" />
+        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+          <Icon name="database" size={20} className="text-success" />
         </div>
       </div>
-    </Card>
+    </div>
     
-    <Card class="p-6">
+    <div class="rounded-xl border border-border bg-card p-6">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-muted-foreground">Storage Gebruikt</p>
-          <p class="text-2xl font-bold text-foreground">
+          <p class="text-caption-lg">Storage</p>
+          <p class="text-heading-3">
             {#if isSuperAdmin && adminStats}
               {formatBytes(adminStats.storage_used || 0)}
             {:else}
@@ -175,17 +172,17 @@
             {/if}
           </p>
         </div>
-        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-          <Icon name="storage" size={20} className="text-purple-600 dark:text-purple-400" />
+        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-500/10">
+          <Icon name="storage" size={20} className="text-gray-500" />
         </div>
       </div>
-    </Card>
+    </div>
     
-    <Card class="p-6">
+    <div class="rounded-xl border border-border bg-card p-6">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-muted-foreground">API Calls (24h)</p>
-          <p class="text-2xl font-bold text-foreground">
+          <p class="text-caption-lg">API Calls</p>
+          <p class="text-heading-3">
             {#if isSuperAdmin && adminStats}
               {adminStats.api_calls_24h || 0}
             {:else}
@@ -193,18 +190,18 @@
             {/if}
           </p>
         </div>
-        <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-          <Icon name="functions" size={20} className="text-orange-600 dark:text-orange-400" />
+        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+          <Icon name="zap" size={20} className="text-warning" />
         </div>
       </div>
-    </Card>
+    </div>
   </div>
   
   <!-- Admin Stats for Superadmins -->
   {#if isSuperAdmin}
     <div class="space-y-6">
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-foreground">Systeem Statistieken</h2>
+        <h2 class="text-heading-2">Systeem Statistieken</h2>
         <Button
           variant="outline"
           size="sm"
@@ -221,7 +218,7 @@
         <Card class="p-6">
           <div class="text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p class="mt-4 text-muted-foreground">Admin statistieken laden...</p>
+            <p class="mt-4 text-body-sm">Admin statistieken laden...</p>
           </div>
         </Card>
       {:else if adminStats}
@@ -229,8 +226,8 @@
           <Card class="p-6">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium text-muted-foreground">Totaal Gebruikers</p>
-                <p class="text-2xl font-bold text-foreground">{adminStats.total_users || 0}</p>
+                <p class="text-caption-lg">Totaal Gebruikers</p>
+                <p class="text-heading-3">{adminStats.total_users || 0}</p>
               </div>
               <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
                 <Icon name="user" size={20} className="text-indigo-600 dark:text-indigo-400" />
@@ -241,8 +238,8 @@
           <Card class="p-6">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium text-muted-foreground">Systeem Uptime</p>
-                <p class="text-2xl font-bold text-foreground">{adminStats.uptime || '0d'}</p>
+                <p class="text-caption-lg">Systeem Uptime</p>
+                <p class="text-heading-3">{adminStats.uptime || '0d'}</p>
               </div>
               <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center">
                 <Icon name="shield-check" size={20} className="text-emerald-600 dark:text-emerald-400" />
@@ -253,8 +250,8 @@
           <Card class="p-6">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium text-muted-foreground">Database Queries</p>
-                <p class="text-2xl font-bold text-foreground">{adminStats.database_queries || 0}</p>
+                <p class="text-caption-lg">Database Queries</p>
+                <p class="text-heading-3">{adminStats.database_queries || 0}</p>
               </div>
               <div class="w-10 h-10 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
                 <Icon name="database" size={20} className="text-cyan-600 dark:text-cyan-400" />
@@ -265,8 +262,8 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card class="p-6">
-            <h3 class="text-lg font-semibold text-foreground mb-4">Systeem Informatie</h3>
-            <div class="space-y-3 text-sm">
+            <h3 class="text-heading-4 mb-4">Systeem Informatie</h3>
+            <div class="space-y-3 text-body-sm">
               <div class="flex justify-between">
                 <span class="text-muted-foreground">Server OS:</span>
                 <span class="text-foreground font-medium">{adminStats.os || 'Onbekend'}</span>
@@ -287,8 +284,8 @@
           </Card>
           
           <Card class="p-6">
-            <h3 class="text-lg font-semibold text-foreground mb-4">Recente Activiteit</h3>
-            <div class="space-y-3 text-sm">
+            <h3 class="text-heading-4 mb-4">Recente Activiteit</h3>
+            <div class="space-y-3 text-body-sm">
               <div class="flex justify-between">
                 <span class="text-muted-foreground">Deployments (7d):</span>
                 <span class="text-foreground font-medium">{adminStats.deployments_7d || 0}</span>
@@ -332,112 +329,46 @@
   <!-- Projects Section -->
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-semibold text-foreground">Mijn Projecten</h2>
-      {#if projects.length > 0}
+      <h2 class="text-heading-3">Recente projecten</h2>
+      {#if projects.length > 3}
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          on:click={loadProjects}
-          class="flex items-center space-x-2"
+          href="/dashboard/projects"
+          class="flex items-center space-x-2 text-muted-foreground"
         >
-          <Icon name="refresh-cw" size={14} />
-          <span>Vernieuwen</span>
+          <span>Alle projecten</span>
+          <Icon name="arrow-right" size={14} />
         </Button>
       {/if}
     </div>
 
     {#if loading}
-      <Card class="p-12">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p class="mt-4 text-muted-foreground">Projecten laden...</p>
-        </div>
-      </Card>
+      <div class="text-center py-8">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+        <p class="mt-2 text-body-sm">Projecten laden...</p>
+      </div>
     {:else if projects.length === 0}
-      <Card class="p-12">
-        <div class="text-center">
-          <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <Icon name="package" size={32} className="text-muted-foreground" />
-          </div>
-          <h3 class="text-lg font-medium text-foreground mb-2">Nog geen projecten</h3>
-          <p class="text-muted-foreground mb-6 max-w-sm mx-auto">
-            Maak je eerste CloudBox project aan om te beginnen met je Backend-as-a-Service
-          </p>
-          <Button
-            href="/dashboard/projects"
-            size="lg"
-            class="flex items-center space-x-2"
-          >
-            <Icon name="package" size={16} />
-            <span>Eerste Project Aanmaken</span>
-          </Button>
+      <div class="text-center py-8">
+        <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <Icon name="package" size={24} className="text-muted-foreground" />
         </div>
-      </Card>
+        <h3 class="mb-2 text-heading-4">Nog geen projecten</h3>
+        <p class="mb-4 text-body-sm max-w-sm mx-auto">
+          Maak je eerste CloudBox project aan om te beginnen
+        </p>
+        <Button
+          href="/dashboard/projects"
+          class="flex items-center space-x-2"
+        >
+          <Icon name="plus" size={16} />
+          <span>Eerste project aanmaken</span>
+        </Button>
+      </div>
     {:else}
-      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {#each projects as project}
-          <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20 flex flex-col">
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Icon name="package" size={20} className="text-primary" />
-                </div>
-                <div>
-                  <h3 class="text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors">
-                    {project.name}
-                  </h3>
-                  {#if project.organization}
-                    <div class="flex items-center space-x-1 text-xs">
-                      <div 
-                        class="w-2 h-2 rounded-full"
-                        style="background-color: {project.organization.color}"
-                      ></div>
-                      <span class="text-muted-foreground">{project.organization.name}</span>
-                    </div>
-                  {:else}
-                    <p class="text-xs text-muted-foreground">
-                      Geen organization
-                    </p>
-                  {/if}
-                </div>
-              </div>
-              <Badge variant={project.is_active ? "default" : "secondary"} class="flex items-center space-x-1">
-                <div class="w-2 h-2 rounded-full {project.is_active ? 'bg-green-500' : 'bg-gray-400'}"></div>
-                <span>{project.is_active ? 'Actief' : 'Inactief'}</span>
-              </Badge>
-            </div>
-            
-            <!-- Description with fixed height for alignment -->
-            <div class="flex-1 mb-4">
-              {#if project.description}
-                <p class="text-muted-foreground text-sm line-clamp-2">{project.description}</p>
-              {:else}
-                <div class="h-10"></div>
-              {/if}
-            </div>
-            
-            <div class="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-muted-foreground">API Slug:</span>
-                <code class="bg-background px-2 py-1 rounded text-xs font-mono">{project.slug}</code>
-              </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-muted-foreground">Aangemaakt:</span>
-                <span class="text-foreground">{formatDate(project.created_at)}</span>
-              </div>
-            </div>
-            
-            <div class="flex space-x-2 mt-auto">
-              <Button
-                href="/dashboard/projects/{project.id}"
-                size="sm"
-                class="flex-1 flex items-center justify-center space-x-2"
-              >
-                <Icon name="settings" size={14} />
-                <span>Beheren</span>
-              </Button>
-            </div>
-          </Card>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {#each projects.slice(0, 6) as project}
+          <ProjectCard {project} />
         {/each}
       </div>
     {/if}

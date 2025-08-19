@@ -8,6 +8,7 @@
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  import ThemeDebug from '$lib/components/debug/theme-debug.svelte';
   
   let showEditProfileModal = false;
   let editProfileData = {
@@ -25,12 +26,9 @@
   let changingPassword = false;
   
   const accentColors: { name: AccentColor; label: string; preview: string; darkPreview: string }[] = [
-    { name: 'blue', label: 'Blauw', preview: 'bg-blue-500', darkPreview: 'bg-blue-400' },
-    { name: 'green', label: 'Groen', preview: 'bg-green-600', darkPreview: 'bg-green-400' },
-    { name: 'purple', label: 'Paars', preview: 'bg-purple-500', darkPreview: 'bg-purple-300' },
-    { name: 'orange', label: 'Oranje', preview: 'bg-orange-500', darkPreview: 'bg-orange-400' },
-    { name: 'red', label: 'Rood', preview: 'bg-red-500', darkPreview: 'bg-red-300' },
-    { name: 'pink', label: 'Roze', preview: 'bg-pink-500', darkPreview: 'bg-pink-300' },
+    { name: 'blue', label: 'Blauw', preview: 'bg-cloudbox-blue', darkPreview: 'bg-cloudbox-blue' },
+    { name: 'green', label: 'Groen', preview: 'bg-cloudbox-green', darkPreview: 'bg-cloudbox-green' },
+    { name: 'purple', label: 'Paars', preview: 'bg-cloudbox-purple', darkPreview: 'bg-cloudbox-purple' },
   ];
 
   function handleAccentColorChange(accentColor: AccentColor) {
@@ -185,31 +183,77 @@
         <h3 class="text-lg font-medium text-card-foreground mb-3">Thema Modus</h3>
         <div class="flex space-x-4">
           <button
-            on:click={() => theme.setTheme('light')}
-            class="flex items-center space-x-3 p-4 border-2 rounded-lg transition-colors"
-            class:border-primary={$theme.theme === 'light'}
-            class:border-border={$theme.theme !== 'light'}
-            class:bg-primary-50={$theme.theme === 'light'}
+            on:click={() => theme.setTheme('cloudbox')}
+            class="flex items-center space-x-3 p-5 border-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
+            class:border-primary={$theme.theme === 'cloudbox'}
+            class:border-border={$theme.theme !== 'cloudbox'}
+            class:bg-primary={$theme.theme === 'cloudbox'}
+            class:text-primary-foreground={$theme.theme === 'cloudbox'}
+            class:bg-card={$theme.theme !== 'cloudbox'}
+            class:hover:bg-muted={$theme.theme !== 'cloudbox'}
+            class:shadow-lg={$theme.theme === 'cloudbox'}
+            class:shadow-primary/20={$theme.theme === 'cloudbox'}
           >
-            <Icon name="sun" size={20} />
-            <div class="text-left">
-              <div class="font-medium text-card-foreground">Licht</div>
-              <div class="text-sm text-muted-foreground">Lichte achtergrond</div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center"
+                 class:bg-primary-foreground={$theme.theme === 'cloudbox'}
+                 class:text-primary={$theme.theme === 'cloudbox'}
+                 class:bg-primary/10={$theme.theme !== 'cloudbox'}
+                 class:text-primary={$theme.theme !== 'cloudbox'}
+            >
+              <Icon name="sun" size={20} />
             </div>
+            <div class="text-left">
+              <div class="font-semibold" 
+                   class:text-primary-foreground={$theme.theme === 'cloudbox'}
+                   class:text-card-foreground={$theme.theme !== 'cloudbox'}
+              >Licht Thema</div>
+              <div class="text-sm" 
+                   class:text-primary-foreground/80={$theme.theme === 'cloudbox'}
+                   class:text-muted-foreground={$theme.theme !== 'cloudbox'}
+              >Heldere achtergrond</div>
+            </div>
+            {#if $theme.theme === 'cloudbox'}
+              <div class="ml-auto">
+                <Icon name="check" size={16} className="text-primary-foreground" />
+              </div>
+            {/if}
           </button>
           
           <button
-            on:click={() => theme.setTheme('dark')}
-            class="flex items-center space-x-3 p-4 border-2 rounded-lg transition-colors"
-            class:border-primary={$theme.theme === 'dark'}
-            class:border-border={$theme.theme !== 'dark'}
-            class:bg-primary-50={$theme.theme === 'dark'}
+            on:click={() => theme.setTheme('cloudbox-dark')}
+            class="flex items-center space-x-3 p-5 border-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
+            class:border-primary={$theme.theme === 'cloudbox-dark'}
+            class:border-border={$theme.theme !== 'cloudbox-dark'}
+            class:bg-primary={$theme.theme === 'cloudbox-dark'}
+            class:text-primary-foreground={$theme.theme === 'cloudbox-dark'}
+            class:bg-card={$theme.theme !== 'cloudbox-dark'}
+            class:hover:bg-muted={$theme.theme !== 'cloudbox-dark'}
+            class:shadow-lg={$theme.theme === 'cloudbox-dark'}
+            class:shadow-primary/20={$theme.theme === 'cloudbox-dark'}
           >
-            <Icon name="moon" size={20} />
-            <div class="text-left">
-              <div class="font-medium text-card-foreground">Donker</div>
-              <div class="text-sm text-muted-foreground">Donkere achtergrond</div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center"
+                 class:bg-primary-foreground={$theme.theme === 'cloudbox-dark'}
+                 class:text-primary={$theme.theme === 'cloudbox-dark'}
+                 class:bg-primary/10={$theme.theme !== 'cloudbox-dark'}
+                 class:text-primary={$theme.theme !== 'cloudbox-dark'}
+            >
+              <Icon name="moon" size={20} />
             </div>
+            <div class="text-left">
+              <div class="font-semibold" 
+                   class:text-primary-foreground={$theme.theme === 'cloudbox-dark'}
+                   class:text-card-foreground={$theme.theme !== 'cloudbox-dark'}
+              >Donker Thema</div>
+              <div class="text-sm" 
+                   class:text-primary-foreground/80={$theme.theme === 'cloudbox-dark'}
+                   class:text-muted-foreground={$theme.theme !== 'cloudbox-dark'}
+              >Donkere achtergrond</div>
+            </div>
+            {#if $theme.theme === 'cloudbox-dark'}
+              <div class="ml-auto">
+                <Icon name="check" size={16} className="text-primary-foreground" />
+              </div>
+            {/if}
           </button>
         </div>
       </div>
@@ -227,7 +271,7 @@
               class:bg-muted={$theme.accentColor === color.name}
               class:shadow-md={$theme.accentColor === color.name}
             >
-              <div class="w-5 h-5 rounded-full {$theme.theme === 'dark' ? color.darkPreview : color.preview} shadow-sm"></div>
+              <div class="w-5 h-5 rounded-full {$theme.theme === 'cloudbox-dark' ? color.darkPreview : color.preview} shadow-sm"></div>
               <span class="font-medium text-card-foreground">{color.label}</span>
               {#if $theme.accentColor === color.name}
                 <Icon name="user" size={14} className="ml-auto text-primary" />
@@ -279,7 +323,7 @@
                 </button>
               </div>
               <div class="text-xs text-muted-foreground">
-                Primary CSS var: <span class="font-mono">{$theme.theme === 'dark' ? 'dark' : 'light'} mode</span>
+                Primary CSS var: <span class="font-mono">{$theme.theme === 'cloudbox-dark' ? 'dark' : 'light'} mode</span>
               </div>
             </div>
           </div>
@@ -294,7 +338,7 @@
           
           <!-- Info -->
           <div class="text-xs text-muted-foreground text-center p-2 bg-muted rounded">
-            Huidige theme: <span class="font-medium text-foreground">{$theme.theme === 'dark' ? 'Donker' : 'Licht'}</span> • 
+            Huidige theme: <span class="font-medium text-foreground">{$theme.theme === 'cloudbox-dark' ? 'Donker' : 'Licht'}</span> • 
             Accent: <span class="font-medium text-primary">{accentColors.find(c => c.name === $theme.accentColor)?.label}</span>
           </div>
           
@@ -309,6 +353,9 @@
       </div>
     </div>
   </Card>
+
+  <!-- Theme Debug Component -->
+  <ThemeDebug />
 
   <!-- Account Settings -->
   <Card class="p-6">

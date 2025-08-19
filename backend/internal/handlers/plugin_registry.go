@@ -334,7 +334,7 @@ func (h *PluginRegistryHandler) GetApprovedRepositories(c *gin.Context) {
 	}
 
 	var repositories []models.ApprovedRepository
-	err := h.db.Where("is_active = ?", true).Find(&repositories).Error
+	err := h.db.Unscoped().Where("is_active = ?", true).Find(&repositories).Error
 	if err != nil {
 		log.Printf("Error fetching approved repositories: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -481,25 +481,19 @@ func (h *PluginRegistryHandler) notifyRequester(request models.RepositoryApprova
 func (h *PluginRegistryHandler) addToMarketplace(submission models.PluginSubmission) {
 	// Create marketplace entry
 	marketplaceEntry := models.PluginMarketplace{
-		PluginName:   submission.PluginName,
+		Name:         submission.PluginName,
 		Repository:   submission.Repository,
 		Version:      submission.Version,
 		Description:  submission.Description,
 		Author:       submission.Author,
-		Category:     submission.Category,
-		Tags:         submission.Tags,
 		License:      submission.License,
-		Website:      submission.Website,
-		SupportEmail: submission.SupportEmail,
-		Screenshots:  submission.Screenshots,
-		DemoURL:      submission.DemoURL,
+		Type:         "dashboard-plugin", // default type
 		Permissions:  submission.Permissions,
 		Dependencies: submission.Dependencies,
-		Verified:     false, // Manual verification required
-		Official:     false, // Only CloudBox team can mark as official
-		Featured:     false, // Admin decision
-		Status:       "active",
-		PublishedAt:  time.Now(),
+		IsVerified:   false, // Manual verification required
+		IsApproved:   false, // Manual approval required
+		Status:       "available",
+		PublishedAt:  func() *time.Time { now := time.Now(); return &now }(),
 	}
 
 	if err := h.db.Create(&marketplaceEntry).Error; err != nil {

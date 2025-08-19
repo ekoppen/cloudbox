@@ -1087,6 +1087,11 @@ type PluginRegistry struct {
 	SourceMetadata   map[string]interface{} `json:"source_metadata" gorm:"type:jsonb;serializer:json"`
 }
 
+// TableName overrides the default table name for PluginRegistry
+func (PluginRegistry) TableName() string {
+	return "plugin_registry"
+}
+
 // PluginInstallation represents an installed plugin in a project
 type PluginInstallation struct {
 	ID            uint      `json:"id" gorm:"primaryKey"`
@@ -1280,8 +1285,8 @@ type PluginSubmission struct {
 	ReviewedAt  time.Time `json:"reviewed_at"`
 
 	// Relationships
-	Submitter User `json:"submitter,omitempty"`
-	Reviewer  User `json:"reviewer,omitempty"`
+	Submitter User `json:"submitter,omitempty" gorm:"foreignKey:SubmittedBy"`
+	Reviewer  User `json:"reviewer,omitempty" gorm:"foreignKey:ReviewedBy"`
 }
 
 // RepositoryApprovalRequest represents a request to approve a repository for plugin submissions
@@ -1311,8 +1316,8 @@ type RepositoryApprovalRequest struct {
 	ReviewedAt  time.Time `json:"reviewed_at"`
 
 	// Relationships
-	Requester User `json:"requester,omitempty"`
-	Reviewer  User `json:"reviewer,omitempty"`
+	Requester User `json:"requester,omitempty" gorm:"foreignKey:RequestedBy"`
+	Reviewer  User `json:"reviewer,omitempty" gorm:"foreignKey:ReviewedBy"`
 }
 
 // PluginMarketplace represents a plugin in the marketplace
@@ -1322,32 +1327,38 @@ type PluginMarketplace struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 
-	// Plugin information
-	PluginName   string                 `json:"plugin_name" gorm:"uniqueIndex;not null"`
+	// Plugin information - matching plugin_registry table structure
+	Name         string                 `json:"plugin_name" gorm:"column:name;uniqueIndex;not null"`
 	Repository   string                 `json:"repository" gorm:"not null"`
 	Version      string                 `json:"version" gorm:"not null"`
-	Description  string                 `json:"description" gorm:"not null"`
+	Description  string                 `json:"description"`
 	Author       string                 `json:"author" gorm:"not null"`
-	Category     string                 `json:"category" gorm:"not null"`
-	Tags         pq.StringArray         `json:"tags" gorm:"type:text[]"`
-	License      string                 `json:"license" gorm:"not null"`
-	Website      string                 `json:"website"`
-	SupportEmail string                 `json:"support_email" gorm:"not null"`
-	Screenshots  pq.StringArray         `json:"screenshots" gorm:"type:text[]"`
-	DemoURL      string                 `json:"demo_url"`
+	License      string                 `json:"license"`
+	Type         string                 `json:"type" gorm:"default:'dashboard-plugin'"`
+	MainFile     string                 `json:"main_file"`
+	Checksum     string                 `json:"checksum"`
+	Signature    string                 `json:"signature"`
 	Permissions  pq.StringArray         `json:"permissions" gorm:"type:text[]"`
 	Dependencies map[string]interface{} `json:"dependencies" gorm:"type:jsonb;serializer:json"`
-
-	// Marketplace metadata
-	Verified     bool   `json:"verified" gorm:"default:false"`
-	Official     bool   `json:"official" gorm:"default:false"`
-	Featured     bool   `json:"featured" gorm:"default:false"`
-	Status       string `json:"status" gorm:"default:'active'"` // active, deprecated, removed
-	Rating       float64 `json:"rating" gorm:"default:0"`
-	DownloadCount int   `json:"download_count" gorm:"default:0"`
+	UIConfig     map[string]interface{} `json:"ui_config" gorm:"type:jsonb;serializer:json"`
+	
+	// Status and metadata - matching plugin_registry table
+	IsVerified      bool   `json:"verified" gorm:"column:is_verified;default:false"`
+	IsApproved      bool   `json:"approved" gorm:"column:is_approved;default:false"`
+	Status          string `json:"status" gorm:"default:'available'"`
+	DownloadCount   int    `json:"download_count" gorm:"default:0"`
+	InstallCount    int    `json:"install_count" gorm:"default:0"`
+	RegistrySource  string `json:"registry_source" gorm:"default:'github'"`
+	SourceMetadata  map[string]interface{} `json:"source_metadata" gorm:"type:jsonb;serializer:json"`
 
 	// Timestamps
-	PublishedAt time.Time `json:"published_at"`
+	PublishedAt   *time.Time `json:"published_at"`
+	DeprecatedAt  *time.Time `json:"deprecated_at"`
+}
+
+// TableName overrides the default table name for PluginMarketplace
+func (PluginMarketplace) TableName() string {
+	return "plugin_registry"
 }
 
 // AfterFind hook to populate computed fields

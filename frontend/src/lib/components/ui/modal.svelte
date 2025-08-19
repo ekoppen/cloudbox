@@ -15,12 +15,12 @@
   let modalElement: HTMLElement;
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-    '2xl': 'max-w-6xl',
-    '3xl': 'max-w-7xl'
+    sm: 'modal-box w-11/12 max-w-md bg-card text-card-foreground border border-border',
+    md: 'modal-box w-11/12 max-w-lg bg-card text-card-foreground border border-border',
+    lg: 'modal-box w-11/12 max-w-2xl bg-card text-card-foreground border border-border',
+    xl: 'modal-box w-11/12 max-w-4xl bg-card text-card-foreground border border-border',
+    '2xl': 'modal-box w-11/12 max-w-6xl bg-card text-card-foreground border border-border',
+    '3xl': 'modal-box w-11/12 max-w-7xl bg-card text-card-foreground border border-border'
   };
 
   function handleKeydown(event: KeyboardEvent) {
@@ -60,60 +60,59 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if open}
-  <!-- Backdrop -->
-  <div
-    class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-    on:click={handleClickOutside}
-    transition:fade={{ duration: 200 }}
-    role="presentation"
-  >
-    <!-- Modal -->
+  <!-- Enhanced Modal with proper backdrop coverage -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" transition:fade={{ duration: 200 }}>
+    <!-- Full screen backdrop -->
+    <div 
+      class="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+      on:click={closeOnClickOutside ? close : undefined}
+      role="presentation"
+    ></div>
+    
+    <!-- Modal content -->
     <div
-      class="fixed left-1/2 top-1/2 z-50 w-full {sizeClasses[size]} -translate-x-1/2 -translate-y-1/2 p-6"
+      bind:this={modalElement}
+      class="{sizeClasses[size]} relative z-10"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? 'modal-title' : undefined}
       transition:scale={{ duration: 200 }}
+      on:click|stopPropagation
     >
-      <div
-        bind:this={modalElement}
-        class="relative bg-card border border-border rounded-lg shadow-lg p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
-      >
-        <!-- Header -->
-        {#if title || $$slots.header}
-          <div class="flex items-center justify-between mb-4">
-            {#if $$slots.header}
-              <slot name="header" />
-            {:else}
-              <h2 id="modal-title" class="text-lg font-semibold text-foreground">
-                {title}
-              </h2>
-            {/if}
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              on:click={close}
-              class="h-8 w-8 p-0"
-              aria-label="Sluiten"
-            >
-              <Icon name="x" size={16} />
-            </Button>
-          </div>
-        {/if}
-
-        <!-- Content -->
-        <div class="modal-content">
-          <slot />
+      <!-- Header -->
+      {#if title || $$slots.header}
+        <div class="flex items-center justify-between mb-4">
+          {#if $$slots.header}
+            <slot name="header" />
+          {:else}
+            <h2 id="modal-title" class="text-lg font-semibold">
+              {title}
+            </h2>
+          {/if}
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            on:click={close}
+            class="btn-sm btn-square"
+            aria-label="Sluiten"
+          >
+            <Icon name="x" size={16} className="icon-contrast" />
+          </Button>
         </div>
+      {/if}
 
-        <!-- Footer -->
-        {#if $$slots.footer}
-          <div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-border">
-            <slot name="footer" />
-          </div>
-        {/if}
+      <!-- Content -->
+      <div class="modal-content">
+        <slot />
       </div>
+
+      <!-- Footer -->
+      {#if $$slots.footer}
+        <div class="modal-action">
+          <slot name="footer" />
+        </div>
+      {/if}
     </div>
   </div>
 {/if}

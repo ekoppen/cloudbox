@@ -492,58 +492,52 @@
   <title>Instellingen - CloudBox</title>
 </svelte:head>
 
-<div class="space-y-6">
-  <!-- Header -->
-  <div class="flex items-center space-x-4">
-    <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-      <Icon name="settings" size={20} className="text-primary" />
-    </div>
-    <div>
-      <h1 class="text-2xl font-bold text-foreground">Project Instellingen</h1>
-      <p class="text-sm text-muted-foreground">
-        Beheer API keys, CORS configuratie en project instellingen
-      </p>
-    </div>
-  </div>
+<!-- Page Header -->
+<div class="mb-8">
+  <h1 class="text-3xl font-bold text-foreground font-['Inter'] mb-2">Project Settings</h1>
+  <p class="text-muted-foreground text-base">Configure your project's API keys, CORS settings, and general preferences</p>
+</div>
 
-  <!-- Tabs -->
-  <div class="border-b border-border">
-    <nav class="flex space-x-8">
-      <button
-        on:click={() => activeTab = 'api-keys'}
-        class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
-          activeTab === 'api-keys' 
-            ? 'border-primary text-primary' 
-            : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-        }"
-      >
-        <Icon name="auth" size={16} />
-        <span>API Keys</span>
-      </button>
-      <button
-        on:click={() => activeTab = 'cors'}
-        class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
-          activeTab === 'cors' 
-            ? 'border-primary text-primary' 
-            : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-        }"
-      >
-        <Icon name="cloud" size={16} />
-        <span>CORS</span>
-      </button>
-      <button
-        on:click={() => activeTab = 'general'}
-        class="flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-medium transition-colors {
-          activeTab === 'general' 
-            ? 'border-primary text-primary' 
-            : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-        }"
-      >
-        <Icon name="settings" size={16} />
-        <span>Algemeen</span>
-      </button>
-    </nav>
-  </div>
+<!-- Sub-tabs within settings -->
+<div class="border-b border-border mb-8">
+  <nav class="flex space-x-8">
+    <button
+      on:click={() => activeTab = 'api-keys'}
+      class="flex items-center space-x-2 py-3 px-1 border-b-2 text-sm font-semibold transition-all duration-200 {
+        activeTab === 'api-keys' 
+          ? 'border-primary text-primary' 
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+      }"
+    >
+      <Icon name="key" size={18} />
+      <span>API Keys</span>
+    </button>
+    <button
+      on:click={() => activeTab = 'cors'}
+      class="flex items-center space-x-2 py-3 px-1 border-b-2 text-sm font-semibold transition-all duration-200 {
+        activeTab === 'cors' 
+          ? 'border-primary text-primary' 
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+      }"
+    >
+      <Icon name="globe" size={18} />
+      <span>CORS</span>
+    </button>
+    <button
+      on:click={() => activeTab = 'general'}
+      class="flex items-center space-x-2 py-3 px-1 border-b-2 text-sm font-semibold transition-all duration-200 {
+        activeTab === 'general' 
+          ? 'border-primary text-primary' 
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+      }"
+    >
+      <Icon name="settings" size={18} />
+      <span>General</span>
+    </button>
+  </nav>
+</div>
+
+<div class="space-y-6">
 
   <!-- Error Message -->
   {#if error}
@@ -557,93 +551,118 @@
 
   <!-- API Keys Tab -->
   {#if activeTab === 'api-keys'}
-    <div class="space-y-6">
+    <div class="space-y-8">
       <div class="flex justify-between items-center">
         <div>
-          <h2 class="text-lg font-medium text-foreground">API Keys</h2>
-          <p class="text-sm text-muted-foreground">Beheer toegang tot je project API</p>
+          <h2 class="text-2xl font-semibold text-foreground">API Keys</h2>
+          <p class="text-muted-foreground mt-1">Manage access to your project API</p>
         </div>
-        <Button on:click={() => showCreateKey = true} class="flex items-center space-x-2">
-          <Icon name="package" size={16} />
-          <span>Nieuwe API Key</span>
+        <Button on:click={() => showCreateKey = true} className="h-10 px-6">
+          <Icon name="plus" size={16} className="mr-2" />
+          <span>Create API Key</span>
         </Button>
       </div>
 
-      <Card>
+      <div class="bg-background border border-border rounded-2xl overflow-hidden">
         {#if !apiKeysLoaded}
-          <div class="p-6 text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-            <p class="text-muted-foreground">API keys laden...</p>
+          <div class="p-16 text-center">
+            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+            <p class="text-foreground font-medium">Loading API keys...</p>
+            <p class="text-sm text-muted-foreground mt-1">Please wait while we fetch your keys</p>
           </div>
         {:else if apiKeys.length === 0}
-          <div class="p-6 text-center">
-            <p class="text-muted-foreground">Nog geen API keys aangemaakt</p>
+          <div class="p-16 text-center">
+            <div class="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Icon name="key" size={32} className="text-muted-foreground" />
+            </div>
+            <h3 class="text-lg font-semibold text-foreground mb-2">No API keys created</h3>
+            <p class="text-muted-foreground mb-6 max-w-sm mx-auto">
+              Create your first API key to start accessing your project programmatically.
+            </p>
+            <Button on:click={() => showCreateKey = true} className="px-8">
+              <Icon name="plus" size={16} className="mr-2" />
+              Create API Key
+            </Button>
           </div>
         {:else}
           <div class="divide-y divide-border">
             {#each apiKeys as apiKey}
-              <div class="p-6">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <Icon name="auth" size={16} className="text-primary" />
+              <div class="px-8 py-6 hover:bg-muted/30 transition-colors">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-4 flex-1">
+                    <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <Icon name="key" size={20} className="text-primary" />
                     </div>
-                    <div>
-                      <h3 class="text-lg font-medium text-foreground">{apiKey.name}</h3>
-                      <div class="flex items-center space-x-2 mt-1">
-                        <Badge variant={apiKey.is_active ? "default" : "secondary"}>
-                          {apiKey.is_active ? 'Actief' : 'Inactief'}
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-3 mb-2">
+                        <h3 class="text-lg font-semibold text-foreground">{apiKey.name}</h3>
+                        <Badge variant={apiKey.is_active ? "default" : "secondary"} className="font-medium">
+                          {apiKey.is_active ? 'Active' : 'Inactive'}
                         </Badge>
+                      </div>
+                      
+                      <div class="flex items-center space-x-2 mb-3">
                         {#each apiKey.permissions as permission}
                           <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {getPermissionColor(permission)}">
                             {permission}
                           </span>
                         {/each}
                       </div>
+                      
+                      <div class="flex items-center space-x-6 text-sm text-muted-foreground">
+                        <div class="flex items-center space-x-1">
+                          <Icon name="calendar" size={12} />
+                          <span>Created {formatDate(apiKey.created_at)}</span>
+                        </div>
+                        {#if apiKey.last_used_at}
+                          <div class="flex items-center space-x-1">
+                            <Icon name="clock" size={12} />
+                            <span>Last used {formatDate(apiKey.last_used_at)}</span>
+                          </div>
+                        {:else}
+                          <div class="flex items-center space-x-1">
+                            <Icon name="clock" size={12} />
+                            <span>Never used</span>
+                          </div>
+                        {/if}
+                      </div>
                     </div>
                   </div>
-                  
-                  <div class="mt-2 flex items-center space-x-4 text-sm text-muted-foreground">
-                    <span>Aangemaakt: {formatDate(apiKey.created_at)}</span>
-                    {#if apiKey.last_used_at}
-                      <span>Laatst gebruikt: {formatDate(apiKey.last_used_at)}</span>
-                    {:else}
-                      <span>Nog niet gebruikt</span>
-                    {/if}
+
+                  <div class="flex items-center space-x-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      on:click={() => showKeyDetails = apiKey}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Icon name="eye" size={16} className="mr-2" />
+                      View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      on:click={() => toggleKeyStatus(apiKey.id)}
+                    >
+                      {apiKey.is_active ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      on:click={() => deleteKey(apiKey.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Icon name="trash" size={16} />
+                    </Button>
                   </div>
                 </div>
-
-                <div class="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    on:click={() => showKeyDetails = apiKey}
-                  >
-                    Details
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    on:click={() => toggleKeyStatus(apiKey.id)}
-                  >
-                    {apiKey.is_active ? 'Deactiveren' : 'Activeren'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    on:click={() => deleteKey(apiKey.id)}
-                    class="text-destructive hover:text-destructive"
-                  >
-                    Verwijderen
-                  </Button>
-                </div>
-              </div>
               </div>
             {/each}
           </div>
         {/if}
-      </Card>
+      </div>
     </div>
   {/if}
 

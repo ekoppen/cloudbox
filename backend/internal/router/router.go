@@ -300,6 +300,16 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.GET("/:id/messaging/stats", messagingHandler.GetMessagingStats)
 				projects.GET("/:id/messaging/channels", messagingHandler.ListChannels)
 				projects.DELETE("/:id/messaging/messages/:message_id", messagingHandler.DeleteMessage)
+				
+				// Project-level plugin management routes
+				projects.GET("/:id/plugins/available", pluginHandler.GetAvailablePlugins)
+				projects.GET("/:id/plugins/installed", pluginHandler.GetInstalledPlugins)
+				projects.POST("/:id/plugins/:plugin_name/install", pluginHandler.InstallPluginToProject)
+				projects.POST("/:id/plugins/:plugin_name/enable", pluginHandler.EnablePluginForProject)
+				projects.POST("/:id/plugins/:plugin_name/disable", pluginHandler.DisablePluginForProject)
+				projects.DELETE("/:id/plugins/:plugin_name", pluginHandler.UninstallPluginFromProject)
+				projects.PUT("/:id/plugins/:plugin_name/config", pluginHandler.UpdatePluginConfigForProject)
+				projects.GET("/:id/plugins/:plugin_name/status", pluginHandler.GetPluginStatusForProject)
 			}
 
 			// Admin routes (accessible to authenticated users for demo)
@@ -339,6 +349,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				
 				// Plugin marketplace endpoints
 				admin.GET("/plugins/marketplace", pluginHandler.GetMarketplace)
+				admin.POST("/plugins/marketplace/add", pluginHandler.AddPluginToMarketplace) // Changed path to avoid conflicts
 				admin.GET("/plugins/marketplace/search", pluginHandler.SearchMarketplace)
 				admin.GET("/plugins/marketplace/:pluginName", pluginHandler.GetPluginDetails)
 				admin.POST("/plugins/marketplace/install", pluginHandler.InstallFromMarketplace)

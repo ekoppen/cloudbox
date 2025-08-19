@@ -1,0 +1,654 @@
+{
+  "$metadata": {
+    "tokenSetOrder": [
+      "colors",
+      "typography",
+      "spacing",
+      "shadows",
+      "borderRadius",
+      "animation"
+    ]
+  },
+  "colors": {
+    "primary": {
+      "50": {
+        "value": "#ecfdf5",
+        "type": "color",
+        "description": "Lightest primary green - backgrounds, subtle highlights"
+      },
+      "100": {
+        "value": "#d1fae5",
+        "type": "color",
+        "description": "Very light primary green - success backgrounds"
+      },
+      "200": {
+        "value": "#a7f3d0",
+        "type": "color"
+      },
+      "300": {
+        "value": "#6ee7b7",
+        "type": "color"
+      },
+      "400": {
+        "value": "#34d399",
+        "type": "color"
+      },
+      "500": {
+        "value": "#10b981",
+        "type": "color",
+        "description": "Primary light - success states, positive feedback"
+      },
+      "600": {
+        "value": "#059669",
+        "type": "color",
+        "description": "Main brand color - CTAs, active states, brand elements"
+      },
+      "700": {
+        "value": "#047857",
+        "type": "color",
+        "description": "Primary dark - hover states, emphasis"
+      },
+      "800": {
+        "value": "#065f46",
+        "type": "color"
+      },
+      "900": {
+        "value": "#064e3b",
+        "type": "color"
+      }
+    },
+    "neutral": {
+      "50": {
+        "value": "#f9fafb",
+        "type": "color",
+        "description": "Page backgrounds, lightest surfaces"
+      },
+      "100": {
+        "value": "#f3f4f6",
+        "type": "color",
+        "description": "Card backgrounds, subtle sections"
+      },
+      "200": {
+        "value": "#e5e7eb",
+        "type": "color",
+        "description": "Borders, dividers"
+      },
+      "300": {
+        "value": "#d1d5db",
+        "type": "color",
+        "description": "Input borders, inactive elements"
+      },
+      "400": {
+        "value": "#9ca3af",
+        "type": "color",
+        "description": "Placeholder text, disabled text"
+      },
+      "500": {
+        "value": "#6b7280",
+        "type": "color",
+        "description": "Secondary text, icons"
+      },
+      "600": {
+        "value": "#4b5563",
+        "type": "color",
+        "description": "Primary text on light backgrounds"
+      },
+      "700": {
+        "value": "#374151",
+        "type": "color",
+        "description": "Headings, emphasis text"
+      },
+      "800": {
+        "value": "#1f2937",
+        "type": "color",
+        "description": "Dark text, navigation"
+      },
+      "900": {
+        "value": "#111827",
+        "type": "color",
+        "description": "Highest contrast text"
+      }
+    },
+    "success": {
+      "50": {
+        "value": "#ecfdf5",
+        "type": "color"
+      },
+      "100": {
+        "value": "#d1fae5",
+        "type": "color"
+      },
+      "500": {
+        "value": "#10b981",
+        "type": "color"
+      },
+      "600": {
+        "value": "#059669",
+        "type": "color"
+      },
+      "700": {
+        "value": "#047857",
+        "type": "color"
+      }
+    },
+    "warning": {
+      "50": {
+        "value": "#fffbeb",
+        "type": "color"
+      },
+      "100": {
+        "value": "#fef3c7",
+        "type": "color"
+      },
+      "400": {
+        "value": "#fbbf24",
+        "type": "color"
+      },
+      "500": {
+        "value": "#f59e0b",
+        "type": "color",
+        "description": "Main warning color"
+      },
+      "600": {
+        "value": "#d97706",
+        "type": "color"
+      },
+      "700": {
+        "value": "#b45309",
+        "type": "color"
+      }
+    },
+    "error": {
+      "50": {
+        "value": "#fef2f2",
+        "type": "color"
+      },
+      "100": {
+        "value": "#fee2e2",
+        "type": "color"
+      },
+      "400": {
+        "value": "#f87171",
+        "type": "color"
+      },
+      "500": {
+        "value": "#ef4444",
+        "type": "color"
+      },
+      "600": {
+        "value": "#dc2626",
+        "type": "color",
+        "description": "Main error color - destructive actions"
+      },
+      "700": {
+        "value": "#b91c1c",
+        "type": "color"
+      }
+    },
+    "info": {
+      "50": {
+        "value": "#eff6ff",
+        "type": "color"
+      },
+      "100": {
+        "value": "#dbeafe",
+        "type": "color"
+      },
+      "400": {
+        "value": "#60a5fa",
+        "type": "color"
+      },
+      "500": {
+        "value": "#3b82f6",
+        "type": "color",
+        "description": "Main info color - informational messages"
+      },
+      "600": {
+        "value": "#2563eb",
+        "type": "color"
+      },
+      "700": {
+        "value": "#1d4ed8",
+        "type": "color"
+      }
+    },
+    "dark": {
+      "background": {
+        "value": "#0f172a",
+        "type": "color",
+        "description": "Main dark mode background"
+      },
+      "surface": {
+        "value": "#1e293b",
+        "type": "color",
+        "description": "Dark mode card backgrounds"
+      },
+      "surface-elevated": {
+        "value": "#334155",
+        "type": "color",
+        "description": "Dark mode elevated surfaces"
+      },
+      "border": {
+        "value": "#475569",
+        "type": "color",
+        "description": "Dark mode borders, dividers"
+      },
+      "text-primary": {
+        "value": "#f1f5f9",
+        "type": "color",
+        "description": "Dark mode primary text"
+      },
+      "text-secondary": {
+        "value": "#cbd5e1",
+        "type": "color",
+        "description": "Dark mode secondary text"
+      },
+      "text-tertiary": {
+        "value": "#94a3b8",
+        "type": "color",
+        "description": "Dark mode tertiary text"
+      }
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": {
+        "value": "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "type": "fontFamilies",
+        "description": "Primary font stack for UI and content"
+      },
+      "mono": {
+        "value": "'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', monospace",
+        "type": "fontFamilies",
+        "description": "Monospace font for code and technical content"
+      }
+    },
+    "fontSize": {
+      "xs": {
+        "value": "12px",
+        "type": "fontSizes",
+        "description": "Caption text, timestamps"
+      },
+      "sm": {
+        "value": "14px",
+        "type": "fontSizes",
+        "description": "Small UI text, labels"
+      },
+      "base": {
+        "value": "16px",
+        "type": "fontSizes",
+        "description": "Body text, standard UI"
+      },
+      "lg": {
+        "value": "18px",
+        "type": "fontSizes",
+        "description": "Large body text, descriptions"
+      },
+      "xl": {
+        "value": "20px",
+        "type": "fontSizes",
+        "description": "H4 headings, component titles"
+      },
+      "2xl": {
+        "value": "24px",
+        "type": "fontSizes",
+        "description": "H2 headings, section headers"
+      },
+      "3xl": {
+        "value": "32px",
+        "type": "fontSizes",
+        "description": "H1 headings, page titles"
+      }
+    },
+    "fontWeight": {
+      "light": {
+        "value": "300",
+        "type": "fontWeights"
+      },
+      "normal": {
+        "value": "400",
+        "type": "fontWeights",
+        "description": "Body text, standard UI"
+      },
+      "medium": {
+        "value": "500",
+        "type": "fontWeights",
+        "description": "Subheadings, emphasis, buttons"
+      },
+      "semibold": {
+        "value": "600",
+        "type": "fontWeights",
+        "description": "Headings, important actions"
+      },
+      "bold": {
+        "value": "700",
+        "type": "fontWeights",
+        "description": "Major headings, strong emphasis"
+      }
+    },
+    "lineHeight": {
+      "tight": {
+        "value": "16px",
+        "type": "lineHeights",
+        "description": "Caption text line height"
+      },
+      "snug": {
+        "value": "20px",
+        "type": "lineHeights",
+        "description": "Small text line height"
+      },
+      "normal": {
+        "value": "24px",
+        "type": "lineHeights",
+        "description": "Body text line height"
+      },
+      "relaxed": {
+        "value": "28px",
+        "type": "lineHeights",
+        "description": "Large text line height"
+      },
+      "loose": {
+        "value": "32px",
+        "type": "lineHeights",
+        "description": "Heading line height"
+      },
+      "extra-loose": {
+        "value": "40px",
+        "type": "lineHeights",
+        "description": "Large heading line height"
+      }
+    },
+    "letterSpacing": {
+      "tighter": {
+        "value": "-0.025em",
+        "type": "letterSpacing"
+      },
+      "tight": {
+        "value": "-0.02em",
+        "type": "letterSpacing"
+      },
+      "normal": {
+        "value": "0",
+        "type": "letterSpacing"
+      },
+      "wide": {
+        "value": "0.025em",
+        "type": "letterSpacing"
+      },
+      "wider": {
+        "value": "0.05em",
+        "type": "letterSpacing",
+        "description": "Labels, uppercase text"
+      }
+    }
+  },
+  "spacing": {
+    "0": {
+      "value": "0px",
+      "type": "spacing"
+    },
+    "1": {
+      "value": "4px",
+      "type": "spacing",
+      "description": "Micro spacing, tight elements"
+    },
+    "2": {
+      "value": "8px",
+      "type": "spacing",
+      "description": "Small spacing, internal padding"
+    },
+    "3": {
+      "value": "12px",
+      "type": "spacing"
+    },
+    "4": {
+      "value": "16px",
+      "type": "spacing",
+      "description": "Default spacing, standard margins"
+    },
+    "5": {
+      "value": "20px",
+      "type": "spacing"
+    },
+    "6": {
+      "value": "24px",
+      "type": "spacing",
+      "description": "Medium spacing, section separation"
+    },
+    "8": {
+      "value": "32px",
+      "type": "spacing",
+      "description": "Large spacing, major sections"
+    },
+    "10": {
+      "value": "40px",
+      "type": "spacing"
+    },
+    "12": {
+      "value": "48px",
+      "type": "spacing",
+      "description": "Extra large spacing, page sections"
+    },
+    "16": {
+      "value": "64px",
+      "type": "spacing",
+      "description": "Huge spacing, hero sections"
+    },
+    "20": {
+      "value": "80px",
+      "type": "spacing"
+    },
+    "24": {
+      "value": "96px",
+      "type": "spacing"
+    },
+    "32": {
+      "value": "128px",
+      "type": "spacing"
+    }
+  },
+  "shadows": {
+    "xs": {
+      "value": "0 1px 2px rgba(0, 0, 0, 0.05)",
+      "type": "boxShadow",
+      "description": "Minimal shadow for subtle elevation"
+    },
+    "sm": {
+      "value": "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
+      "type": "boxShadow",
+      "description": "Small shadow for cards and buttons"
+    },
+    "md": {
+      "value": "0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06)",
+      "type": "boxShadow",
+      "description": "Medium shadow for elevated cards"
+    },
+    "lg": {
+      "value": "0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)",
+      "type": "boxShadow",
+      "description": "Large shadow for modals and dropdowns"
+    },
+    "xl": {
+      "value": "0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04)",
+      "type": "boxShadow",
+      "description": "Extra large shadow for floating elements"
+    },
+    "inner": {
+      "value": "inset 0 2px 4px rgba(0, 0, 0, 0.06)",
+      "type": "boxShadow",
+      "description": "Inner shadow for pressed states"
+    },
+    "focus-primary": {
+      "value": "0 0 0 3px rgba(5, 150, 105, 0.2)",
+      "type": "boxShadow",
+      "description": "Primary focus ring"
+    },
+    "focus-error": {
+      "value": "0 0 0 3px rgba(220, 38, 38, 0.2)",
+      "type": "boxShadow",
+      "description": "Error focus ring"
+    }
+  },
+  "borderRadius": {
+    "none": {
+      "value": "0px",
+      "type": "borderRadius"
+    },
+    "sm": {
+      "value": "2px",
+      "type": "borderRadius"
+    },
+    "base": {
+      "value": "4px",
+      "type": "borderRadius",
+      "description": "Default border radius for small elements"
+    },
+    "md": {
+      "value": "6px",
+      "type": "borderRadius",
+      "description": "Medium border radius for buttons and inputs"
+    },
+    "lg": {
+      "value": "8px",
+      "type": "borderRadius",
+      "description": "Large border radius for cards and containers"
+    },
+    "xl": {
+      "value": "12px",
+      "type": "borderRadius",
+      "description": "Extra large border radius for prominent elements"
+    },
+    "2xl": {
+      "value": "16px",
+      "type": "borderRadius"
+    },
+    "full": {
+      "value": "9999px",
+      "type": "borderRadius",
+      "description": "Full border radius for circular elements"
+    }
+  },
+  "animation": {
+    "duration": {
+      "fast": {
+        "value": "150ms",
+        "type": "other",
+        "description": "Fast transitions - button hover, small state changes"
+      },
+      "normal": {
+        "value": "200ms",
+        "type": "other",
+        "description": "Normal transitions - default animation speed"
+      },
+      "slow": {
+        "value": "350ms",
+        "type": "other",
+        "description": "Slow transitions - modal open, complex animations"
+      },
+      "slower": {
+        "value": "500ms",
+        "type": "other",
+        "description": "Slower transitions - page transitions"
+      }
+    },
+    "easing": {
+      "ease-out": {
+        "value": "cubic-bezier(0.0, 0, 0.2, 1)",
+        "type": "other",
+        "description": "Ease-out for entrances and expansions"
+      },
+      "ease-in-out": {
+        "value": "cubic-bezier(0.4, 0, 0.6, 1)",
+        "type": "other",
+        "description": "Ease-in-out for transitions and movements"
+      },
+      "spring": {
+        "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "type": "other",
+        "description": "Spring easing for playful interactions"
+      }
+    }
+  },
+  "components": {
+    "button": {
+      "height": {
+        "sm": {
+          "value": "32px",
+          "type": "sizing"
+        },
+        "md": {
+          "value": "40px",
+          "type": "sizing",
+          "description": "Default button height"
+        },
+        "lg": {
+          "value": "48px",
+          "type": "sizing"
+        }
+      },
+      "padding": {
+        "sm": {
+          "value": "8px 12px",
+          "type": "spacing"
+        },
+        "md": {
+          "value": "10px 16px",
+          "type": "spacing",
+          "description": "Default button padding"
+        },
+        "lg": {
+          "value": "14px 20px",
+          "type": "spacing"
+        }
+      }
+    },
+    "card": {
+      "padding": {
+        "mobile": {
+          "value": "16px",
+          "type": "spacing",
+          "description": "Card padding on mobile devices"
+        },
+        "desktop": {
+          "value": "24px",
+          "type": "spacing",
+          "description": "Card padding on desktop devices"
+        }
+      }
+    },
+    "input": {
+      "height": {
+        "value": "40px",
+        "type": "sizing",
+        "description": "Standard input field height"
+      },
+      "padding": {
+        "value": "10px 12px",
+        "type": "spacing",
+        "description": "Standard input field padding"
+      }
+    }
+  },
+  "breakpoints": {
+    "mobile": {
+      "value": "320px",
+      "type": "other",
+      "description": "Mobile breakpoint start"
+    },
+    "tablet": {
+      "value": "768px",
+      "type": "other",
+      "description": "Tablet breakpoint start"
+    },
+    "desktop": {
+      "value": "1024px",
+      "type": "other",
+      "description": "Desktop breakpoint start"
+    },
+    "wide": {
+      "value": "1280px",
+      "type": "other",
+      "description": "Wide screen breakpoint start"
+    }
+  }
+}

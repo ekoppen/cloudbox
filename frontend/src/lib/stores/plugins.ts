@@ -78,6 +78,54 @@ export const dynamicProjectMenuItems = writable<any[]>([]);
 class PluginManager {
   private loadedPlugins: Map<string, Plugin> = new Map();
 
+  async loadProjectPlugins(projectId: string): Promise<Plugin[]> {
+    pluginsLoading.set(true);
+    try {
+      const authState = get(auth);
+      const response = await createApiRequest(`/api/v1/projects/${projectId}/plugins/installed`, {
+        credentials: 'include',
+        headers: {
+          ...(authState.token ? { Authorization: `Bearer ${authState.token}` } : {})
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success || data.plugins) {
+          const pluginList = data.plugins || [];
+          
+          // Only include enabled plugins for navigation
+          const enabledPlugins = pluginList.filter((plugin: any) => plugin.status === 'enabled');
+          
+          plugins.set(enabledPlugins);
+          pluginsLoaded.set(true);
+          this.updateNavigationFromProjectPlugins(enabledPlugins, projectId);
+          return enabledPlugins;
+        } else {
+          throw new Error(data.error || 'Failed to load project plugins');
+        }
+      } else {
+        console.warn(`Failed to load project plugins: ${response.status}`);
+        // Set empty arrays but don't throw to allow graceful degradation
+        plugins.set([]);
+        dynamicNavItems.set([]);
+        dynamicProjectMenuItems.set([]);
+        pluginsLoaded.set(true);
+        return [];
+      }
+    } catch (error) {
+      console.error('Failed to load project plugins:', error);
+      // Set empty arrays but don't throw error to allow graceful degradation
+      plugins.set([]);
+      dynamicNavItems.set([]);
+      dynamicProjectMenuItems.set([]);
+      pluginsLoaded.set(true);
+      return [];
+    } finally {
+      pluginsLoading.set(false);
+    }
+  }
+
   async loadPlugins(): Promise<Plugin[]> {
     pluginsLoading.set(true);
     try {
@@ -101,15 +149,56 @@ class PluginManager {
           throw new Error(data.error || 'Failed to load plugins');
         }
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Enhanced error handling for different HTTP status codes
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Keep the original error message if JSON parsing fails
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Failed to load plugins:', error);
+      // Set empty array but don't throw error to allow graceful degradation
       plugins.set([]);
-      throw error;
+      pluginsLoaded.set(true); // Mark as loaded even if failed to prevent infinite loading
+      return [];
     } finally {
       pluginsLoading.set(false);
     }
+  }
+
+  private updateNavigationFromProjectPlugins(enabledPlugins: any[], projectId: string) {
+    console.log('📋 Updating navigation with project plugins:', enabledPlugins);
+    
+    // Extract project menu items from enabled plugins
+    // Handle both ui and ui_config structures for backward compatibility
+    const projectMenuItems = enabledPlugins
+      .filter(plugin => {
+        const uiConfig = plugin.ui || plugin.ui_config;
+        return uiConfig?.project_menu;
+      })
+      .map(plugin => {
+        const uiConfig = plugin.ui || plugin.ui_config;
+        return {
+          id: plugin.plugin_name || plugin.name,
+          name: uiConfig.project_menu.title,
+          icon: uiConfig.project_menu.icon,
+          href: uiConfig.project_menu.path.replace('{projectId}', projectId),
+          plugin: true
+        };
+      });
+
+    console.log('📁 Project menu items from plugins:', projectMenuItems);
+
+    // For project context, we only update project menu items
+    dynamicProjectMenuItems.set(projectMenuItems);
+    
+    console.log('✨ Project navigation updated');
   }
 
   private updateNavigation(activePlugins: Plugin[]) {
@@ -312,19 +401,42 @@ class PluginManager {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          const plugins = data.marketplace || data.plugins || [];
+          const rawPlugins = data.marketplace || data.plugins || [];
+          // Map the backend response to the frontend interface
+          const plugins = rawPlugins.map((plugin: any) => ({
+            ...plugin,
+            // Extract stars from source_metadata if available
+            stars: plugin.source_metadata?.stars || plugin.stars || 0,
+            // Map installs to downloads if downloads is missing
+            downloads: plugin.downloads || plugin.installs || 0,
+            // Ensure tags array exists
+            tags: plugin.tags || [],
+            // Map last_updated from published_at or updated_at
+            last_updated: plugin.published_at || plugin.updated_at || plugin.last_updated || new Date().toISOString()
+          }));
           marketplacePlugins.set(plugins);
           return plugins;
         } else {
           throw new Error(data.error || 'Failed to load marketplace');
         }
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Enhanced error handling for different HTTP status codes
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Keep the original error message if JSON parsing fails
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Failed to load marketplace:', error);
+      // Set empty array but still throw to show error message
       marketplacePlugins.set([]);
-      throw error;
+      return []; // Return empty array instead of throwing
     } finally {
       marketplaceLoading.set(false);
     }
@@ -351,21 +463,81 @@ class PluginManager {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          const plugins = data.results || data.plugins || [];
+          const rawPlugins = data.results || data.plugins || [];
+          // Map the backend response to the frontend interface (same as loadMarketplace)
+          const plugins = rawPlugins.map((plugin: any) => ({
+            ...plugin,
+            // Extract stars from source_metadata if available
+            stars: plugin.source_metadata?.stars || plugin.stars || 0,
+            // Map installs to downloads if downloads is missing
+            downloads: plugin.downloads || plugin.installs || 0,
+            // Ensure tags array exists
+            tags: plugin.tags || [],
+            // Map last_updated from published_at or updated_at
+            last_updated: plugin.published_at || plugin.updated_at || plugin.last_updated || new Date().toISOString()
+          }));
           marketplacePlugins.set(plugins);
           return plugins;
         } else {
           throw new Error(data.error || 'Failed to search marketplace');
         }
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Enhanced error handling for different HTTP status codes
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Keep the original error message if JSON parsing fails
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Failed to search marketplace:', error);
       marketplacePlugins.set([]);
-      throw error;
+      return []; // Return empty array instead of throwing for graceful degradation
     } finally {
       marketplaceLoading.set(false);
+    }
+  }
+
+  async addPluginToMarketplace(pluginData: {
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    repository: string;
+    license?: string;
+    tags?: string[];
+    permissions?: string[];
+    dependencies?: Record<string, string>;
+    verified?: boolean;
+    approved?: boolean;
+    type?: string;
+    main_file?: string;
+  }): Promise<void> {
+    const authState = get(auth);
+    const response = await createApiRequest(API_ENDPOINTS.admin.plugins.addToMarketplace, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        ...(authState.token ? { Authorization: `Bearer ${authState.token}` } : {})
+      },
+      body: JSON.stringify(pluginData)
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        // Reload marketplace to show the new plugin
+        await this.loadMarketplace();
+      } else {
+        throw new Error(data.error || 'Failed to add plugin to marketplace');
+      }
+    } else {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
   }
 

@@ -480,7 +480,7 @@ func (h *DataHandler) QueryDocuments(c *gin.Context) {
 						query = query.Where("data @> ?", filterJSON)
 					case "like":
 						// Safe text search
-						query = query.Where("data->>? ILIKE ?", field, fmt.Sprintf("%%%v%%", value))
+						query = query.Where("data->>? ILIKE ?", field, "%"+fmt.Sprintf("%v", value)+"%")
 					}
 				}
 			}

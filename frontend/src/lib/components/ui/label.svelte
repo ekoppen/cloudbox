@@ -15,7 +15,7 @@
 <label
   for={for_}
   class={cn(
-    "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+    "text-label font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
     className
   )}
   {...$$restProps}

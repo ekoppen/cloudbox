@@ -5,6 +5,7 @@
   import Icon from '$lib/components/ui/icon.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
   import PluginMarketplace from '$lib/components/plugin-marketplace.svelte';
+  import AddPluginModal from '$lib/components/admin/add-plugin-modal.svelte';
   import { addToast } from '$lib/stores/toast';
   import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
@@ -32,15 +33,23 @@
   let selectedPlugin: Plugin | null = null;
   let showPluginDetails = false;
   let showMarketplace = false;
+  let showAddPlugin = false;
 
   async function loadPlugins() {
     loading = true;
     try {
       const loadedPlugins = await pluginManager.loadPlugins();
       plugins = loadedPlugins || [];
+      
+      // Show informational message if no plugins loaded due to API issues
+      if (plugins.length === 0) {
+        console.warn('No plugins loaded - this may be due to API connectivity issues');
+      }
     } catch (error) {
       console.error('Failed to load plugins:', error);
-      addToast('Failed to load plugins: ' + error.message, 'error');
+      // Show a more user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      addToast(`Failed to load plugins: ${errorMessage}. The plugin system may not be fully available.`, 'warning');
       plugins = [];
     } finally {
       loading = false;
@@ -127,132 +136,167 @@
   <title>Plugin Management - Admin - CloudBox</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="space-y-8">
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-2xl font-bold text-foreground">Plugin Management</h1>
-      <p class="text-muted-foreground mt-1">
-        Beheer geïnstalleerde CloudBox plugins en extensies
+      <h1 class="text-3xl font-bold text-foreground font-['Inter']">Plugin Management</h1>
+      <p class="text-muted-foreground mt-2 text-base">
+        Manage installed CloudBox plugins and extensions
       </p>
     </div>
     
     <div class="flex gap-3">
-      <Button on:click={reloadPlugins} variant="outline">
+      <Button on:click={reloadPlugins} variant="outline" className="h-10">
         <Icon name="refresh" size={16} className="mr-2" />
-        Reload Plugins
+        Reload
       </Button>
       
-      <Button on:click={() => showMarketplace = true} variant="default">
-        <Icon name="plus" size={16} className="mr-2" />
+      <Button on:click={() => showAddPlugin = true} variant="outline" className="h-10">
+        <Icon name="plus-circle" size={16} className="mr-2" />
+        Add Plugin
+      </Button>
+      
+      <Button on:click={() => showMarketplace = true} className="h-10 px-6">
+        <Icon name="store" size={16} className="mr-2" />
         Browse Marketplace
       </Button>
     </div>
   </div>
 
   <!-- Plugin Stats -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-    <Card className="p-4">
-      <div class="flex items-center">
-        <Icon name="puzzle" size={24} className="text-blue-500 mr-3" />
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+      <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-muted-foreground">Total Plugins</p>
-          <p class="text-2xl font-bold text-foreground">{plugins.length}</p>
+          <p class="text-sm font-medium text-muted-foreground mb-1">Total Plugins</p>
+          <p class="text-3xl font-bold text-foreground">{plugins.length}</p>
+        </div>
+        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+          <Icon name="puzzle" size={24} className="text-blue-600" />
         </div>
       </div>
-    </Card>
+    </div>
     
-    <Card className="p-4">
-      <div class="flex items-center">
-        <Icon name="check-circle" size={24} className="text-green-500 mr-3" />
+    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+      <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-muted-foreground">Enabled</p>
-          <p class="text-2xl font-bold text-foreground">{plugins.filter(p => p.status === 'enabled').length}</p>
+          <p class="text-sm font-medium text-muted-foreground mb-1">Enabled</p>
+          <p class="text-3xl font-bold text-foreground">{plugins.filter(p => p.status === 'enabled').length}</p>
+        </div>
+        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+          <Icon name="check-circle" size={24} className="text-green-600" />
         </div>
       </div>
-    </Card>
+    </div>
     
-    <Card className="p-4">
-      <div class="flex items-center">
-        <Icon name="pause-circle" size={24} className="text-gray-500 mr-3" />
+    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+      <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-muted-foreground">Disabled</p>
-          <p class="text-2xl font-bold text-foreground">{plugins.filter(p => p.status === 'disabled').length}</p>
+          <p class="text-sm font-medium text-muted-foreground mb-1">Disabled</p>
+          <p class="text-3xl font-bold text-foreground">{plugins.filter(p => p.status === 'disabled').length}</p>
+        </div>
+        <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+          <Icon name="pause-circle" size={24} className="text-gray-600" />
         </div>
       </div>
-    </Card>
+    </div>
     
-    <Card className="p-4">
-      <div class="flex items-center">
-        <Icon name="x-circle" size={24} className="text-red-500 mr-3" />
+    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+      <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-muted-foreground">Errors</p>
-          <p class="text-2xl font-bold text-foreground">{plugins.filter(p => p.status === 'error').length}</p>
+          <p class="text-sm font-medium text-muted-foreground mb-1">Errors</p>
+          <p class="text-3xl font-bold text-foreground">{plugins.filter(p => p.status === 'error').length}</p>
+        </div>
+        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+          <Icon name="x-circle" size={24} className="text-red-600" />
         </div>
       </div>
-    </Card>
+    </div>
   </div>
 
   <!-- Plugins List -->
-  <Card>
-    <div class="p-6 border-b border-border">
-      <h2 class="text-lg font-semibold text-foreground">Installed Plugins</h2>
+  <div class="bg-background border border-border rounded-2xl overflow-hidden">
+    <div class="px-8 py-6 border-b border-border">
+      <h2 class="text-xl font-semibold text-foreground">Installed Plugins</h2>
+      <p class="text-sm text-muted-foreground mt-1">Manage your installed plugin collection</p>
     </div>
 
     {#if loading}
-      <div class="p-12 text-center">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        <p class="mt-4 text-muted-foreground">Loading plugins...</p>
+      <div class="p-16 text-center">
+        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+        </div>
+        <p class="text-foreground font-medium">Loading plugins...</p>
+        <p class="text-sm text-muted-foreground mt-1">Please wait while we fetch your plugins</p>
       </div>
     {:else if plugins.length === 0}
-      <div class="p-12 text-center">
-        <Icon name="puzzle" size={48} className="mx-auto text-muted-foreground mb-4" />
-        <h3 class="text-lg font-medium text-foreground mb-2">No plugins installed</h3>
-        <p class="text-muted-foreground mb-6">Install your first plugin to extend CloudBox functionality.</p>
-        <Button on:click={() => showMarketplace = true}>
-          <Icon name="plus" size={16} className="mr-2" />
-          Browse Plugin Marketplace
-        </Button>
+      <div class="p-16 text-center">
+        <div class="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <Icon name="puzzle" size={40} className="text-muted-foreground" />
+        </div>
+        <h3 class="text-xl font-semibold text-foreground mb-3">No plugins installed</h3>
+        <p class="text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
+          Get started by installing your first plugin to extend CloudBox functionality and unlock new features.
+        </p>
+        <div class="space-y-4">
+          <Button on:click={() => showMarketplace = true} size="lg" className="px-8">
+            <Icon name="store" size={18} className="mr-2" />
+            Browse Plugin Marketplace
+          </Button>
+          <div class="text-sm text-muted-foreground">
+            Plugin system is ready and operational
+          </div>
+        </div>
       </div>
     {:else}
       <div class="divide-y divide-border">
         {#each plugins as plugin (plugin.name)}
-          <div class="p-6">
+          <div class="px-8 py-6 hover:bg-muted/50 transition-colors">
             <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
-                <div class="flex-shrink-0">
+              <div class="flex items-center space-x-4 flex-1">
+                <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Icon name={getTypeIcon(plugin.type)} size={24} className="text-primary" />
                 </div>
                 
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center space-x-3">
-                    <h3 class="text-lg font-medium text-foreground">{plugin.name}</h3>
-                    <Badge className={getStatusColor(plugin.status)}>
+                  <div class="flex items-center space-x-3 mb-2">
+                    <h3 class="text-lg font-semibold text-foreground">{plugin.name}</h3>
+                    <Badge className="{getStatusColor(plugin.status)} font-medium">
                       {plugin.status}
                     </Badge>
-                    <span class="text-sm text-muted-foreground">v{plugin.version}</span>
+                    <span class="text-sm text-muted-foreground font-mono">v{plugin.version}</span>
                   </div>
                   
-                  <p class="text-sm text-muted-foreground mt-1">{plugin.description}</p>
+                  <p class="text-sm text-muted-foreground mb-3 leading-relaxed">{plugin.description}</p>
                   
-                  <div class="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                    <span>By {plugin.author}</span>
-                    <span>•</span>
-                    <span>Installed {new Date(plugin.installed_at).toLocaleDateString('nl-NL')}</span>
+                  <div class="flex items-center space-x-6 text-xs text-muted-foreground">
+                    <div class="flex items-center space-x-1">
+                      <Icon name="user" size={12} />
+                      <span>By {plugin.author}</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                      <Icon name="calendar" size={12} />
+                      <span>Installed {new Date(plugin.installed_at).toLocaleDateString('en-US')}</span>
+                    </div>
                     {#if plugin.ui?.project_menu}
-                      <span>•</span>
-                      <span>Project Integration</span>
+                      <div class="flex items-center space-x-1">
+                        <Icon name="link" size={12} />
+                        <span>Project Integration</span>
+                      </div>
                     {/if}
                   </div>
                 </div>
               </div>
 
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-3">
                 <Button 
                   on:click={() => showDetails(plugin)}
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="text-muted-foreground hover:text-foreground"
                 >
+                  <Icon name="eye" size={16} className="mr-1" />
                   Details
                 </Button>
                 
@@ -266,11 +310,11 @@
                 
                 <Button 
                   on:click={() => uninstallPlugin(plugin)}
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
-                  Uninstall
+                  <Icon name="trash" size={16} />
                 </Button>
               </div>
             </div>
@@ -278,7 +322,7 @@
         {/each}
       </div>
     {/if}
-  </Card>
+  </div>
 
   <!-- Plugin Details Modal -->
   {#if showPluginDetails && selectedPlugin}
@@ -406,5 +450,14 @@
   onClose={() => {
     showMarketplace = false;
     loadPlugins(); // Reload plugins after marketplace operations
+  }} 
+/>
+
+<!-- Add Plugin Modal -->
+<AddPluginModal 
+  isOpen={showAddPlugin} 
+  on:close={() => {
+    showAddPlugin = false;
+    // Optionally reload marketplace to show the newly added plugin
   }} 
 />

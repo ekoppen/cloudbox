@@ -127,11 +127,22 @@ export const API_ENDPOINTS = {
       uninstall: (name: string) => `${API_BASE_URL}/api/v1/admin/plugins/${name}`,
       reload: `${API_BASE_URL}/api/v1/admin/plugins/reload`,
       marketplace: `${API_BASE_URL}/api/v1/admin/plugins/marketplace`,
+      addToMarketplace: `${API_BASE_URL}/api/v1/admin/plugins/marketplace/add`,
       search: `${API_BASE_URL}/api/v1/admin/plugins/marketplace/search`,
     }
   },
   plugins: {
     active: `${API_BASE_URL}/api/v1/plugins/active`,
+    projects: {
+      available: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/available`,
+      installed: (projectId: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/installed`,
+      install: (projectId: string, pluginName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/${pluginName}/install`,
+      enable: (projectId: string, pluginName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/${pluginName}/enable`,
+      disable: (projectId: string, pluginName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/${pluginName}/disable`,
+      uninstall: (projectId: string, pluginName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/${pluginName}`,
+      config: (projectId: string, pluginName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/${pluginName}/config`,
+      status: (projectId: string, pluginName: string) => `${API_BASE_URL}/api/v1/projects/${projectId}/plugins/${pluginName}/status`,
+    }
   }
 } as const;
 

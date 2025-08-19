@@ -6,6 +6,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  role?: string;
   created_at: string;
 }
 
@@ -208,6 +209,18 @@ function createAuthStore() {
     getAuthHeader(): Record<string, string> {
       const state = get(auth);
       return state.token ? { Authorization: `Bearer ${state.token}` } : {};
+    },
+
+    // Check if user is superadmin
+    isSuperAdmin(): boolean {
+      const state = get(auth);
+      return state.user?.role === 'superadmin';
+    },
+
+    // Check if user is admin or superadmin
+    isAdmin(): boolean {
+      const state = get(auth);
+      return state.user?.role === 'admin' || state.user?.role === 'superadmin';
     },
   };
 }
