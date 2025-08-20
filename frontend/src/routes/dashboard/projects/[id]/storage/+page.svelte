@@ -889,7 +889,7 @@
   <div class="h-full flex flex-col space-y-4">
     <!-- Project Error Notice -->
     {#if !projectLoading && !project}
-      <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
+      <Card class="glassmorphism-card bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
         <div class="flex items-center space-x-3">
           <Icon name="info" size={20} className="text-yellow-600 dark:text-yellow-400" />
           <div>
@@ -904,7 +904,7 @@
 
     <!-- Backend Status Notice -->
     {#if !backendAvailable}
-      <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
+      <Card class="glassmorphism-card bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
         <div class="flex items-center space-x-3">
           <Icon name="warning" size={20} className="text-yellow-600 dark:text-yellow-400" />
           <div>
@@ -932,7 +932,7 @@
 
     <!-- Combined Bucket Selector and Navigation -->
     {#if buckets.length > 0}
-      <Card class="p-4">
+      <Card class="glassmorphism-card p-4">
         <div class="flex items-center justify-between">
           <!-- Left: Bucket Selector + Breadcrumbs -->
           <div class="flex items-center space-x-4">
@@ -1027,7 +1027,7 @@
         </div>
       </Card>
     {:else}
-      <Card class="p-12">
+      <Card class="glassmorphism-content p-12">
         <div class="text-center">
           <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
             <Icon name="folder" size={32} className="text-muted-foreground" />
@@ -1084,7 +1084,7 @@
   {#if activeTab === 'files'}
     <div class="space-y-4">
       <!-- Tree View -->
-      <Card class="flex-1 min-h-0">
+      <Card class="glassmorphism-table flex-1 min-h-0">
         <div class="p-4">
           <h3 class="text-sm font-medium text-foreground mb-3">Map Structuur</h3>
           {#if treeData.length === 0}
@@ -1158,7 +1158,7 @@
       </div>
 
       {#if !currentBucket}
-        <Card class="p-8 text-center">
+        <Card class="glassmorphism-content p-8 text-center">
           <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
             <Icon name="settings" size={32} className="text-muted-foreground" />
           </div>
@@ -1167,7 +1167,7 @@
         </Card>
       {:else}
         <form on:submit|preventDefault={saveBucketSettings}>
-          <Card class="p-6">
+          <Card class="glassmorphism-card p-6">
             <div class="space-y-6">
               <div>
                 <h3 class="text-sm font-medium text-foreground mb-3">Algemene Instellingen</h3>
@@ -1241,7 +1241,7 @@
 <!-- Upload Modal -->
 {#if showUploadModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="storage" size={20} className="text-primary" />
@@ -1304,7 +1304,7 @@
 <!-- New Bucket Modal -->
 {#if showNewBucketModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="folder" size={20} className="text-primary" />
@@ -1385,7 +1385,7 @@
 <!-- New Folder Modal -->
 {#if showNewFolderModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="folder" size={20} className="text-primary" />

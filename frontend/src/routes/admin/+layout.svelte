@@ -84,7 +84,7 @@
             Ingelogd als: <span class="font-medium">{$auth.user?.name}</span>
           </div>
           
-          <Button variant="outline" size="sm" on:click={handleBackToDashboard}>
+          <Button variant="secondary" size="sm" on:click={handleBackToDashboard}>
             <Icon name="arrow-left" class="w-4 h-4 mr-2" />
             Dashboard
           </Button>

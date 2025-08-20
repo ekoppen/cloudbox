@@ -165,11 +165,12 @@
       </Button>
       <Button
         on:click={loadProjects}
-        size="lg"
-        class="flex items-center space-x-2"
+        variant="ghost"
+        size="icon"
+        class="hover:rotate-180 transition-transform duration-300"
+        title="Vernieuw projectenlijst"
       >
-        <Icon name="refresh" size={16} />
-        <span>Vernieuwen</span>
+        <Icon name="refresh-cw" size={16} />
       </Button>
     </div>
   </div>

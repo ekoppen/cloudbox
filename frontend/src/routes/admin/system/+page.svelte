@@ -367,11 +367,12 @@
         <div class="space-y-4">
           <Button
             on:click={restartService}
-            variant="outline"
-            class="w-full flex items-center justify-center space-x-2"
+            variant="ghost"
+            size="icon"
+            class="hover:rotate-180 transition-transform duration-300"
+            title="Service herstarten"
           >
-            <Icon name="refresh" size={16} />
-            <span>Service Herstarten</span>
+            <Icon name="refresh-cw" size={16} />
           </Button>
           
           <Button
@@ -444,12 +445,12 @@
                 
                 <Button
                   on:click={() => restoreBackup(backup)}
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
                   title="Herstel backup"
-                  class="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                  class="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:rotate-180 transition-transform duration-300"
                 >
-                  <Icon name="refresh" size={14} />
+                  <Icon name="refresh-cw" size={16} />
                 </Button>
               </div>
             </div>

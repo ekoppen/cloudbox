@@ -548,13 +548,12 @@
                 <div class="flex gap-1 flex-wrap">
                   <Button
                     on:click={() => syncRepository(repo.id)}
-                    size="sm"
                     variant="ghost"
-                    class="text-gray-600 hover:bg-gray-100 text-xs px-2 py-1"
+                    size="icon"
+                    class="h-8 w-8 hover:rotate-180 transition-transform duration-300"
                     title="Synchroniseer repository"
                   >
-                    <Icon name="refresh" size={14} class="mr-1" />
-                    Sync
+                    <Icon name="refresh-cw" size={16} />
                   </Button>
                   
                   <Button
@@ -1021,17 +1020,16 @@
         </div>
         <Button
           on:click={() => analyzeRepository(selectedRepo, true)}
-          size="sm"
-          variant="outline"
-          class="border-orange-300 text-orange-600 hover:bg-orange-50"
+          variant="ghost"
+          size="icon"
+          class="text-orange-600 hover:text-orange-700 hover:bg-orange-50 hover:rotate-180 transition-transform duration-300"
           disabled={analyzingRepo === selectedRepo.id}
+          title="Heranalyseer repository"
         >
           {#if analyzingRepo === selectedRepo.id}
-            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2"></div>
-            Heranalyseren...
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
           {:else}
-            <Icon name="refresh" size={16} className="mr-2" />
-            Heranalyseren
+            <Icon name="refresh-cw" size={16} />
           {/if}
         </Button>
       </div>

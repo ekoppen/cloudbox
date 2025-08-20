@@ -294,7 +294,7 @@
 <div class="space-y-6">
   <!-- Backend Status Notice -->
   {#if !backendAvailable}
-    <Card class="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
+    <Card class="glassmorphism-card bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 p-4">
       <div class="flex items-center space-x-3">
         <Icon name="warning" size={20} className="text-yellow-600 dark:text-yellow-400" />
         <div>
@@ -321,7 +321,7 @@
   </div>
 
   <!-- Tabs -->
-  <div class="border-b border-border">
+  <div class="glassmorphism-nav border-b border-border">
     <nav class="flex space-x-8">
       <button
         on:click={() => activeTab = 'users'}
@@ -378,7 +378,7 @@
 
       <!-- Quick Stats -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card class="p-6">
+        <Card class="glassmorphism-card p-6">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">Actieve gebruikers</p>
@@ -389,7 +389,7 @@
             </div>
           </div>
         </Card>
-        <Card class="p-6">
+        <Card class="glassmorphism-card p-6">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">In afwachting</p>
@@ -400,7 +400,7 @@
             </div>
           </div>
         </Card>
-        <Card class="p-6">
+        <Card class="glassmorphism-card p-6">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">Geverifieerd</p>
@@ -411,7 +411,7 @@
             </div>
           </div>
         </Card>
-        <Card class="p-6">
+        <Card class="glassmorphism-card p-6">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">Recent actief</p>
@@ -425,7 +425,7 @@
       </div>
 
       <!-- Users Table -->
-      <Card>
+      <Card class="glassmorphism-table">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-border">
             <thead class="bg-muted/30">
@@ -507,7 +507,7 @@
 
       <div class="grid gap-4">
         {#each authProviders as provider}
-          <Card class="p-6">
+          <Card class="glassmorphism-card p-6">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-4">
                 <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -551,7 +551,7 @@
         <p class="text-sm text-muted-foreground">Configureer wachtwoord en sessie beleid</p>
       </div>
 
-      <Card class="p-6">
+      <Card class="glassmorphism-form p-6">
         <form on:submit|preventDefault={saveAuthSettings} class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -624,7 +624,7 @@
 <!-- Create User Modal -->
 {#if showCreateUser}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="user" size={20} className="text-primary" />

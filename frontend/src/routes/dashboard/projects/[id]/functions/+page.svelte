@@ -346,7 +346,7 @@ func Handler(ctx context.Context, event Event) (Response, error) {
     </div>
   {:else}
     {#if functions.length === 0}
-      <Card class="p-8 text-center">
+      <Card class="glassmorphism-content p-8 text-center">
         <div class="text-6xl mb-4">⚡</div>
         <h3 class="text-lg font-semibold mb-2">Nog geen functies</h3>
         <p class="text-muted-foreground mb-4">Maak je eerste serverless functie om API endpoints en automatiseringen te bouwen.</p>
@@ -357,7 +357,7 @@ func Handler(ctx context.Context, event Event) (Response, error) {
     {:else}
       <div class="grid gap-4">
         {#each functions as func}
-          <Card class="p-6">
+          <Card class="glassmorphism-card p-6">
             <div class="flex justify-between items-start">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
@@ -471,7 +471,7 @@ func Handler(ctx context.Context, event Event) (Response, error) {
 <!-- Create Function Modal -->
 {#if showCreateModal}
   <Modal on:close={() => showCreateModal = false}>
-    <div class="p-6 max-h-[80vh] overflow-y-auto">
+    <div class="glassmorphism-modal p-6 max-h-[80vh] overflow-y-auto">
       <h2 class="text-xl font-semibold mb-4">Nieuwe Functie Maken</h2>
       
       <form on:submit|preventDefault={createFunction} class="space-y-4">
@@ -590,7 +590,7 @@ func Handler(ctx context.Context, event Event) (Response, error) {
 <!-- Function Code Modal -->
 {#if showCodeModal && selectedFunction}
   <Modal on:close={() => showCodeModal = false}>
-    <div class="p-6 max-w-4xl">
+    <div class="glassmorphism-modal p-6 max-w-4xl">
       <h2 class="text-xl font-semibold mb-4">Code: {selectedFunction.name}</h2>
       
       <div class="space-y-4">
@@ -639,7 +639,7 @@ func Handler(ctx context.Context, event Event) (Response, error) {
 <!-- Function Logs Modal -->
 {#if showLogsModal && selectedFunction}
   <Modal on:close={() => showLogsModal = false}>
-    <div class="p-6 max-w-4xl">
+    <div class="glassmorphism-modal p-6 max-w-4xl">
       <h2 class="text-xl font-semibold mb-4">Execution Logs: {selectedFunction.name}</h2>
       
       <div class="space-y-4">

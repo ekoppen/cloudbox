@@ -287,7 +287,7 @@
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
     <!-- Tables Sidebar -->
     <div class="lg:col-span-1">
-      <Card>
+      <Card class="glassmorphism-sidebar">
         <div class="px-4 py-3 border-b border-border">
           <div class="flex items-center space-x-2">
             <Icon name="database" size={16} className="text-primary" />
@@ -343,7 +343,7 @@
     <!-- Main Content -->
     <div class="lg:col-span-3">
       {#if !selectedTable}
-        <Card class="p-12 text-center">
+        <Card class="glassmorphism-content p-12 text-center">
           <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
             <Icon name="database" size={32} className="text-muted-foreground" />
           </div>
@@ -351,14 +351,14 @@
           <p class="text-muted-foreground">Kies een collection uit de linkerkolom om de data te bekijken</p>
         </Card>
       {:else if loading}
-        <Card class="p-12 text-center">
+        <Card class="glassmorphism-content p-12 text-center">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p class="mt-4 text-muted-foreground">Collection data laden...</p>
         </Card>
       {:else if tableData}
         <div class="space-y-4">
           <!-- Table Info & Actions -->
-          <Card class="p-4">
+          <Card class="glassmorphism-card p-4">
             <div class="flex justify-between items-center">
               <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -394,7 +394,7 @@
           </Card>
 
           <!-- Table Schema -->
-          <Card>
+          <Card class="glassmorphism-table">
             <div class="px-4 py-3 border-b border-border">
               <div class="flex items-center space-x-2">
                 <Icon name="settings" size={16} className="text-primary" />
@@ -434,7 +434,7 @@
           </Card>
 
           <!-- Table Data -->
-          <Card>
+          <Card class="glassmorphism-table">
             <div class="px-4 py-3 border-b border-border">
               <div class="flex items-center space-x-2">
                 <Icon name="storage" size={16} className="text-primary" />
@@ -493,7 +493,7 @@
 <!-- Create Table Modal -->
 {#if showCreateTable}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="database" size={20} className="text-primary" />
@@ -539,7 +539,7 @@
 <!-- Add Row Modal -->
 {#if showAddRow && tableData}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-2xl w-full p-6 max-h-96 overflow-y-auto border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-2xl w-full p-6 max-h-96 overflow-y-auto border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="package" size={20} className="text-primary" />

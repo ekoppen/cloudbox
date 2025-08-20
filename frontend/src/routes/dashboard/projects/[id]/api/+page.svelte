@@ -183,7 +183,7 @@
     </div>
   {:else if project}
     <!-- Base URL Info -->
-    <Card class="p-6">
+    <Card class="glassmorphism-card p-6">
       <div class="flex items-start justify-between">
         <div>
           <h3 class="text-lg font-medium text-foreground mb-2">API Base URL</h3>
@@ -209,7 +209,7 @@
     </Card>
 
     <!-- Filters -->
-    <Card class="p-4">
+    <Card class="glassmorphism-nav p-4">
       <div class="flex flex-col sm:flex-row gap-4">
         <div class="flex-1">
           <Input
@@ -237,7 +237,7 @@
     <!-- API Endpoints -->
     <div class="space-y-4">
       {#each filteredEndpoints as endpoint}
-        <Card class="p-6">
+        <Card class="glassmorphism-card p-6">
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center space-x-3">
               <Badge variant="secondary" class={getMethodColor(endpoint.method)}>
@@ -281,7 +281,7 @@
     </div>
 
     {#if filteredEndpoints.length === 0}
-      <Card class="p-12 text-center">
+      <Card class="glassmorphism-content p-12 text-center">
         <div class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
           <Icon name="settings" size={32} className="text-muted-foreground" />
         </div>
@@ -293,7 +293,7 @@
     {/if}
 
     <!-- API Documentation -->
-    <Card class="p-6">
+    <Card class="glassmorphism-form p-6">
       <div class="flex items-start space-x-4">
         <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center flex-shrink-0">
           <Icon name="settings" size={20} className="text-blue-600 dark:text-blue-400" />

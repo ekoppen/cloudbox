@@ -293,13 +293,13 @@
       </Button>
       
       <Button
-        variant="outline"
-        size="sm"
+        variant="ghost"
+        size="icon"
         on:click={() => dispatch('refresh')}
-        class="flex items-center space-x-2"
+        class="hover:rotate-180 transition-transform duration-300"
+        title="Vernieuw tabel data"
       >
-        <Icon name="refresh-cw" size={14} />
-        <span>Refresh</span>
+        <Icon name="refresh-cw" size={16} />
       </Button>
     </div>
   </div>

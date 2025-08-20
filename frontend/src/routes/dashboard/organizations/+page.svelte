@@ -1,3 +1,188 @@
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .glassmorphism-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-icon:hover {
+    transform: scale(1.05);
+  }
+
+  .glassmorphism-org-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .glassmorphism-org-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+      0 15px 40px -12px rgba(0, 0, 0, 0.2),
+      0 8px 25px -8px rgba(0, 0, 0, 0.15);
+  }
+
+  .glassmorphism-org-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-org-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-icon {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-org-card {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(30px);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-org-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .glassmorphism-icon {
+      width: 36px;
+      height: 36px;
+    }
+
+    .glassmorphism-org-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card,
+    .glassmorphism-icon,
+    .glassmorphism-org-card {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover,
+    .glassmorphism-org-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
@@ -141,7 +326,7 @@
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div class="flex items-center space-x-4">
-      <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+      <div class="glassmorphism-icon bg-primary/20">
         <Icon name="building" size={20} className="text-primary" />
       </div>
       <div>
@@ -160,16 +345,16 @@
   <!-- Organizations Grid -->
   <div class="space-y-6">
     {#if loading}
-      <Card class="p-12">
+      <div class="glassmorphism-card p-12">
         <div class="text-center">
           <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p class="text-muted-foreground">Laden...</p>
         </div>
-      </Card>
+      </div>
     {:else if organizations.length === 0}
-      <Card class="p-12">
+      <div class="glassmorphism-card p-12">
         <div class="text-center">
-          <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+          <div class="glassmorphism-icon w-16 h-16 bg-muted/30 mx-auto mb-4">
             <Icon name="building" size={32} className="text-muted-foreground" />
           </div>
           <h3 class="text-lg font-medium text-foreground mb-2">Nog geen organizations</h3>
@@ -185,15 +370,15 @@
             <span>Eerste Organization Aanmaken</span>
           </Button>
         </div>
-      </Card>
+      </div>
     {:else}
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {#each organizations as org}
-          <Card class="group p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border hover:border-primary/20">
+          <div class="glassmorphism-org-card group">
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center space-x-3">
                 <div 
-                  class="w-10 h-10 rounded-lg flex items-center justify-center text-white"
+                  class="glassmorphism-icon text-white"
                   style="background-color: {org.color}"
                 >
                   <Icon name="building" size={20} />
@@ -256,7 +441,7 @@
                 </span>
               </div>
             </div>
-          </Card>
+          </div>
         {/each}
       </div>
     {/if}
@@ -266,9 +451,9 @@
 <!-- Create Organization Modal -->
 {#if showCreateModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+        <div class="glassmorphism-icon bg-primary/20">
           <Icon name="building" size={20} className="text-primary" />
         </div>
         <h2 class="text-xl font-bold text-foreground">Nieuwe Organization</h2>
@@ -326,6 +511,6 @@
           </Button>
         </div>
       </form>
-    </Card>
+    </div>
   </div>
 {/if}

@@ -199,22 +199,22 @@
 
   <!-- Quick Actions Footer -->
   <div class="border-t border-border p-4 space-y-2">
-    <div class="grid grid-cols-2 gap-2">
+    <div class="flex gap-2">
       <Button
-        variant="outline"
-        size="sm"
+        variant="ghost"
+        size="icon"
         on:click={() => dispatch('quickAction', { action: 'refresh' })}
-        class="flex items-center space-x-2 justify-center"
+        class="h-8 w-8 hover:rotate-180 transition-transform duration-300"
+        title="Vernieuw database data"
       >
-        <Icon name="refresh-cw" size={12} />
-        <span class="text-xs">Refresh</span>
+        <Icon name="refresh-cw" size={16} />
       </Button>
       
       <Button
         variant="outline"
         size="sm"
         on:click={() => dispatch('quickAction', { action: 'sql' })}
-        class="flex items-center space-x-2 justify-center"
+        class="flex items-center space-x-2 justify-center flex-1"
       >
         <Icon name="code" size={12} />
         <span class="text-xs">SQL</span>

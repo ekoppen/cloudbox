@@ -242,24 +242,24 @@
   }
 
   /* Enhanced styles for dark mode */
-  :global(.dark) .theme-toggle-slider {
+  :global(.cloudbox-dark) .theme-toggle-slider {
     background-color: hsl(var(--muted));
     border-color: hsl(var(--border));
     box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.1);
   }
 
-  :global(.dark) .theme-toggle-input:checked + .theme-toggle-slider {
+  :global(.cloudbox-dark) .theme-toggle-input:checked + .theme-toggle-slider {
     background-color: hsl(var(--primary) / 0.3);
     border-color: hsl(var(--primary));
   }
 
-  :global(.dark) .theme-toggle-slider:before {
+  :global(.cloudbox-dark) .theme-toggle-slider:before {
     background-color: hsl(var(--card));
     border-color: hsl(var(--border));
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
   }
 
-  :global(.dark) .theme-toggle-input:checked + .theme-toggle-slider:before {
+  :global(.cloudbox-dark) .theme-toggle-input:checked + .theme-toggle-slider:before {
     background-color: hsl(var(--primary));
     border-color: hsl(var(--primary));
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);

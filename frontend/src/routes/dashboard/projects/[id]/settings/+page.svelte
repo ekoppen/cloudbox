@@ -499,7 +499,7 @@
 </div>
 
 <!-- Sub-tabs within settings -->
-<div class="border-b border-border mb-8">
+<div class="glassmorphism-nav border-b border-border mb-8">
   <nav class="flex space-x-8">
     <button
       on:click={() => activeTab = 'api-keys'}
@@ -563,7 +563,7 @@
         </Button>
       </div>
 
-      <div class="bg-background border border-border rounded-2xl overflow-hidden">
+      <div class="glassmorphism-table bg-background border border-border rounded-2xl overflow-hidden">
         {#if !apiKeysLoaded}
           <div class="p-16 text-center">
             <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -674,7 +674,7 @@
         <p class="text-sm text-muted-foreground">Configureer Cross-Origin Resource Sharing voor je API</p>
       </div>
 
-      <Card class="p-6">
+      <Card class="glassmorphism-form p-6">
         <form on:submit|preventDefault={saveCORSConfig} class="space-y-6">
           <!-- Allowed Origins -->
           <div>
@@ -792,7 +792,7 @@
         <p class="text-sm text-muted-foreground">Project notities en andere algemene instellingen</p>
       </div>
 
-      <Card class="p-6">
+      <Card class="glassmorphism-form p-6">
         <form on:submit|preventDefault={saveProjectNotes} class="space-y-6">
           <div>
             <Label for="project-notes">Project Notities</Label>
@@ -854,7 +854,7 @@
 <!-- Create API Key Modal -->
 {#if showCreateKey}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="auth" size={20} className="text-primary" />
@@ -917,7 +917,7 @@
 <!-- API Key Details Modal -->
 {#if showKeyDetails}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
+    <Card class="glassmorphism-modal max-w-lg w-full p-6 border-2 shadow-2xl">
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">

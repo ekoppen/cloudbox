@@ -303,17 +303,22 @@
     </div>
     
     <div class="flex gap-3">
-      <Button on:click={reloadPlugins} variant="outline" className="h-10">
-        <Icon name="refresh" size={16} className="mr-2" />
-        Reload
+      <Button 
+        on:click={reloadPlugins} 
+        variant="ghost" 
+        size="icon"
+        className="hover:rotate-180 transition-transform duration-300"
+        title="Reload plugins"
+      >
+        <Icon name="refresh-cw" size={18} />
       </Button>
       
-      <Button on:click={() => showAddPlugin = true} variant="outline" className="h-10">
+      <Button on:click={() => showAddPlugin = true} variant="secondary" className="h-10">
         <Icon name="plus-circle" size={16} className="mr-2" />
         Add Plugin
       </Button>
       
-      <Button on:click={() => showMarketplace = true} className="h-10 px-6">
+      <Button on:click={() => showMarketplace = true} variant="primary" className="h-10 px-6">
         <Icon name="store" size={16} className="mr-2" />
         Browse Marketplace
       </Button>

@@ -469,13 +469,14 @@
           {#if deployment.web_server_id && !checkingPorts}
             <div class="flex items-center gap-2 mt-2">
               <Button 
-                variant="outline" 
-                size="sm" 
+                variant="ghost"
+                size="icon"
                 on:click={checkPortAvailability}
                 disabled={checkingPorts}
+                class="hover:rotate-180 transition-transform duration-300"
+                title="Hercontroleer poorten beschikbaarheid"
               >
-                <Icon name="refresh-cw" size={14} class="mr-2" />
-                Hercontroleer Poorten
+                <Icon name="refresh-cw" size={16} class={checkingPorts ? "animate-spin" : ""} />
               </Button>
               <span class="text-sm text-muted-foreground">
                 Laatste check: {new Date().toLocaleTimeString()}

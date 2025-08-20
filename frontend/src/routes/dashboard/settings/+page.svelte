@@ -1,3 +1,164 @@
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .glassmorphism-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-icon:hover {
+    transform: scale(1.05);
+  }
+
+  .glassmorphism-theme-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .glassmorphism-theme-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.15);
+  }
+
+  .glassmorphism-theme-card.selected {
+    border-color: rgba(59, 130, 246, 0.6);
+    background: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 8px 30px -8px rgba(59, 130, 246, 0.3);
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-icon {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-theme-card {
+    background: rgba(15, 23, 42, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-theme-card.selected {
+    border-color: rgba(59, 130, 246, 0.6);
+    background: rgba(59, 130, 246, 0.15);
+    backdrop-filter: blur(25px);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .glassmorphism-icon {
+      width: 36px;
+      height: 36px;
+    }
+
+    .glassmorphism-theme-card {
+      padding: 16px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card,
+    .glassmorphism-icon,
+    .glassmorphism-theme-card {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover,
+    .glassmorphism-theme-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 <script lang="ts">
   import { theme, type AccentColor } from '$lib/stores/theme';
   import { auth } from '$lib/stores/auth';
@@ -171,9 +332,11 @@
   </div>
 
   <!-- Theme Settings -->
-  <Card class="p-6">
+  <div class="glassmorphism-card">
     <div class="flex items-center space-x-3 mb-6">
-      <Icon name="palette" size={24} />
+      <div class="glassmorphism-icon bg-primary/20">
+        <Icon name="palette" size={24} className="text-primary" />
+      </div>
       <h2 class="text-xl font-semibold text-card-foreground">Thema & Uiterlijk</h2>
     </div>
 
@@ -310,15 +473,17 @@
         </div>
       </div>
     </div>
-  </Card>
+  </div>
 
   <!-- Theme Debug Component -->
   <ThemeDebug />
 
   <!-- Account Settings -->
-  <Card class="p-6">
+  <div class="glassmorphism-card">
     <div class="flex items-center space-x-3 mb-6">
-      <Icon name="user" size={24} />
+      <div class="glassmorphism-icon bg-primary/20">
+        <Icon name="user" size={24} className="text-primary" />
+      </div>
       <h2 class="text-xl font-semibold text-card-foreground">Account</h2>
     </div>
 
@@ -348,16 +513,16 @@
         </Button>
       </div>
     </div>
-  </Card>
+  </div>
 
 </div>
 
 <!-- Edit Profile Modal -->
 {#if showEditProfileModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+        <div class="glassmorphism-icon bg-primary/20">
           <Icon name="user" size={20} className="text-primary" />
         </div>
         <div>
@@ -417,16 +582,16 @@
           </Button>
         </div>
       </form>
-    </Card>
+    </div>
   </div>
 {/if}
 
 <!-- Change Password Modal -->
 {#if showChangePasswordModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+        <div class="glassmorphism-icon bg-primary/20">
           <Icon name="key" size={20} className="text-primary" />
         </div>
         <div>
@@ -496,6 +661,6 @@
           </Button>
         </div>
       </form>
-    </Card>
+    </div>
   </div>
 {/if}

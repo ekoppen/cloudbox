@@ -1,3 +1,167 @@
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .glassmorphism-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-icon:hover {
+    transform: scale(1.05);
+  }
+
+  .glassmorphism-search {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .glassmorphism-search:focus-within {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 4px 20px -4px rgba(59, 130, 246, 0.2);
+  }
+
+  .glassmorphism-badge {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-icon {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-search {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-search:focus-within {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 4px 20px -4px rgba(59, 130, 246, 0.3);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-badge {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .glassmorphism-icon {
+      width: 36px;
+      height: 36px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card,
+    .glassmorphism-icon {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -196,22 +360,24 @@
   <div class="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
     <!-- Search -->
     <div class="relative max-w-sm">
-      <Icon name="search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-      <Input
-        type="text"
-        placeholder="Zoek projecten..."
-        bind:value={searchTerm}
-        class="pl-10 h-10"
-      />
+      <div class="glassmorphism-search relative">
+        <Icon name="search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Zoek projecten..."
+          bind:value={searchTerm}
+          class="pl-10 h-10 bg-transparent border-none focus:ring-0 focus:border-none"
+        />
+      </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="flex items-center space-x-6 text-sm">
-      <div class="flex items-center space-x-2">
+    <div class="flex items-center space-x-4 text-sm">
+      <div class="glassmorphism-badge flex items-center space-x-2">
         <div class="h-2 w-2 rounded-full bg-primary"></div>
         <span class="text-muted-foreground">{projects.length} projecten</span>
       </div>
-      <div class="flex items-center space-x-2">
+      <div class="glassmorphism-badge flex items-center space-x-2">
         <div class="h-2 w-2 rounded-full bg-success"></div>
         <span class="text-muted-foreground">{projects.filter(p => p.is_active).length} actief</span>
       </div>
@@ -220,7 +386,7 @@
 
   <!-- Error message -->
   {#if error}
-    <Card class="bg-destructive/10 border-destructive/20 p-4">
+    <div class="glassmorphism-card bg-destructive/10 border-destructive/30">
       <div class="flex justify-between items-center">
         <p class="text-destructive text-sm">{error}</p>
         <Button
@@ -232,7 +398,7 @@
           ×
         </Button>
       </div>
-    </Card>
+    </div>
   {/if}
 
   <!-- Projects Grid -->
@@ -242,8 +408,8 @@
       <p class="mt-4 text-muted-foreground">Projecten laden...</p>
     </div>
   {:else if filteredProjects.length === 0 && searchTerm}
-    <div class="text-center py-12">
-      <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+    <div class="glassmorphism-card text-center py-12">
+      <div class="glassmorphism-icon mx-auto mb-4 bg-muted/30">
         <Icon name="search" size={24} className="text-muted-foreground" />
       </div>
       <h3 class="mb-2 text-lg font-medium text-foreground">Geen resultaten</h3>
@@ -251,7 +417,7 @@
         Geen projecten gevonden voor "{searchTerm}". Probeer een andere zoekterm.
       </p>
       <Button
-        variant="outline"
+        variant="secondary"
         on:click={() => searchTerm = ''}
         class="flex items-center space-x-2"
       >
@@ -260,8 +426,8 @@
       </Button>
     </div>
   {:else if projects.length === 0}
-    <div class="text-center py-12">
-      <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+    <div class="glassmorphism-card text-center py-12">
+      <div class="glassmorphism-icon mx-auto mb-4 bg-muted/30">
         <Icon name="package" size={24} className="text-muted-foreground" />
       </div>
       <h3 class="mb-2 text-lg font-medium text-foreground">Nog geen projecten</h3>
@@ -290,9 +456,9 @@
 <!-- Create Project Modal -->
 {#if showCreateModal}
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
+    <div class="glassmorphism-card max-w-lg w-full border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+        <div class="glassmorphism-icon bg-primary/20">
           <Icon name="package" size={20} className="text-primary" />
         </div>
         <div>
@@ -369,7 +535,7 @@
         </div>
 
         <!-- Project Features Preview -->
-        <div class="bg-muted/50 rounded-lg p-4 space-y-3">
+        <div class="glassmorphism-card bg-muted/30 p-4 space-y-3">
           <div class="flex items-center space-x-2 text-sm font-medium text-foreground">
             <Icon name="cloud" size={16} className="text-primary" />
             <span>Jouw project krijgt toegang tot:</span>
@@ -397,7 +563,7 @@
         <div class="flex space-x-3 pt-4">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             on:click={() => {
               showCreateModal = false;
               newProject = { name: '', description: '', organization_id: 0 };
@@ -410,8 +576,10 @@
           </Button>
           <Button
             type="submit"
+            variant="primary"
             disabled={creating || !newProject.name.trim() || !newProject.organization_id}
             class="flex-1 flex items-center justify-center space-x-2"
+            loading={creating}
           >
             {#if creating}
               <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -423,6 +591,6 @@
           </Button>
         </div>
       </form>
-    </Card>
+    </div>
   </div>
 {/if}

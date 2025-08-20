@@ -110,6 +110,128 @@
   }
 </script>
 
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .glassmorphism-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-icon:hover {
+    transform: scale(1.05);
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-icon {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .glassmorphism-icon {
+      width: 36px;
+      height: 36px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card,
+    .glassmorphism-icon {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 <svelte:head>
   <title>Dashboard - CloudBox</title>
 </svelte:head>
@@ -136,34 +258,34 @@
 
   <!-- Quick Stats -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="rounded-xl border border-border bg-card p-6">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-caption-lg">Projecten</p>
+          <p class="text-caption-lg opacity-70">Projecten</p>
           <p class="text-heading-3">{projects.length}</p>
         </div>
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+        <div class="glassmorphism-icon bg-primary/20">
           <Icon name="package" size={20} className="text-primary" />
         </div>
       </div>
     </div>
     
-    <div class="rounded-xl border border-border bg-card p-6">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-caption-lg">Actief</p>
+          <p class="text-caption-lg opacity-70">Actief</p>
           <p class="text-heading-3">{projects.filter(p => p.is_active).length}</p>
         </div>
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+        <div class="glassmorphism-icon bg-success/20">
           <Icon name="database" size={20} className="text-success" />
         </div>
       </div>
     </div>
     
-    <div class="rounded-xl border border-border bg-card p-6">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-caption-lg">Storage</p>
+          <p class="text-caption-lg opacity-70">Storage</p>
           <p class="text-heading-3">
             {#if isSuperAdmin && adminStats}
               {formatBytes(adminStats.storage_used || 0)}
@@ -172,16 +294,16 @@
             {/if}
           </p>
         </div>
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-500/10">
+        <div class="glassmorphism-icon bg-gray-500/20">
           <Icon name="storage" size={20} className="text-gray-500" />
         </div>
       </div>
     </div>
     
-    <div class="rounded-xl border border-border bg-card p-6">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-caption-lg">API Calls</p>
+          <p class="text-caption-lg opacity-70">API Calls</p>
           <p class="text-heading-3">
             {#if isSuperAdmin && adminStats}
               {adminStats.api_calls_24h || 0}
@@ -190,7 +312,7 @@
             {/if}
           </p>
         </div>
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+        <div class="glassmorphism-icon bg-warning/20">
           <Icon name="zap" size={20} className="text-warning" />
         </div>
       </div>
@@ -203,14 +325,14 @@
       <div class="flex items-center justify-between">
         <h2 class="text-heading-2">Systeem Statistieken</h2>
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          size="icon"
           on:click={loadAdminStats}
           disabled={loadingAdminStats}
-          class="flex items-center space-x-2"
+          class="hover:rotate-180 transition-transform duration-300"
+          title="Vernieuwen"
         >
-          <Icon name="refresh-cw" size={14} />
-          <span>Vernieuwen</span>
+          <Icon name="refresh-cw" size={18} className={loadingAdminStats ? 'animate-spin' : ''} />
         </Button>
       </div>
       
@@ -223,87 +345,87 @@
         </Card>
       {:else if adminStats}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card class="p-6">
+          <div class="glassmorphism-card">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-caption-lg">Totaal Gebruikers</p>
+                <p class="text-caption-lg opacity-70">Totaal Gebruikers</p>
                 <p class="text-heading-3">{adminStats.total_users || 0}</p>
               </div>
-              <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                <Icon name="user" size={20} className="text-indigo-600 dark:text-indigo-400" />
+              <div class="glassmorphism-icon bg-info/20">
+                <Icon name="user" size={20} className="text-info" />
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card class="p-6">
+          <div class="glassmorphism-card">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-caption-lg">Systeem Uptime</p>
+                <p class="text-caption-lg opacity-70">Systeem Uptime</p>
                 <p class="text-heading-3">{adminStats.uptime || '0d'}</p>
               </div>
-              <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center">
-                <Icon name="shield-check" size={20} className="text-emerald-600 dark:text-emerald-400" />
+              <div class="glassmorphism-icon bg-success/20">
+                <Icon name="shield-check" size={20} className="text-success" />
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card class="p-6">
+          <div class="glassmorphism-card">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-caption-lg">Database Queries</p>
+                <p class="text-caption-lg opacity-70">Database Queries</p>
                 <p class="text-heading-3">{adminStats.database_queries || 0}</p>
               </div>
-              <div class="w-10 h-10 bg-cyan-100 dark:bg-cyan-900 rounded-lg flex items-center justify-center">
-                <Icon name="database" size={20} className="text-cyan-600 dark:text-cyan-400" />
+              <div class="glassmorphism-icon bg-info/20">
+                <Icon name="database" size={20} className="text-info" />
               </div>
             </div>
-          </Card>
+          </div>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card class="p-6">
+          <div class="glassmorphism-card">
             <h3 class="text-heading-4 mb-4">Systeem Informatie</h3>
             <div class="space-y-3 text-body-sm">
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Server OS:</span>
-                <span class="text-foreground font-medium">{adminStats.os || 'Onbekend'}</span>
+                <span class="opacity-70">Server OS:</span>
+                <span class="font-medium">{adminStats.os || 'Onbekend'}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">CPU Usage:</span>
-                <span class="text-foreground font-medium">{adminStats.cpu_usage || '0'}%</span>
+                <span class="opacity-70">CPU Usage:</span>
+                <span class="font-medium">{adminStats.cpu_usage || '0'}%</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Memory Usage:</span>
-                <span class="text-foreground font-medium">{adminStats.memory_usage || '0'}%</span>
+                <span class="opacity-70">Memory Usage:</span>
+                <span class="font-medium">{adminStats.memory_usage || '0'}%</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Disk Usage:</span>
-                <span class="text-foreground font-medium">{adminStats.disk_usage || '0'}%</span>
+                <span class="opacity-70">Disk Usage:</span>
+                <span class="font-medium">{adminStats.disk_usage || '0'}%</span>
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card class="p-6">
+          <div class="glassmorphism-card">
             <h3 class="text-heading-4 mb-4">Recente Activiteit</h3>
             <div class="space-y-3 text-body-sm">
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Deployments (7d):</span>
-                <span class="text-foreground font-medium">{adminStats.deployments_7d || 0}</span>
+                <span class="opacity-70">Deployments (7d):</span>
+                <span class="font-medium">{adminStats.deployments_7d || 0}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Functions Executed:</span>
-                <span class="text-foreground font-medium">{adminStats.functions_executed || 0}</span>
+                <span class="opacity-70">Functions Executed:</span>
+                <span class="font-medium">{adminStats.functions_executed || 0}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Active Sessions:</span>
-                <span class="text-foreground font-medium">{adminStats.active_sessions || 0}</span>
+                <span class="opacity-70">Active Sessions:</span>
+                <span class="font-medium">{adminStats.active_sessions || 0}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-muted-foreground">Error Rate (24h):</span>
-                <span class="text-foreground font-medium">{adminStats.error_rate_24h || '0'}%</span>
+                <span class="opacity-70">Error Rate (24h):</span>
+                <span class="font-medium">{adminStats.error_rate_24h || '0'}%</span>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       {/if}
     </div>

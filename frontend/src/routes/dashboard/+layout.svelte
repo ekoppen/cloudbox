@@ -43,6 +43,58 @@
   }
 </script>
 
+<style>
+  .dashboard-background {
+    position: relative;
+    background: var(--color-base-100);
+  }
+
+  .dashboard-gradient {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.03) 0%,
+      rgba(118, 75, 162, 0.02) 25%,
+      rgba(240, 147, 251, 0.025) 50%,
+      rgba(245, 87, 108, 0.02) 75%,
+      rgba(79, 172, 254, 0.03) 100%
+    );
+    background-size: 400% 400%;
+    animation: subtleGradientShift 30s ease infinite;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  @keyframes subtleGradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .dashboard-gradient {
+    background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.05) 0%,
+      rgba(118, 75, 162, 0.04) 25%,
+      rgba(240, 147, 251, 0.045) 50%,
+      rgba(245, 87, 108, 0.04) 75%,
+      rgba(79, 172, 254, 0.05) 100%
+    );
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-gradient {
+      animation: none;
+    }
+  }
+</style>
+
 {#if isLoading}
   <div class="min-h-screen bg-base-100 flex items-center justify-center">
     <div class="text-center">
@@ -51,7 +103,10 @@
     </div>
   </div>
 {:else if $auth.isAuthenticated && user}
-  <div class="min-h-screen bg-base-100">
+  <div class="min-h-screen dashboard-background">
+    <!-- Subtle gradient background -->
+    <div class="dashboard-gradient"></div>
+    
     <!-- Supabase-style Collapsible Sidebar -->
     <Sidebar context="dashboard" />
 
@@ -61,7 +116,7 @@
       <Header />
 
       <!-- Page content -->
-      <main class="p-6">
+      <main class="p-6 relative z-10">
         <slot />
       </main>
     </div>

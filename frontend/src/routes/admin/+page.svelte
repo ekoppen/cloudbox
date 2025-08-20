@@ -268,9 +268,15 @@
             {/each}
           </select>
           
-          <Button on:click={refreshStats} disabled={loading}>
-            <Icon name="refresh" class="w-4 h-4 mr-2" />
-            Vernieuwen
+          <Button 
+            on:click={refreshStats} 
+            disabled={loading}
+            variant="ghost"
+            size="icon"
+            class="hover:rotate-180 transition-transform duration-300"
+            title="Vernieuwen"
+          >
+            <Icon name="refresh-cw" class="w-5 h-5" />
           </Button>
           
           <Button on:click={exportStats} variant="outline">

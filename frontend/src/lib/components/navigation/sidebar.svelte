@@ -36,7 +36,7 @@
   });
 
   // Update context when props change
-  $: if (context || projectId || projectName) {
+  $: {
     sidebarStore.setContext(context, projectId, projectName);
   }
 
@@ -72,60 +72,66 @@
   ];
 
   // Project navigation items (dynamic based on projectId)
-  $: projectItems = projectId ? [
-    { 
-      label: 'Overzicht', 
-      href: `/dashboard/projects/${projectId}`, 
-      icon: 'dashboard',
-      exact: true 
-    },
-    { 
-      label: 'Database', 
-      href: `/dashboard/projects/${projectId}/database`, 
-      icon: 'database' 
-    },
-    { 
-      label: 'Authenticatie', 
-      href: `/dashboard/projects/${projectId}/auth`, 
-      icon: 'auth' 
-    },
-    { 
-      label: 'Opslag', 
-      href: `/dashboard/projects/${projectId}/storage`, 
-      icon: 'storage' 
-    },
-    { 
-      label: 'Functies', 
-      href: `/dashboard/projects/${projectId}/functions`, 
-      icon: 'functions' 
-    },
-    { 
-      label: 'API', 
-      href: `/dashboard/projects/${projectId}/api`, 
-      icon: 'settings' 
-    },
-    { 
-      label: 'Berichten', 
-      href: `/dashboard/projects/${projectId}/messaging`, 
-      icon: 'messaging' 
-    },
-    {
-      label: 'Deployments',
-      href: `/dashboard/projects/${projectId}/deployments`,
-      icon: 'deployments',
-      children: [
-        { label: 'Deployments', href: `/dashboard/projects/${projectId}/deployments`, icon: 'deployments' },
-        { label: 'SSH Keys', href: `/dashboard/projects/${projectId}/ssh-keys`, icon: 'key' },
-        { label: 'Servers', href: `/dashboard/projects/${projectId}/servers`, icon: 'server' },
-        { label: 'GitHub', href: `/dashboard/projects/${projectId}/github`, icon: 'github' }
-      ]
-    },
-    { 
-      label: 'Instellingen', 
-      href: `/dashboard/projects/${projectId}/settings`, 
-      icon: 'settings' 
-    }
-  ] : [];
+  function getProjectItems(projectId: string | undefined): NavigationItem[] {
+    if (!projectId) return [];
+    
+    return [
+      { 
+        label: 'Overzicht', 
+        href: `/dashboard/projects/${projectId}`, 
+        icon: 'dashboard',
+        exact: true 
+      },
+      { 
+        label: 'Database', 
+        href: `/dashboard/projects/${projectId}/database`, 
+        icon: 'database' 
+      },
+      { 
+        label: 'Authenticatie', 
+        href: `/dashboard/projects/${projectId}/auth`, 
+        icon: 'auth' 
+      },
+      { 
+        label: 'Opslag', 
+        href: `/dashboard/projects/${projectId}/storage`, 
+        icon: 'storage' 
+      },
+      { 
+        label: 'Functies', 
+        href: `/dashboard/projects/${projectId}/functions`, 
+        icon: 'functions' 
+      },
+      { 
+        label: 'API', 
+        href: `/dashboard/projects/${projectId}/api`, 
+        icon: 'settings' 
+      },
+      { 
+        label: 'Berichten', 
+        href: `/dashboard/projects/${projectId}/messaging`, 
+        icon: 'messaging' 
+      },
+      {
+        label: 'Deployments',
+        href: `/dashboard/projects/${projectId}/deployments`,
+        icon: 'deployments',
+        children: [
+          { label: 'Deployments', href: `/dashboard/projects/${projectId}/deployments`, icon: 'deployments' },
+          { label: 'SSH Keys', href: `/dashboard/projects/${projectId}/ssh-keys`, icon: 'key' },
+          { label: 'Servers', href: `/dashboard/projects/${projectId}/servers`, icon: 'server' },
+          { label: 'GitHub', href: `/dashboard/projects/${projectId}/github`, icon: 'github' }
+        ]
+      },
+      { 
+        label: 'Instellingen', 
+        href: `/dashboard/projects/${projectId}/settings`, 
+        icon: 'settings' 
+      }
+    ];
+  }
+
+  $: projectItems = getProjectItems(projectId);
 
   // Admin navigation items
   const adminItems: NavigationItem[] = [
@@ -212,6 +218,12 @@
   $: visibleItems = navigationItems.filter(item => 
     !item.adminOnly || (item.adminOnly && isAdmin)
   );
+
+  // Ensure reactivity for project context
+  $: if (context === 'project' && projectId) {
+    // Force recalculation when project context is active
+    navigationItems; // Reference to trigger reactivity
+  }
 </script>
 
 <!-- Supabase-style Collapsible Sidebar -->
@@ -261,6 +273,7 @@
 
     <!-- Navigation -->
     <nav class="flex-1 space-y-1 p-2 overflow-y-auto">
+      
       {#each visibleItems as item}
         <!-- Main navigation item -->
         <div class="relative">

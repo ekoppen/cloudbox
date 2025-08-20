@@ -265,7 +265,7 @@
     </div>
     <div class="flex items-center space-x-3">
       <Button
-        variant="outline"
+        variant="secondary"
         href="/admin"
         size="lg"
         class="flex items-center space-x-2"
@@ -274,7 +274,7 @@
         <span>Terug naar Dashboard</span>
       </Button>
       <Button
-        variant="outline"
+        variant="primary"
         on:click={() => showCreateModal = true}
         size="lg"
         class="flex items-center space-x-2"
@@ -284,11 +284,12 @@
       </Button>
       <Button
         on:click={loadUsers}
-        size="lg"
-        class="flex items-center space-x-2"
+        variant="ghost"
+        size="icon"
+        class="hover:rotate-180 transition-transform duration-300"
+        title="Vernieuw gebruikerslijst"
       >
-        <Icon name="refresh" size={16} />
-        <span>Vernieuwen</span>
+        <Icon name="refresh-cw" size={16} />
       </Button>
     </div>
   </div>

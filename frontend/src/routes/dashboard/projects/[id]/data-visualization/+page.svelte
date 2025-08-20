@@ -280,14 +280,14 @@
     
     <div class="flex items-center space-x-2">
       <Button
-        variant="outline"
-        size="sm"
+        variant="ghost"
+        size="icon"
         on:click={refreshData}
         disabled={loading}
-        class="flex items-center space-x-2"
+        class="hover:rotate-180 transition-transform duration-300"
+        title="Refresh data"
       >
-        <Icon name={loading ? 'loader' : 'refresh-cw'} size={16} className={loading ? 'animate-spin' : ''} />
-        <span>Refresh</span>
+        <Icon name={loading ? 'loader' : 'refresh-cw'} size={18} className={loading ? 'animate-spin' : ''} />
       </Button>
     </div>
   </div>

@@ -143,30 +143,222 @@
   }
 </script>
 
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .glassmorphism-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-icon:hover {
+    transform: scale(1.05);
+  }
+
+  .glassmorphism-modal {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 20px 40px -12px rgba(0, 0, 0, 0.2),
+      0 8px 20px -8px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-badge {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-badge:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .glassmorphism-search {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .glassmorphism-search:focus {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-icon {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-modal {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(40px);
+    box-shadow: 
+      0 20px 40px -12px rgba(0, 0, 0, 0.6),
+      0 8px 20px -8px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-badge {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-badge:hover {
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-search {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-search:focus {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(102, 126, 234, 0.5);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .glassmorphism-icon {
+      width: 36px;
+      height: 36px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card,
+    .glassmorphism-icon,
+    .glassmorphism-badge {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 {#if isOpen}
-  <!-- Enhanced Modal Backdrop with proper coverage -->
+  <!-- Enhanced Modal Backdrop with proper full viewport coverage -->
   <div 
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-hidden"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     role="dialog"
     aria-modal="true"
     aria-labelledby="marketplace-title"
     tabindex="0"
-    style="width: 100vw; height: 100vh; top: 0; left: 0;"
+    style="width: 100vw; height: 100vh; top: 0; left: 0; position: fixed;"
     transition:fly={{ y: 50, duration: 200 }}
     on:click={closeModal}
     on:keydown={(e) => e.key === 'Escape' && closeModal()}
   >
     <!-- Main Modal -->
     <div 
-      class="max-w-7xl w-full max-h-[90vh] bg-background border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden relative z-10"
+      class="max-w-7xl w-full max-h-[95vh] glassmorphism-modal rounded-xl flex flex-col overflow-hidden relative z-10"
       role="document"
       on:click|stopPropagation
     >
       <!-- Header -->
-      <div class="px-8 py-6 border-b border-border flex-shrink-0 bg-background">
+      <div class="px-8 py-6 border-b border-white/10 flex-shrink-0 bg-white/5">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
-            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+            <div class="glassmorphism-icon bg-primary/20">
               <Icon name="store" size={24} className="text-primary" />
             </div>
             <div>
@@ -187,7 +379,7 @@
             <Input
               bind:value={searchInput}
               placeholder="Search plugins by name, description, or author..."
-              className="pl-12 h-12 text-base border-border focus:border-primary focus:ring-1 focus:ring-primary"
+              className="pl-12 h-12 text-base glassmorphism-search"
             />
           </div>
 
@@ -199,7 +391,7 @@
                 {#each availableTags as tag}
                   <Badge
                     variant={$selectedTags.includes(tag) ? 'default' : 'outline'}
-                    className="cursor-pointer hover:scale-105 transition-all duration-200 px-3 py-1"
+                    className="cursor-pointer glassmorphism-badge px-3 py-1 {$selectedTags.includes(tag) ? 'bg-primary/30 border-primary/50' : ''}"
                     on:click={() => toggleTag(tag)}
                   >
                     {tag}
@@ -212,10 +404,10 @@
       </div>
 
       <!-- Content -->
-      <div class="flex-1 overflow-hidden bg-muted/30">
+      <div class="flex-1 flex flex-col overflow-hidden bg-white/5">
         {#if $marketplaceLoading}
           <div class="p-16 text-center">
-            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div class="glassmorphism-icon bg-primary/20 mx-auto mb-4">
               <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
             </div>
             <p class="text-foreground font-medium">Loading marketplace...</p>
@@ -235,22 +427,22 @@
               {/if}
             </p>
             {#if !$searchQuery && $selectedTags.length === 0}
-              <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 max-w-lg mx-auto">
+              <div class="status-warning border rounded-xl p-6 max-w-lg mx-auto">
                 <div class="flex items-start space-x-3">
-                  <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon name="info" size={16} className="text-amber-600" />
+                  <div class="w-8 h-8 bg-warning-light rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon name="info" size={16} className="icon-warning" />
                   </div>
-                  <div class="text-sm text-amber-800 text-left">
+                  <div class="text-sm text-left">
                     <p class="font-medium mb-2">Marketplace Status</p>
                     <p class="mb-4 leading-relaxed">The plugin marketplace API may be temporarily unavailable or no plugins have been added yet.</p>
                     <Button 
                       on:click={loadMarketplace} 
-                      variant="outline" 
-                      size="sm"
-                      className="bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200"
+                      variant="ghost"
+                      size="icon"
+                      className="hover:rotate-180 transition-transform duration-300"
+                      title="Vernieuw marketplace"
                     >
-                      <Icon name="refresh-cw" size={14} className="mr-2" />
-                      Try Again
+                      <Icon name="refresh-cw" size={16} />
                     </Button>
                   </div>
                 </div>
@@ -258,11 +450,11 @@
             {/if}
           </div>
         {:else}
-          <div class="p-8 overflow-y-auto" style="max-height: calc(90vh - 280px);">
+          <div class="flex-1 overflow-y-auto p-8" style="max-height: calc(95vh - 200px);">
             <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {#each $marketplacePlugins as plugin (plugin.repository)}
               <div 
-                class="group relative bg-background border border-border rounded-xl hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 cursor-pointer flex flex-col overflow-hidden" 
+                class="group relative glassmorphism-card cursor-pointer flex flex-col overflow-hidden" 
                 role="button"
                 tabindex="0"
                 on:click={() => showDetails(plugin)}
@@ -272,7 +464,7 @@
                 <div class="p-6 space-y-4 flex-1">
                   <div class="flex items-start justify-between">
                     <div class="flex items-center space-x-3 flex-1 min-w-0">
-                      <div class="w-12 h-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl flex items-center justify-center flex-shrink-0 border border-border/50 shadow-sm">
+                      <div class="glassmorphism-icon bg-gradient-to-br from-primary/20 to-accent/20 flex-shrink-0">
                         <Icon name="package" size={20} className="text-primary group-hover:text-primary/80 transition-colors" />
                       </div>
                       <div class="flex-1 min-w-0">
@@ -300,12 +492,12 @@
                   {#if plugin.tags && plugin.tags.length > 0}
                     <div class="flex flex-wrap gap-2">
                       {#each plugin.tags.slice(0, 3) as tag}
-                        <Badge variant="secondary" className="text-xs px-2 py-1 bg-muted/60 text-muted-foreground border border-border/50">
+                        <Badge variant="secondary" className="text-xs px-2 py-1 glassmorphism-badge">
                           {tag}
                         </Badge>
                       {/each}
                       {#if plugin.tags.length > 3}
-                        <Badge variant="secondary" className="text-xs px-2 py-1 bg-muted/60 text-muted-foreground border border-border/50">
+                        <Badge variant="secondary" className="text-xs px-2 py-1 glassmorphism-badge">
                           +{plugin.tags.length - 3} meer
                         </Badge>
                       {/if}
@@ -313,7 +505,7 @@
                   {/if}
 
                   <!-- Stats -->
-                  <div class="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/50">
+                  <div class="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-white/10">
                     <div class="flex items-center space-x-4">
                       <div class="flex items-center space-x-1">
                         <Icon name="star" size={12} className="text-warning" />
@@ -332,7 +524,7 @@
                 <div class="p-6 pt-0">
                   <Button 
                     on:click={(e) => { e.stopPropagation(); installPlugin(plugin); }}
-                    className="w-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 hover:border-primary transition-all duration-200 group-hover:shadow-md"
+                    className="w-full glassmorphism-card bg-primary/20 hover:bg-primary text-primary hover:text-primary-foreground border-primary/30 hover:border-primary"
                     variant="outline"
                     size="sm"
                     disabled={$installationProgress?.pluginName === plugin.name.split('/').pop()}
@@ -347,8 +539,8 @@
                   </Button>
                 </div>
                 
-                <!-- Subtle gradient overlay on hover -->
-                <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <!-- Enhanced gradient overlay on hover -->
+                <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"></div>
               </div>
             {/each}
             </div>
@@ -361,34 +553,34 @@
   <!-- Plugin Details Modal -->
   {#if showPluginDetails && selectedPlugin}
     <div 
-      class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-60 p-4 overflow-hidden"
+      class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-60 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="plugin-details-title"
       tabindex="0"
-      style="width: 100vw; height: 100vh; top: 0; left: 0;"
+      style="width: 100vw; height: 100vh; top: 0; left: 0; position: fixed;"
       transition:scale={{ start: 0.95, duration: 200 }}
       on:click={closeDetails}
       on:keydown={(e) => e.key === 'Escape' && closeDetails()}
     >
       <div 
-        class="max-w-4xl w-full max-h-[85vh] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden relative z-10"
+        class="max-w-4xl w-full max-h-[90vh] glassmorphism-modal rounded-2xl flex flex-col overflow-hidden relative z-10"
         role="document"
         on:click|stopPropagation
       >
         <!-- Plugin Details Header -->
-        <div class="px-8 py-6 border-b border-border flex-shrink-0 bg-background">
+        <div class="px-8 py-6 border-b border-white/10 flex-shrink-0 bg-white/5">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
-              <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <div class="glassmorphism-icon bg-primary/20">
                 <Icon name="package" size={24} className="text-primary" />
               </div>
               <div>
                 <div class="flex items-center space-x-3 mb-1">
                   <h2 id="plugin-details-title" class="text-2xl font-bold text-foreground tracking-tight font-sans antialiased">{selectedPlugin.name}</h2>
                   {#if selectedPlugin.verified}
-                    <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                      <Icon name="shield-check" size={14} className="text-green-600" title="Verified plugin" />
+                    <div class="w-6 h-6 bg-success-light rounded-full flex items-center justify-center">
+                      <Icon name="shield-check" size={14} className="icon-success" title="Verified plugin" />
                     </div>
                   {/if}
                 </div>
@@ -404,7 +596,7 @@
         </div>
 
         <!-- Plugin Details Content -->
-        <div class="px-8 py-6 overflow-y-auto flex-1 space-y-8 bg-muted/20">
+        <div class="flex-1 overflow-y-auto px-8 py-6 space-y-8 bg-white/5" style="max-height: calc(90vh - 160px);">
           <!-- Description -->
           <div>
             <h3 class="font-semibold text-foreground mb-3 text-lg">About this plugin</h3>
@@ -414,7 +606,7 @@
           <!-- Repository -->
           <div>
             <h3 class="font-semibold text-foreground mb-3 text-lg">Repository</h3>
-            <div class="bg-background border border-border rounded-lg p-4">
+            <div class="glassmorphism-card rounded-lg p-4">
               <a 
                 href="https://github.com/{selectedPlugin.repository}" 
                 target="_blank" 
@@ -429,30 +621,30 @@
 
           <!-- Stats -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="text-center p-4 bg-background border border-border rounded-xl">
-              <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Icon name="star" size={20} className="text-yellow-600" />
+            <div class="text-center glassmorphism-card">
+              <div class="glassmorphism-icon bg-warning/20 mx-auto mb-2">
+                <Icon name="star" size={20} className="text-warning" />
               </div>
               <div class="text-lg font-semibold text-foreground">{formatNumber(selectedPlugin.stars)}</div>
               <div class="text-sm text-muted-foreground">Stars</div>
             </div>
-            <div class="text-center p-4 bg-background border border-border rounded-xl">
-              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Icon name="download" size={20} className="text-blue-600" />
+            <div class="text-center glassmorphism-card">
+              <div class="glassmorphism-icon bg-info/20 mx-auto mb-2">
+                <Icon name="download" size={20} className="text-info" />
               </div>
               <div class="text-lg font-semibold text-foreground">{formatNumber(selectedPlugin.downloads)}</div>
               <div class="text-sm text-muted-foreground">Downloads</div>
             </div>
-            <div class="text-center p-4 bg-background border border-border rounded-xl">
-              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Icon name="calendar" size={20} className="text-green-600" />
+            <div class="text-center glassmorphism-card">
+              <div class="glassmorphism-icon bg-success/20 mx-auto mb-2">
+                <Icon name="calendar" size={20} className="text-success" />
               </div>
               <div class="text-lg font-semibold text-foreground">{formatDate(selectedPlugin.last_updated)}</div>
               <div class="text-sm text-muted-foreground">Last updated</div>
             </div>
-            <div class="text-center p-4 bg-background border border-border rounded-xl">
-              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Icon name="file-text" size={20} className="text-purple-600" />
+            <div class="text-center glassmorphism-card">
+              <div class="glassmorphism-icon bg-info/20 mx-auto mb-2">
+                <Icon name="file-text" size={20} className="text-info" />
               </div>
               <div class="text-lg font-semibold text-foreground">{selectedPlugin.license}</div>
               <div class="text-sm text-muted-foreground">License</div>
@@ -465,7 +657,7 @@
               <h3 class="font-semibold text-foreground mb-3 text-lg">Tags</h3>
               <div class="flex flex-wrap gap-2">
                 {#each selectedPlugin.tags as tag}
-                  <Badge variant="secondary" className="px-3 py-1">{tag}</Badge>
+                  <Badge variant="secondary" className="px-3 py-1 glassmorphism-badge">{tag}</Badge>
                 {/each}
               </div>
             </div>
@@ -475,18 +667,18 @@
           {#if selectedPlugin.permissions.length > 0}
             <div>
               <h3 class="font-semibold text-foreground mb-3 text-lg">Required Permissions</h3>
-              <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div class="status-warning border rounded-xl p-4">
                 <div class="flex items-start space-x-3">
-                  <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon name="alert-triangle" size={16} className="text-amber-600" />
+                  <div class="w-8 h-8 bg-warning-light rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon name="alert-triangle" size={16} className="icon-warning" />
                   </div>
                   <div class="space-y-2">
-                    <p class="text-sm text-amber-800 font-medium">
+                    <p class="text-sm font-medium">
                       This plugin requires the following permissions:
                     </p>
                     <ul class="space-y-1">
                       {#each selectedPlugin.permissions as permission}
-                        <li class="text-sm text-amber-700 font-mono bg-amber-100 px-2 py-1 rounded">• {permission}</li>
+                        <li class="text-sm font-mono bg-warning-light px-2 py-1 rounded">• {permission}</li>
                       {/each}
                     </ul>
                   </div>
@@ -499,7 +691,7 @@
           {#if selectedPlugin.dependencies && Object.keys(selectedPlugin.dependencies).length > 0}
             <div>
               <h3 class="font-semibold text-foreground mb-3 text-lg">Dependencies</h3>
-              <div class="bg-background border border-border rounded-xl p-4 space-y-2">
+              <div class="glassmorphism-card rounded-xl space-y-2">
                 {#each Object.entries(selectedPlugin.dependencies) as [name, version]}
                   <div class="flex items-center justify-between text-sm bg-muted px-3 py-2 rounded-lg">
                     <span class="font-mono">{name}</span>
@@ -512,7 +704,7 @@
         </div>
 
         <!-- Plugin Details Footer -->
-        <div class="px-8 py-6 border-t border-border flex justify-between items-center flex-shrink-0 bg-background">
+        <div class="px-8 py-6 border-t border-white/10 flex justify-between items-center flex-shrink-0 bg-white/5">
           <Button on:click={closeDetails} variant="outline" className="flex items-center space-x-2">
             <Icon name="arrow-left" size={16} />
             <span>Back to Marketplace</span>
@@ -541,7 +733,7 @@
 <!-- Installation Progress Toast -->
 {#if $installationProgress}
   <div 
-    class="fixed bottom-4 right-4 z-50 bg-card border border-border rounded-lg shadow-lg p-4 min-w-80"
+    class="fixed bottom-4 right-4 z-50 glassmorphism-card rounded-lg p-4 min-w-80"
     transition:fly={{ x: 300, duration: 200 }}
   >
     <div class="flex items-center space-x-3">
@@ -562,7 +754,7 @@
         </div>
         
         {#if $installationProgress.status !== 'error' && $installationProgress.status !== 'complete'}
-          <div class="mt-2 bg-muted rounded-full h-2 overflow-hidden">
+          <div class="mt-2 bg-white/20 rounded-full h-2 overflow-hidden">
             <div 
               class="bg-primary h-full transition-all duration-300"
               style="width: {$installationProgress.progress}%"

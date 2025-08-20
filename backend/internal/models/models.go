@@ -77,7 +77,7 @@ type Organization struct {
 	
 	// Logo and branding
 	LogoURL     string `json:"logo_url"`
-	LogoFileID  *uint  `json:"logo_file_id,omitempty"` // Reference to uploaded file
+	LogoFileID  *string  `json:"logo_file_id,omitempty"` // Reference to uploaded file (UUID)
 	
 	// Address information  
 	Address     string `json:"address"`
