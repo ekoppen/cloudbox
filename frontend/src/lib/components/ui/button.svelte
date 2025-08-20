@@ -20,10 +20,10 @@
   export { className as class }
   
   const variants = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200",
-    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors duration-200",
-    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors duration-200",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-200",
+    default: "bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all duration-200 shadow-md hover:shadow-lg",
+    outline: "bg-background/70 backdrop-blur-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200 shadow-md hover:shadow-lg",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 shadow-md hover:shadow-lg",
     ghost: "hover:bg-accent hover:text-accent-foreground transition-colors duration-200",
     link: "text-primary underline-offset-4 hover:underline transition-colors duration-200"
   }

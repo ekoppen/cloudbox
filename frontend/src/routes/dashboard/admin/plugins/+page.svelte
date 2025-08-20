@@ -106,10 +106,10 @@
 
   function getStatusColor(status: string) {
     switch (status) {
-      case 'enabled': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
-      case 'disabled': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
-      case 'error': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
-      default: return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+      case 'enabled': return 'status-success';
+      case 'disabled': return 'status-info';
+      case 'error': return 'status-error';
+      default: return 'status-info';
     }
   }
 
@@ -132,6 +132,162 @@
   });
 </script>
 
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .glassmorphism-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .glassmorphism-icon:hover {
+    transform: scale(1.05);
+  }
+
+  .glassmorphism-modal {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 20px 40px -12px rgba(0, 0, 0, 0.2),
+      0 8px 20px -8px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-badge {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  /* Dark mode support - CloudBox theme system */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-icon {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-modal {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(40px);
+    box-shadow: 
+      0 20px 40px -12px rgba(0, 0, 0, 0.6),
+      0 8px 20px -8px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-badge {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .glassmorphism-icon {
+      width: 36px;
+      height: 36px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card,
+    .glassmorphism-icon,
+    .glassmorphism-badge {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 <svelte:head>
   <title>Plugin Management - Admin - CloudBox</title>
 </svelte:head>
@@ -140,7 +296,7 @@
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-3xl font-bold text-foreground font-['Inter']">Plugin Management</h1>
+      <h1 class="text-3xl font-bold text-foreground">Plugin Management</h1>
       <p class="text-muted-foreground mt-2 text-base">
         Manage installed CloudBox plugins and extensions
       </p>
@@ -166,65 +322,65 @@
 
   <!-- Plugin Stats -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-1">Total Plugins</p>
           <p class="text-3xl font-bold text-foreground">{plugins.length}</p>
         </div>
-        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-          <Icon name="puzzle" size={24} className="text-blue-600" />
+        <div class="glassmorphism-icon bg-info/20">
+          <Icon name="puzzle" size={24} className="text-info" />
         </div>
       </div>
     </div>
     
-    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-1">Enabled</p>
           <p class="text-3xl font-bold text-foreground">{plugins.filter(p => p.status === 'enabled').length}</p>
         </div>
-        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-          <Icon name="check-circle" size={24} className="text-green-600" />
+        <div class="glassmorphism-icon bg-success/20">
+          <Icon name="check-circle" size={24} className="text-success" />
         </div>
       </div>
     </div>
     
-    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-1">Disabled</p>
           <p class="text-3xl font-bold text-foreground">{plugins.filter(p => p.status === 'disabled').length}</p>
         </div>
-        <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-          <Icon name="pause-circle" size={24} className="text-gray-600" />
+        <div class="glassmorphism-icon bg-muted/50">
+          <Icon name="pause-circle" size={24} className="text-muted-foreground" />
         </div>
       </div>
     </div>
     
-    <div class="bg-background border border-border rounded-xl p-6 hover:shadow-sm transition-shadow">
+    <div class="glassmorphism-card">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-1">Errors</p>
           <p class="text-3xl font-bold text-foreground">{plugins.filter(p => p.status === 'error').length}</p>
         </div>
-        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-          <Icon name="x-circle" size={24} className="text-red-600" />
+        <div class="glassmorphism-icon bg-destructive/20">
+          <Icon name="x-circle" size={24} className="text-destructive" />
         </div>
       </div>
     </div>
   </div>
 
   <!-- Plugins List -->
-  <div class="bg-background border border-border rounded-2xl overflow-hidden">
-    <div class="px-8 py-6 border-b border-border">
+  <div class="glassmorphism-card rounded-2xl overflow-hidden">
+    <div class="px-8 py-6 border-b border-white/10">
       <h2 class="text-xl font-semibold text-foreground">Installed Plugins</h2>
       <p class="text-sm text-muted-foreground mt-1">Manage your installed plugin collection</p>
     </div>
 
     {#if loading}
       <div class="p-16 text-center">
-        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div class="glassmorphism-icon bg-primary/20 mx-auto mb-4">
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
         </div>
         <p class="text-foreground font-medium">Loading plugins...</p>
@@ -250,19 +406,19 @@
         </div>
       </div>
     {:else}
-      <div class="divide-y divide-border">
+      <div class="divide-y divide-white/10">
         {#each plugins as plugin (plugin.name)}
-          <div class="px-8 py-6 hover:bg-muted/50 transition-colors">
+          <div class="px-8 py-6 hover:bg-white/5 transition-colors">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-4 flex-1">
-                <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div class="glassmorphism-icon bg-primary/20 flex-shrink-0">
                   <Icon name={getTypeIcon(plugin.type)} size={24} className="text-primary" />
                 </div>
                 
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center space-x-3 mb-2">
                     <h3 class="text-lg font-semibold text-foreground">{plugin.name}</h3>
-                    <Badge className="{getStatusColor(plugin.status)} font-medium">
+                    <Badge className="{getStatusColor(plugin.status)} font-medium glassmorphism-badge">
                       {plugin.status}
                     </Badge>
                     <span class="text-sm text-muted-foreground font-mono">v{plugin.version}</span>
@@ -312,7 +468,7 @@
                   on:click={() => uninstallPlugin(plugin)}
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="text-destructive hover:text-destructive hover-error"
                 >
                   <Icon name="trash" size={16} />
                 </Button>
@@ -328,7 +484,7 @@
   {#if showPluginDetails && selectedPlugin}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-50" 
          role="dialog" 
          aria-modal="true" 
          aria-labelledby="plugin-modal-title"
@@ -337,11 +493,11 @@
          on:keydown={(e) => e.key === 'Escape' && (showPluginDetails = false)}>
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-      <div class="max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto bg-card border border-border rounded-lg shadow-lg" 
+      <div class="max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto glassmorphism-modal rounded-lg" 
            role="document"
            on:click|stopPropagation
            on:keydown|stopPropagation>
-        <div class="p-6 border-b border-border">
+        <div class="p-6 border-b border-white/10">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
               <Icon name={getTypeIcon(selectedPlugin.type)} size={24} className="text-primary" />
@@ -350,7 +506,7 @@
                 <p class="text-sm text-muted-foreground">v{selectedPlugin.version} by {selectedPlugin.author}</p>
               </div>
             </div>
-            <Badge className={getStatusColor(selectedPlugin.status)}>
+            <Badge className="{getStatusColor(selectedPlugin.status)} glassmorphism-badge">
               {selectedPlugin.status}
             </Badge>
           </div>
@@ -370,13 +526,13 @@
               <div class="space-y-2">
                 {#if selectedPlugin.ui.dashboard_tab}
                   <div class="flex items-center text-sm">
-                    <Icon name="layout-dashboard" size={16} className="mr-2 text-blue-500" />
+                    <Icon name="layout-dashboard" size={16} className="mr-2 icon-info" />
                     <span>Dashboard Tab: {selectedPlugin.ui.dashboard_tab.title}</span>
                   </div>
                 {/if}
                 {#if selectedPlugin.ui.project_menu}
                   <div class="flex items-center text-sm">
-                    <Icon name="folder" size={16} className="mr-2 text-green-500" />
+                    <Icon name="folder" size={16} className="mr-2 icon-success" />
                     <span>Project Menu: {selectedPlugin.ui.project_menu.title}</span>
                   </div>
                 {/if}
@@ -389,7 +545,7 @@
             <h3 class="font-semibold text-foreground mb-2">Permissions</h3>
             <div class="flex flex-wrap gap-2">
               {#each selectedPlugin.permissions as permission}
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs glassmorphism-badge">
                   {permission}
                 </Badge>
               {/each}
@@ -402,7 +558,7 @@
               <h3 class="font-semibold text-foreground mb-2">Dependencies</h3>
               <div class="space-y-1">
                 {#each Object.entries(selectedPlugin.dependencies) as [name, version]}
-                  <div class="text-sm font-mono bg-muted p-2 rounded">
+                  <div class="text-sm font-mono glassmorphism-card p-2 rounded">
                     {name}: {version}
                   </div>
                 {/each}
@@ -413,11 +569,11 @@
           <!-- Plugin Path -->
           <div>
             <h3 class="font-semibold text-foreground mb-2">Installation Path</h3>
-            <code class="text-sm bg-muted p-2 rounded block">{selectedPlugin.path}</code>
+            <code class="text-sm glassmorphism-card p-2 rounded block">{selectedPlugin.path}</code>
           </div>
         </div>
         
-        <div class="p-6 border-t border-border flex justify-between">
+        <div class="p-6 border-t border-white/10 flex justify-between">
           <div class="flex gap-2">
             <Button 
               on:click={() => togglePlugin(selectedPlugin)}
@@ -429,7 +585,7 @@
             <Button 
               on:click={() => uninstallPlugin(selectedPlugin)}
               variant="outline"
-              className="text-red-600 hover:text-red-700"
+              className="text-destructive hover:text-destructive hover-error"
             >
               Uninstall
             </Button>

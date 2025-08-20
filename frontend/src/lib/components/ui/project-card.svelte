@@ -35,10 +35,108 @@
   }
 </script>
 
+<style>
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: none;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.1),
+      0 4px 12px -4px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glassmorphism-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.15),
+      0 8px 20px -8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glassmorphism-card > :global(*) {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Dark mode support */
+  :global(.cloudbox-dark) .glassmorphism-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: none;
+    box-shadow: 
+      0 8px 25px -8px rgba(0, 0, 0, 0.6),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card:hover {
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 
+      0 12px 35px -12px rgba(0, 0, 0, 0.7),
+      0 8px 20px -8px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+  }
+  
+  :global(.cloudbox-dark) .glassmorphism-card::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .glassmorphism-card {
+      padding: 20px;
+      border-radius: 12px;
+    }
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .glassmorphism-card {
+      transition: none;
+    }
+    
+    .glassmorphism-card:hover {
+      transform: none;
+    }
+  }
+</style>
+
 <a 
   href={getProjectUrl(project.id)} 
   on:click={handleProjectClick}
-  class="group relative flex flex-col rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:border-primary/30 hover:shadow-brand-lg cursor-pointer block no-underline"
+  class="group relative flex flex-col glassmorphism-card cursor-pointer block no-underline"
 >
   <!-- Status indicator -->
   <div class="absolute right-4 top-4">
@@ -100,13 +198,10 @@
   </div>
 
   <!-- Actions -->
-  <div class="mt-auto pt-4 border-t border-border/50">
-    <div class="inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+  <div class="mt-auto pt-4">
+    <div class="inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground shadow-sm">
       <Icon name="arrow-right" size={16} />
       <span>Project openen</span>
     </div>
   </div>
-
-  <!-- Hover indicator -->
-  <div class="absolute inset-0 rounded-xl ring-1 ring-transparent transition-all duration-200 group-hover:ring-primary/20"></div>
 </a>
