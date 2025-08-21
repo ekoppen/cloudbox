@@ -338,13 +338,23 @@
 <div class="space-y-8">
   <!-- Page Header -->
   <div class="flex items-center justify-between">
-    <div>
-      <h2 class="text-3xl font-bold text-foreground font-['Inter']">User Management</h2>
-      <p class="text-muted-foreground mt-2 text-base">Manage CloudBox users and permissions</p>
+    <div class="flex items-center space-x-4">
+      <div class="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
+        <Icon name="users" size={24} className="text-primary" />
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-foreground">Gebruikersbeheer</h1>
+        <p class="text-sm text-muted-foreground">Beheer gebruikers en machtigingen</p>
+      </div>
     </div>
-    <Button on:click={() => showCreateModal = true} className="h-10 px-6">
-      <Icon name="user-plus" size={16} className="mr-2" />
-      New User
+    <Button 
+      on:click={() => showCreateModal = true}
+      variant="floating"
+      size="icon-lg"
+      iconOnly={true}
+      tooltip="Nieuwe Gebruiker"
+    >
+      <Icon name="user-plus" size={20} />
     </Button>
   </div>
 
@@ -360,14 +370,8 @@
     <!-- Users Table -->
     <div class="bg-background border border-border rounded-2xl overflow-hidden">
       <div class="px-8 py-6 border-b border-border">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <Icon name="users" size={20} className="text-primary" />
-          </div>
-          <div>
-            <h2 class="text-xl font-semibold text-foreground">All Users ({users.length})</h2>
-            <p class="text-sm text-muted-foreground">Manage user accounts and permissions</p>
-          </div>
+        <div class="flex items-center justify-between">
+          <span class="text-lg font-semibold text-foreground">Alle gebruikers ({users.length})</span>
         </div>
       </div>
 
@@ -479,8 +483,10 @@
 
 <!-- Create User Modal -->
 {#if showCreateModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showCreateModal = false}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="user" size={20} className="text-primary" />
@@ -572,14 +578,17 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}
 
 <!-- Edit User Modal -->
 {#if showEditModal && selectedUser}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showEditModal = false}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="edit" size={20} className="text-primary" />
@@ -660,13 +669,16 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}
 <!-- Assign Organization Admin Modal -->
 {#if showOrgAdminModal && selectedUser}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showOrgAdminModal = false}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="package" size={20} className="text-primary" />
@@ -731,6 +743,7 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}

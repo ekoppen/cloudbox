@@ -124,7 +124,7 @@
   function getMethodColor(method: string): string {
     switch (method) {
       case 'GET': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
-      case 'POST': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+      case 'POST': return 'bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-blue-200';
       case 'PUT': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
       case 'DELETE': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
       case 'PATCH': return 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200';
@@ -295,7 +295,7 @@
     <!-- API Documentation -->
     <Card class="glassmorphism-form p-6">
       <div class="flex items-start space-x-4">
-        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
           <Icon name="settings" size={20} className="text-blue-600 dark:text-blue-400" />
         </div>
         <div>

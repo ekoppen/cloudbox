@@ -236,7 +236,7 @@
 
   function getTypeClass(type) {
     switch (type) {
-      case 'sql': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+      case 'sql': return 'bg-blue-100 text-blue-800 dark:bg-gray-800/20 dark:text-blue-300';
       case 'javascript': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
       case 'setup': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
       case 'migration': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300';
@@ -311,7 +311,7 @@
 
   <!-- Quick Actions -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <Card className="p-4 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+    <Card className="p-4 border-blue-200 bg-blue-50 dark:bg-gray-900/20 dark:border-gray-600">
       <div class="flex items-center">
         <Icon name="database" size={32} className="text-blue-500 mr-3" />
         <div>
@@ -635,7 +635,7 @@
   {/if}
 
   <!-- Info Box -->
-  <Card className="p-4 bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
+  <Card className="p-4 bg-blue-50 border-blue-200 dark:bg-gray-900/20 dark:border-gray-600">
     <h3 class="font-semibold text-blue-900 dark:text-blue-100 mb-2">💡 Database Scripts voor {project?.name || 'dit project'}:</h3>
     <ul class="text-sm text-blue-800 dark:text-blue-200 space-y-1">
       <li>• <strong>SQL Scripts:</strong> Database schemas en migrations (zoals Supabase SQL editor)</li>

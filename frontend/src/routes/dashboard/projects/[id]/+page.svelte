@@ -131,7 +131,7 @@
             <p class="text-sm font-medium text-muted-foreground">Verzoeken vandaag</p>
             <p class="text-2xl font-bold text-foreground">{stats.requests_today.toLocaleString()}</p>
           </div>
-          <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+          <div class="w-10 h-10 bg-blue-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
             <Icon name="functions" size={20} className="text-blue-600 dark:text-blue-400" />
           </div>
         </div>

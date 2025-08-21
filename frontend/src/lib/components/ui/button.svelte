@@ -2,13 +2,15 @@
   import { cn } from "$lib/utils"
   
   interface $$Props {
-    variant?: "primary" | "secondary" | "ghost" | "destructive" | "success" | "warning" | "link"
-    size?: "sm" | "md" | "lg" | "xl" | "icon"
+    variant?: "primary" | "secondary" | "ghost" | "destructive" | "success" | "warning" | "link" | "floating"
+    size?: "sm" | "md" | "lg" | "xl" | "icon" | "icon-lg"
     class?: string
     href?: string
     type?: "button" | "submit" | "reset"
     disabled?: boolean
     loading?: boolean
+    iconOnly?: boolean
+    tooltip?: string
   }
   
   export let variant: $$Props["variant"] = "primary"
@@ -17,6 +19,8 @@
   export let type: $$Props["type"] = "button"
   export let disabled: $$Props["disabled"] = false
   export let loading: $$Props["loading"] = false
+  export let iconOnly: $$Props["iconOnly"] = false
+  export let tooltip: $$Props["tooltip"] = ""
   
   let className: $$Props["class"] = undefined
   export { className as class }
@@ -42,7 +46,10 @@
     warning: "btn-warning bg-gradient-to-r from-[hsl(var(--warning))] to-[hsl(var(--warning)/0.8)] text-white shadow-lg shadow-[hsl(var(--warning)/0.3)] hover:shadow-xl hover:shadow-[hsl(var(--warning)/0.4)] hover:scale-[1.02] active:scale-[0.98] transform transition-all duration-200",
     
     // Link - Minimal text button
-    link: "btn-link text-[hsl(var(--primary))] hover:text-[hsl(var(--primary)/0.8)] underline-offset-4 hover:underline transition-all duration-200 hover:scale-[1.02] transform"
+    link: "btn-link text-[hsl(var(--primary))] hover:text-[hsl(var(--primary)/0.8)] underline-offset-4 hover:underline transition-all duration-200 hover:scale-[1.02] transform",
+    
+    // Floating - Modern floating action button
+    floating: "btn-floating bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.85)] text-[hsl(var(--primary-foreground))] shadow-2xl shadow-[hsl(var(--primary)/0.4)] hover:shadow-[0_20px_40px_-12px_hsl(var(--primary)/0.5)] hover:scale-[1.05] active:scale-[0.98] transform transition-all duration-300"
   }
   
   const sizes = {
@@ -50,7 +57,18 @@
     md: "h-10 px-4 text-sm rounded-xl font-medium",
     lg: "h-12 px-6 text-base rounded-xl font-semibold",
     xl: "h-14 px-8 text-lg rounded-2xl font-semibold",
-    icon: "h-10 w-10 rounded-xl"
+    icon: "h-10 w-10 rounded-xl",
+    "icon-lg": "h-12 w-12 rounded-2xl"
+  }
+  
+  // Adjust padding for icon-only buttons
+  const iconOnlySizes = {
+    sm: "h-8 w-8 p-0 rounded-lg",
+    md: "h-10 w-10 p-0 rounded-xl",
+    lg: "h-12 w-12 p-0 rounded-xl",
+    xl: "h-14 w-14 p-0 rounded-2xl",
+    icon: "h-10 w-10 p-0 rounded-xl",
+    "icon-lg": "h-12 w-12 p-0 rounded-2xl"
   }
 </script>
 
@@ -60,15 +78,16 @@
     class={cn(
       "btn inline-flex items-center justify-center whitespace-nowrap relative overflow-hidden border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 disabled:transform-none",
       variants[variant],
-      sizes[size],
+      iconOnly ? iconOnlySizes[size] : sizes[size],
       (disabled || loading) && "cursor-not-allowed opacity-50 transform-none hover:transform-none",
       className
     )}
+    title={tooltip}
     on:click
     {...$$restProps}
   >
     {#if loading}
-      <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2"></div>
+      <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent {!iconOnly ? 'mr-2' : ''}"></div>
     {/if}
     <slot />
     <!-- Ripple effect element -->
@@ -83,15 +102,16 @@
     class={cn(
       "btn inline-flex items-center justify-center whitespace-nowrap relative overflow-hidden border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 disabled:transform-none",
       variants[variant],
-      sizes[size],
+      iconOnly ? iconOnlySizes[size] : sizes[size],
       (disabled || loading) && "cursor-not-allowed opacity-50 transform-none hover:transform-none",
       className
     )}
+    title={tooltip}
     on:click
     {...$$restProps}
   >
     {#if loading}
-      <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2"></div>
+      <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent {!iconOnly ? 'mr-2' : ''}"></div>
     {/if}
     <slot />
     <!-- Ripple effect element -->

@@ -86,7 +86,7 @@
 
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .glassmorphism-card {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(26, 26, 26, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
       0 8px 25px -8px rgba(0, 0, 0, 0.6),
@@ -96,7 +96,7 @@
   }
   
   :global(.cloudbox-dark) .glassmorphism-card:hover {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     box-shadow: 
       0 12px 35px -12px rgba(0, 0, 0, 0.7),
       0 8px 20px -8px rgba(0, 0, 0, 0.5),
@@ -341,18 +341,25 @@
 <div class="space-y-8">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-semibold text-foreground">Projecten</h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Beheer al je CloudBox projecten op één plek
-      </p>
+    <div class="flex items-center space-x-4">
+      <div class="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
+        <Icon name="package" size={24} className="text-primary" />
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-foreground">Projecten</h1>
+        <p class="text-sm text-muted-foreground">
+          Beheer al je CloudBox projecten op één plek
+        </p>
+      </div>
     </div>
     <Button
       on:click={() => showCreateModal = true}
-      class="flex items-center space-x-2"
+      variant="floating"
+      size="icon-lg"
+      iconOnly={true}
+      tooltip="Nieuw Project"
     >
-      <Icon name="plus" size={16} />
-      <span>Nieuw Project</span>
+      <Icon name="plus" size={20} />
     </Button>
   </div>
 
@@ -455,8 +462,8 @@
 
 <!-- Create Project Modal -->
 {#if showCreateModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="glassmorphism-card max-w-lg w-full border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="glassmorphism-card max-w-lg w-full border-2 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center space-x-3 mb-6">
         <div class="glassmorphism-icon bg-primary/20">
           <Icon name="package" size={20} className="text-primary" />

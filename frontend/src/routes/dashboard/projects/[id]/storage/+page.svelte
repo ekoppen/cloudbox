@@ -1240,8 +1240,10 @@
 
 <!-- Upload Modal -->
 {#if showUploadModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => { showUploadModal = false; uploadFiles = null; }}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="glassmorphism-modal p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="storage" size={20} className="text-primary" />
@@ -1297,14 +1299,17 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}
 
 <!-- New Bucket Modal -->
 {#if showNewBucketModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showNewBucketModal = false}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="glassmorphism-modal p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="folder" size={20} className="text-primary" />
@@ -1378,14 +1383,17 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}
 
 <!-- New Folder Modal -->
 {#if showNewFolderModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => { showNewFolderModal = false; newFolderName = ''; }}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="glassmorphism-modal p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="folder" size={20} className="text-primary" />
@@ -1440,6 +1448,7 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}

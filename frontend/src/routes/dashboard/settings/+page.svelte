@@ -83,7 +83,7 @@
 
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .glassmorphism-card {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(26, 26, 26, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
       0 8px 25px -8px rgba(0, 0, 0, 0.6),
@@ -93,7 +93,7 @@
   }
   
   :global(.cloudbox-dark) .glassmorphism-card:hover {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     box-shadow: 
       0 12px 35px -12px rgba(0, 0, 0, 0.7),
       0 8px 20px -8px rgba(0, 0, 0, 0.5),
@@ -116,7 +116,7 @@
   }
 
   :global(.cloudbox-dark) .glassmorphism-theme-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     border: 2px solid rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(20px);
   }
@@ -519,8 +519,10 @@
 
 <!-- Edit Profile Modal -->
 {#if showEditProfileModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showEditProfileModal = false}>
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl my-auto modal-content-wrapper"
+         on:click|stopPropagation>
       <div class="flex items-center space-x-3 mb-6">
         <div class="glassmorphism-icon bg-primary/20">
           <Icon name="user" size={20} className="text-primary" />
@@ -588,8 +590,10 @@
 
 <!-- Change Password Modal -->
 {#if showChangePasswordModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showChangePasswordModal = false}>
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl my-auto modal-content-wrapper"
+         on:click|stopPropagation>
       <div class="flex items-center space-x-3 mb-6">
         <div class="glassmorphism-icon bg-primary/20">
           <Icon name="key" size={20} className="text-primary" />

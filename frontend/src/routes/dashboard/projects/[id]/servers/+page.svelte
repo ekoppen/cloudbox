@@ -384,7 +384,7 @@
                     {server.connection_status || 'unknown'}
                   </span>
                   {#if server.is_active}
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-gray-800 border border-blue-200 dark:border-gray-600 text-blue-700 dark:text-blue-300">
                       Actief
                     </span>
                   {/if}
@@ -791,7 +791,7 @@
       <h2 class="text-xl font-semibold mb-4">Public Key Distribueren naar: {distributingServer.name}</h2>
       
       <form on:submit|preventDefault={distributePublicKey} class="space-y-4">
-        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+        <div class="bg-blue-50 dark:bg-gray-800/20 border border-blue-200 dark:border-gray-600 rounded-lg p-4 mb-4">
           <div class="flex items-start space-x-3">
             <Icon name="info" size={20} className="text-blue-600 dark:text-blue-400 mt-0.5" />
             <div>

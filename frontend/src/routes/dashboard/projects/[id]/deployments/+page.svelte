@@ -355,7 +355,7 @@
   function getStatusColor(status: string) {
     switch (status) {
       case 'deployed': return 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900 border-green-200 dark:border-green-800';
-      case 'deploying': return 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900 border-blue-200 dark:border-blue-800';
+      case 'deploying': return 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-gray-800 border-blue-200 dark:border-gray-600';
       case 'building': return 'text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-800';
       case 'failed': return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900 border-red-200 dark:border-red-800';
       case 'pending': return 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 border-gray-200 dark:border-gray-800';

@@ -224,7 +224,7 @@
                     {key.key_type.toUpperCase()} {key.key_size}
                   </span>
                   {#if key.is_active}
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-gray-800 border border-blue-200 dark:border-gray-600 text-blue-700 dark:text-blue-300">
                       Actief
                     </span>
                   {/if}
@@ -375,13 +375,13 @@
           </div>
         </div>
 
-        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div class="bg-blue-50 dark:bg-gray-800/20 border border-blue-200 dark:border-gray-600 rounded-lg p-4">
           <h4 class="font-medium text-blue-900 dark:text-blue-200 mb-2">Installatie instructies:</h4>
           <ol class="text-blue-800 dark:text-blue-200 text-sm space-y-1 list-decimal list-inside">
             <li>Kopieer de public key hierboven</li>
             <li>Log in op je server via SSH</li>
-            <li>Voeg de key toe: <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">echo "PASTE_KEY_HERE" >> ~/.ssh/authorized_keys</code></li>
-            <li>Zet de juiste permissies: <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">chmod 600 ~/.ssh/authorized_keys</code></li>
+            <li>Voeg de key toe: <code class="bg-blue-100 dark:bg-gray-800 px-1 rounded">echo "PASTE_KEY_HERE" >> ~/.ssh/authorized_keys</code></li>
+            <li>Zet de juiste permissies: <code class="bg-blue-100 dark:bg-gray-800 px-1 rounded">chmod 600 ~/.ssh/authorized_keys</code></li>
           </ol>
         </div>
 

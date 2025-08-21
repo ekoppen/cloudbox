@@ -71,7 +71,7 @@
 
   /* Dark mode support */
   :global(.cloudbox-dark) .glassmorphism-card {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(26, 26, 26, 0.7);
     border: none;
     box-shadow: 
       0 8px 25px -8px rgba(0, 0, 0, 0.6),
@@ -82,7 +82,7 @@
   }
   
   :global(.cloudbox-dark) .glassmorphism-card:hover {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     box-shadow: 
       0 12px 35px -12px rgba(0, 0, 0, 0.7),
       0 8px 20px -8px rgba(0, 0, 0, 0.5),

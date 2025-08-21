@@ -15,12 +15,12 @@
   let modalElement: HTMLElement;
 
   const sizeClasses = {
-    sm: 'modal-box w-11/12 max-w-md bg-card text-card-foreground border border-border',
-    md: 'modal-box w-11/12 max-w-lg bg-card text-card-foreground border border-border',
-    lg: 'modal-box w-11/12 max-w-2xl bg-card text-card-foreground border border-border',
-    xl: 'modal-box w-11/12 max-w-4xl bg-card text-card-foreground border border-border',
-    '2xl': 'modal-box w-11/12 max-w-6xl bg-card text-card-foreground border border-border',
-    '3xl': 'modal-box w-11/12 max-w-7xl bg-card text-card-foreground border border-border'
+    sm: 'glassmorphism-modal w-11/12 max-w-md p-6 rounded-2xl',
+    md: 'glassmorphism-modal w-11/12 max-w-lg p-6 rounded-2xl',
+    lg: 'glassmorphism-modal w-11/12 max-w-2xl p-6 rounded-2xl',
+    xl: 'glassmorphism-modal w-11/12 max-w-4xl p-6 rounded-2xl',
+    '2xl': 'glassmorphism-modal w-11/12 max-w-6xl p-6 rounded-2xl',
+    '3xl': 'glassmorphism-modal w-11/12 max-w-7xl p-6 rounded-2xl'
   };
 
   function handleKeydown(event: KeyboardEvent) {
@@ -60,19 +60,20 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if open}
-  <!-- Enhanced Modal with proper backdrop coverage -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" transition:fade={{ duration: 200 }}>
+  <!-- Enhanced Modal with proper backdrop coverage and scrolling -->
+  <div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto" transition:fade={{ duration: 200 }}>
     <!-- Full screen backdrop -->
     <div 
-      class="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+      class="absolute inset-0 modal-backdrop-enhanced" 
       on:click={closeOnClickOutside ? close : undefined}
       role="presentation"
     ></div>
     
-    <!-- Modal content -->
+    <!-- Modal content with proper positioning -->
     <div
       bind:this={modalElement}
-      class="{sizeClasses[size]} relative z-10"
+      class="{sizeClasses[size]} relative z-10 my-auto min-h-0 flex flex-col"
+      style="max-height: calc(100vh - 8rem);"
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
@@ -102,8 +103,8 @@
         </div>
       {/if}
 
-      <!-- Content -->
-      <div class="modal-content">
+      <!-- Content with proper scrolling -->
+      <div class="modal-content flex-1 min-h-0 overflow-y-auto">
         <slot />
       </div>
 
@@ -118,8 +119,38 @@
 {/if}
 
 <style>
+  /* Improved modal scrolling and positioning */
   :global(.modal-content) {
-    max-height: 70vh;
+    /* Remove max-height restriction - let container handle it */
     overflow-y: auto;
+    /* Add custom scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  
+  :global(.modal-content)::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  :global(.modal-content)::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  :global(.modal-content)::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 3px;
+  }
+  
+  :global(.modal-content)::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--primary) / 0.6);
+  }
+  
+  /* Ensure modal doesn't overflow on mobile */
+  @media (max-width: 640px) {
+    :global(.glassmorphism-modal) {
+      width: calc(100vw - 2rem) !important;
+      max-width: calc(100vw - 2rem) !important;
+      margin: 0;
+    }
   }
 </style>

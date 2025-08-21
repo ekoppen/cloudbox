@@ -406,7 +406,7 @@
               <p class="text-sm font-medium text-muted-foreground">Geverifieerd</p>
               <p class="text-2xl font-bold text-foreground">{users.filter(u => u.email_verified).length}</p>
             </div>
-            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-blue-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
               <Icon name="auth" size={20} className="text-blue-600 dark:text-blue-400" />
             </div>
           </div>
@@ -623,7 +623,7 @@
 
 <!-- Create User Modal -->
 {#if showCreateUser}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
     <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">

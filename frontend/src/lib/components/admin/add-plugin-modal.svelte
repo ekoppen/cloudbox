@@ -152,9 +152,9 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if isOpen}
-  <!-- Modal backdrop -->
+  <!-- Modal backdrop with proper positioning -->
   <div 
-    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    class="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16 sm:pt-20 overflow-y-auto"
     role="dialog"
     aria-modal="true"
     aria-labelledby="add-plugin-title"
@@ -163,10 +163,12 @@
     on:click={closeModal}
     on:keydown={(e) => e.key === 'Escape' && closeModal()}
   >
-    <!-- Modal content -->
+    <!-- Modal content with better height management -->
     <div 
-      class="max-w-2xl w-full max-h-[90vh] bg-card border border-border rounded-lg shadow-lg overflow-hidden"
+      class="max-w-2xl w-full bg-card border border-border rounded-lg shadow-lg my-auto min-h-0 flex flex-col"
+      style="max-height: calc(100vh - 8rem);"
       role="document"
+      on:click|stopPropagation
     >
       <!-- Header -->
       <div class="p-6 border-b border-border">
@@ -184,8 +186,8 @@
         </div>
       </div>
 
-      <!-- Form -->
-      <div class="p-6 overflow-y-auto max-h-[70vh] space-y-6">
+      <!-- Form with proper scrolling -->
+      <div class="p-6 overflow-y-auto flex-1 min-h-0 space-y-6">
         <form on:submit|preventDefault={submitForm} class="space-y-4">
           <!-- Basic Information -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

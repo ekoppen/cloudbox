@@ -5,7 +5,7 @@
   import { API_ENDPOINTS, createApiRequest } from '$lib/config';
   import { auth } from '$lib/stores/auth';
   import { pluginManager, dynamicProjectMenuItems } from '$lib/stores/plugins';
-  import Sidebar from '$lib/components/navigation/sidebar.svelte';
+  import { sidebarStore } from '$lib/stores/sidebar';
   import Button from '$lib/components/ui/button.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
   import CloudBoxLogo from '$lib/components/ui/cloudbox-logo.svelte';
@@ -42,6 +42,11 @@
     pluginManager.loadProjectPlugins(projectId);
   }
 
+  // Update sidebar context when project loads
+  $: if (project && projectId) {
+    sidebarStore.setContext('project', projectId, project.name);
+  }
+
   async function loadProject() {
     loading = true;
     error = '';
@@ -71,6 +76,20 @@
   $: currentPath = $page.url.pathname;
 
 </script>
+
+<style>
+  .glassmorphism-header {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-header {
+    background: rgba(38, 38, 38, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+</style>
 
 {#if loading}
   <div class="min-h-screen bg-background flex items-center justify-center">
@@ -108,18 +127,11 @@
     </div>
   </div>
 {:else if project}
-  <div class="min-h-screen bg-background">
-    <!-- Supabase-style Project Sidebar -->
-    <Sidebar 
-      context="project" 
-      projectId={projectId}
-      projectName={project.name}
-    />
-
-    <!-- Main content with sidebar offset -->
-    <div class="transition-all duration-200 ease-in-out min-h-screen ml-sidebar-collapsed">
-      <!-- Unified Project Header with proper spacing and alignment -->
-      <header class="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95 border-b border-border">
+  <div class="min-h-screen bg-background group">
+    <!-- Main content with sidebar offset - sidebar is handled by parent dashboard layout -->
+    <div class="transition-all duration-200 ease-in-out min-h-screen">
+      <!-- Enhanced Project Header with Glassmorphism -->
+      <header class="sticky top-0 z-40 glassmorphism-header backdrop-blur-xl shadow-lg">
         <div class="flex h-16 items-center justify-between px-6">
           <!-- Left side: Back navigation + Breadcrumbs -->
           <div class="flex items-center space-x-4">

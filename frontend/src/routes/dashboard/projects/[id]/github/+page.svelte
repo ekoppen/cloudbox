@@ -463,7 +463,7 @@
                 <div class="flex items-center gap-3 mb-2">
                   <span class="text-2xl">{getRepoIcon(repo.is_private)}</span>
                   <h3 class="text-lg font-semibold">{repo.name}</h3>
-                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-gray-800 border border-blue-200 dark:border-gray-600 text-blue-700 dark:text-blue-300">
                     {repo.branch}
                   </span>
                   {#if repo.is_active}

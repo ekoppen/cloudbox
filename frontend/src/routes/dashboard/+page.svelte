@@ -172,9 +172,98 @@
     transform: scale(1.05);
   }
 
+  /* Colorful Glassmorphism Variants */
+  .glassmorphism-card-primary {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(147, 197, 253, 0.1) 50%,
+      rgba(219, 234, 254, 0.05) 100%
+    );
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    box-shadow: 
+      0 8px 25px -8px rgba(59, 130, 246, 0.3),
+      0 4px 12px -4px rgba(59, 130, 246, 0.2),
+      0 0 0 1px rgba(147, 197, 253, 0.1) inset;
+  }
+
+  .glassmorphism-card-primary:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 
+      0 12px 40px -12px rgba(59, 130, 246, 0.4),
+      0 8px 25px -8px rgba(59, 130, 246, 0.3),
+      0 0 0 1px rgba(147, 197, 253, 0.15) inset;
+  }
+
+  .glassmorphism-card-success {
+    background: linear-gradient(
+      135deg,
+      rgba(34, 197, 94, 0.15) 0%,
+      rgba(134, 239, 172, 0.1) 50%,
+      rgba(220, 252, 231, 0.05) 100%
+    );
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    box-shadow: 
+      0 8px 25px -8px rgba(34, 197, 94, 0.3),
+      0 4px 12px -4px rgba(34, 197, 94, 0.2),
+      0 0 0 1px rgba(134, 239, 172, 0.1) inset;
+  }
+
+  .glassmorphism-card-success:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 
+      0 12px 40px -12px rgba(34, 197, 94, 0.4),
+      0 8px 25px -8px rgba(34, 197, 94, 0.3),
+      0 0 0 1px rgba(134, 239, 172, 0.15) inset;
+  }
+
+  .glassmorphism-card-purple {
+    background: linear-gradient(
+      135deg,
+      rgba(168, 85, 247, 0.15) 0%,
+      rgba(196, 181, 253, 0.1) 50%,
+      rgba(237, 233, 254, 0.05) 100%
+    );
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    box-shadow: 
+      0 8px 25px -8px rgba(168, 85, 247, 0.3),
+      0 4px 12px -4px rgba(168, 85, 247, 0.2),
+      0 0 0 1px rgba(196, 181, 253, 0.1) inset;
+  }
+
+  .glassmorphism-card-purple:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 
+      0 12px 40px -12px rgba(168, 85, 247, 0.4),
+      0 8px 25px -8px rgba(168, 85, 247, 0.3),
+      0 0 0 1px rgba(196, 181, 253, 0.15) inset;
+  }
+
+  .glassmorphism-card-warning {
+    background: linear-gradient(
+      135deg,
+      rgba(245, 158, 11, 0.15) 0%,
+      rgba(252, 211, 77, 0.1) 50%,
+      rgba(254, 243, 199, 0.05) 100%
+    );
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    box-shadow: 
+      0 8px 25px -8px rgba(245, 158, 11, 0.3),
+      0 4px 12px -4px rgba(245, 158, 11, 0.2),
+      0 0 0 1px rgba(252, 211, 77, 0.1) inset;
+  }
+
+  .glassmorphism-card-warning:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 
+      0 12px 40px -12px rgba(245, 158, 11, 0.4),
+      0 8px 25px -8px rgba(245, 158, 11, 0.3),
+      0 0 0 1px rgba(252, 211, 77, 0.15) inset;
+  }
+
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .glassmorphism-card {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(26, 26, 26, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
       0 8px 25px -8px rgba(0, 0, 0, 0.6),
@@ -184,7 +273,7 @@
   }
   
   :global(.cloudbox-dark) .glassmorphism-card:hover {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     box-shadow: 
       0 12px 35px -12px rgba(0, 0, 0, 0.7),
       0 8px 20px -8px rgba(0, 0, 0, 0.5),
@@ -204,6 +293,43 @@
   :global(.cloudbox-dark) .glassmorphism-icon {
     border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Dark mode colorful variants */
+  :global(.cloudbox-dark) .glassmorphism-card-primary {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.2) 0%,
+      rgba(30, 58, 138, 0.15) 50%,
+      rgba(33, 33, 33, 0.8) 100%
+    );
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-card-success {
+    background: linear-gradient(
+      135deg,
+      rgba(34, 197, 94, 0.2) 0%,
+      rgba(20, 83, 45, 0.15) 50%,
+      rgba(33, 33, 33, 0.8) 100%
+    );
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-card-purple {
+    background: linear-gradient(
+      135deg,
+      rgba(168, 85, 247, 0.2) 0%,
+      rgba(88, 28, 135, 0.15) 50%,
+      rgba(33, 33, 33, 0.8) 100%
+    );
+  }
+
+  :global(.cloudbox-dark) .glassmorphism-card-warning {
+    background: linear-gradient(
+      135deg,
+      rgba(245, 158, 11, 0.2) 0%,
+      rgba(146, 64, 14, 0.15) 50%,
+      rgba(33, 33, 33, 0.8) 100%
+    );
   }
 
   /* Mobile responsiveness */
@@ -249,40 +375,42 @@
     </div>
     <Button
       href="/dashboard/projects"
-      class="flex items-center space-x-2"
+      variant="floating"
+      size="icon-lg"
+      iconOnly={true}
+      tooltip="Bekijk alle projecten"
     >
-      <Icon name="plus" size={16} />
-      <span>Nieuw project</span>
+      <Icon name="package" size={20} />
     </Button>
   </div>
 
-  <!-- Quick Stats -->
+  <!-- Quick Stats with Colorful Glassmorphism -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="glassmorphism-card">
+    <div class="glassmorphism-card glassmorphism-card-primary p-6">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-caption-lg opacity-70">Projecten</p>
           <p class="text-heading-3">{projects.length}</p>
         </div>
-        <div class="glassmorphism-icon bg-primary/20">
-          <Icon name="package" size={20} className="text-primary" />
+        <div class="glassmorphism-icon bg-blue-500/20">
+          <Icon name="package" size={20} className="text-blue-600" />
         </div>
       </div>
     </div>
     
-    <div class="glassmorphism-card">
+    <div class="glassmorphism-card glassmorphism-card-success p-6">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-caption-lg opacity-70">Actief</p>
           <p class="text-heading-3">{projects.filter(p => p.is_active).length}</p>
         </div>
-        <div class="glassmorphism-icon bg-success/20">
-          <Icon name="database" size={20} className="text-success" />
+        <div class="glassmorphism-icon bg-green-500/20">
+          <Icon name="database" size={20} className="text-green-600" />
         </div>
       </div>
     </div>
     
-    <div class="glassmorphism-card">
+    <div class="glassmorphism-card glassmorphism-card-purple p-6">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-caption-lg opacity-70">Storage</p>
@@ -294,13 +422,13 @@
             {/if}
           </p>
         </div>
-        <div class="glassmorphism-icon bg-gray-500/20">
-          <Icon name="storage" size={20} className="text-gray-500" />
+        <div class="glassmorphism-icon bg-purple-500/20">
+          <Icon name="storage" size={20} className="text-purple-600" />
         </div>
       </div>
     </div>
     
-    <div class="glassmorphism-card">
+    <div class="glassmorphism-card glassmorphism-card-warning p-6">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-caption-lg opacity-70">API Calls</p>
@@ -312,8 +440,8 @@
             {/if}
           </p>
         </div>
-        <div class="glassmorphism-icon bg-warning/20">
-          <Icon name="zap" size={20} className="text-warning" />
+        <div class="glassmorphism-icon bg-amber-500/20">
+          <Icon name="zap" size={20} className="text-amber-600" />
         </div>
       </div>
     </div>
@@ -325,12 +453,13 @@
       <div class="flex items-center justify-between">
         <h2 class="text-heading-2">Systeem Statistieken</h2>
         <Button
-          variant="ghost"
+          variant="secondary"
           size="icon"
+          iconOnly={true}
           on:click={loadAdminStats}
           disabled={loadingAdminStats}
+          tooltip="Vernieuwen"
           class="hover:rotate-180 transition-transform duration-300"
-          title="Vernieuwen"
         >
           <Icon name="refresh-cw" size={18} className={loadingAdminStats ? 'animate-spin' : ''} />
         </Button>
@@ -345,45 +474,45 @@
         </Card>
       {:else if adminStats}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="glassmorphism-card">
+          <div class="glassmorphism-card glassmorphism-card-primary p-6">
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-caption-lg opacity-70">Totaal Gebruikers</p>
                 <p class="text-heading-3">{adminStats.total_users || 0}</p>
               </div>
-              <div class="glassmorphism-icon bg-info/20">
-                <Icon name="user" size={20} className="text-info" />
+              <div class="glassmorphism-icon bg-blue-500/20">
+                <Icon name="user" size={20} className="text-blue-600" />
               </div>
             </div>
           </div>
           
-          <div class="glassmorphism-card">
+          <div class="glassmorphism-card glassmorphism-card-success p-6">
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-caption-lg opacity-70">Systeem Uptime</p>
                 <p class="text-heading-3">{adminStats.uptime || '0d'}</p>
               </div>
-              <div class="glassmorphism-icon bg-success/20">
-                <Icon name="shield-check" size={20} className="text-success" />
+              <div class="glassmorphism-icon bg-green-500/20">
+                <Icon name="shield-check" size={20} className="text-green-600" />
               </div>
             </div>
           </div>
           
-          <div class="glassmorphism-card">
+          <div class="glassmorphism-card glassmorphism-card-purple p-6">
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-caption-lg opacity-70">Database Queries</p>
                 <p class="text-heading-3">{adminStats.database_queries || 0}</p>
               </div>
-              <div class="glassmorphism-icon bg-info/20">
-                <Icon name="database" size={20} className="text-info" />
+              <div class="glassmorphism-icon bg-purple-500/20">
+                <Icon name="database" size={20} className="text-purple-600" />
               </div>
             </div>
           </div>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="glassmorphism-card">
+          <div class="glassmorphism-card glassmorphism-floating p-6">
             <h3 class="text-heading-4 mb-4">Systeem Informatie</h3>
             <div class="space-y-3 text-body-sm">
               <div class="flex justify-between">
@@ -405,7 +534,7 @@
             </div>
           </div>
           
-          <div class="glassmorphism-card">
+          <div class="glassmorphism-card glassmorphism-floating p-6">
             <h3 class="text-heading-4 mb-4">Recente Activiteit</h3>
             <div class="space-y-3 text-body-sm">
               <div class="flex justify-between">

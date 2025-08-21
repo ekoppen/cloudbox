@@ -296,7 +296,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card class="p-6">
           <div class="flex items-center">
-            <div class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+            <div class="p-2 bg-blue-100 dark:bg-gray-800 rounded-lg">
               <Icon name="users" class="w-6 h-6 text-blue-600" />
             </div>
             <div class="ml-4">

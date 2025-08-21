@@ -103,7 +103,7 @@
 
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .glassmorphism-card {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(26, 26, 26, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
       0 8px 25px -8px rgba(0, 0, 0, 0.6),
@@ -113,7 +113,7 @@
   }
   
   :global(.cloudbox-dark) .glassmorphism-card:hover {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     box-shadow: 
       0 12px 35px -12px rgba(0, 0, 0, 0.7),
       0 8px 20px -8px rgba(0, 0, 0, 0.5),
@@ -136,7 +136,7 @@
   }
 
   :global(.cloudbox-dark) .glassmorphism-org-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(30px);
   }
@@ -336,23 +336,28 @@
         </p>
       </div>
     </div>
-    <Button on:click={() => showCreateModal = true} class="flex items-center space-x-2">
-      <Icon name="plus" size={16} />
-      <span>Nieuwe Organization</span>
+    <Button 
+      on:click={() => showCreateModal = true}
+      variant="floating"
+      size="icon-lg"
+      iconOnly={true}
+      tooltip="Nieuwe Organization"
+    >
+      <Icon name="plus" size={20} />
     </Button>
   </div>
 
   <!-- Organizations Grid -->
   <div class="space-y-6">
     {#if loading}
-      <div class="glassmorphism-card p-12">
+      <div class="glassmorphism-card glassmorphism-card-primary p-12">
         <div class="text-center">
           <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p class="text-muted-foreground">Laden...</p>
         </div>
       </div>
     {:else if organizations.length === 0}
-      <div class="glassmorphism-card p-12">
+      <div class="glassmorphism-card glassmorphism-card-success p-12">
         <div class="text-center">
           <div class="glassmorphism-icon w-16 h-16 bg-muted/30 mx-auto mb-4">
             <Icon name="building" size={32} className="text-muted-foreground" />
@@ -363,11 +368,12 @@
           </p>
           <Button
             on:click={() => showCreateModal = true}
-            size="lg"
-            class="flex items-center space-x-2"
+            variant="floating"
+            size="icon-lg"
+            iconOnly={true}
+            tooltip="Eerste Organization Aanmaken"
           >
-            <Icon name="plus" size={16} />
-            <span>Eerste Organization Aanmaken</span>
+            <Icon name="plus" size={20} />
           </Button>
         </div>
       </div>
@@ -394,10 +400,12 @@
               </div>
               <div class="opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="floating"
+                  size="icon-sm"
+                  iconOnly={true}
+                  tooltip="Organization Verwijderen"
                   on:click={() => deleteOrganization(org.id)}
-                  class="text-destructive hover:text-destructive"
+                  class="text-destructive hover:text-destructive bg-destructive/10 hover:bg-destructive/20"
                 >
                   <Icon name="trash" size={14} />
                 </Button>
@@ -418,9 +426,9 @@
               <div class="flex space-x-2">
                 <Button
                   href="/dashboard/organizations/{org.id}"
+                  variant="secondary"
                   size="sm"
-                  variant="outline"
-                  class="flex items-center space-x-1"
+                  class="flex items-center space-x-2"
                 >
                   <Icon name="eye" size={14} />
                   <span>Bekijken</span>
@@ -450,8 +458,10 @@
 
 <!-- Create Organization Modal -->
 {#if showCreateModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showCreateModal = false}>
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl my-auto modal-content-wrapper"
+         on:click|stopPropagation>
       <div class="flex items-center space-x-3 mb-6">
         <div class="glassmorphism-icon bg-primary/20">
           <Icon name="building" size={20} className="text-primary" />
@@ -459,32 +469,44 @@
         <h2 class="text-xl font-bold text-foreground">Nieuwe Organization</h2>
       </div>
       
-      <form on:submit|preventDefault={createOrganization} class="space-y-4">
-        <div>
-          <Label for="org-name">Naam</Label>
+      <form on:submit|preventDefault={createOrganization} class="space-y-6">
+        <div class="space-y-2">
+          <Label for="org-name" class="flex items-center space-x-2">
+            <Icon name="type" size={14} />
+            <span>Organization naam</span>
+          </Label>
           <Input
             id="org-name"
             type="text"
             bind:value={newOrgName}
             required
             placeholder="Bijv. Mijn Bedrijf"
-            class="mt-1"
+            class="pl-4"
           />
+          <p class="text-xs text-muted-foreground">
+            Deze naam wordt gebruikt voor je organization identificatie
+          </p>
         </div>
 
-        <div>
-          <Label for="org-description">Beschrijving</Label>
+        <div class="space-y-2">
+          <Label for="org-description" class="flex items-center space-x-2">
+            <Icon name="edit" size={14} />
+            <span>Beschrijving (optioneel)</span>
+          </Label>
           <Textarea
             id="org-description"
             bind:value={newOrgDescription}
-            placeholder="Optionele beschrijving van de organization"
-            class="mt-1"
+            placeholder="Een korte beschrijving van je organization..."
+            class="pl-4"
             rows={3}
           />
         </div>
 
-        <div>
-          <Label>Kleur</Label>
+        <div class="space-y-2">
+          <Label class="flex items-center space-x-2">
+            <Icon name="palette" size={14} />
+            <span>Kleur thema</span>
+          </Label>
           <div class="flex flex-wrap gap-2 mt-2">
             {#each colorOptions as color}
               <button
@@ -496,18 +518,60 @@
               ></button>
             {/each}
           </div>
+          <p class="text-xs text-muted-foreground">
+            Kies een kleur om je organization visueel te onderscheiden
+          </p>
         </div>
 
-        <div class="flex justify-end space-x-3 pt-4">
+        <!-- Organization Features Preview -->
+        <div class="glassmorphism-card bg-muted/30 p-4 space-y-3">
+          <div class="flex items-center space-x-2 text-sm font-medium text-foreground">
+            <Icon name="building" size={16} className="text-primary" />
+            <span>Jouw organization krijgt:</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="flex items-center space-x-2">
+              <Icon name="package" size={12} className="text-blue-600" />
+              <span class="text-muted-foreground">Project organisatie</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <Icon name="users" size={12} className="text-green-600" />
+              <span class="text-muted-foreground">Team samenwerking</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <Icon name="settings" size={12} className="text-purple-600" />
+              <span class="text-muted-foreground">Gedeelde instellingen</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <Icon name="shield-check" size={12} className="text-orange-600" />
+              <span class="text-muted-foreground">Toegangsbeheer</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex space-x-3 pt-4">
           <Button
             type="button"
-            variant="outline"
-            on:click={() => showCreateModal = false}
+            variant="secondary"
+            on:click={() => {
+              showCreateModal = false;
+              newOrgName = '';
+              newOrgDescription = '';
+              newOrgColor = '#3B82F6';
+            }}
+            class="flex-1 flex items-center justify-center space-x-2"
           >
-            Annuleren
+            <Icon name="x" size={14} />
+            <span>Annuleren</span>
           </Button>
-          <Button type="submit">
-            Organization Aanmaken
+          <Button 
+            type="submit"
+            variant="primary"
+            disabled={!newOrgName.trim()}
+            class="flex-1 flex items-center justify-center space-x-2"
+          >
+            <Icon name="plus" size={14} />
+            <span>Organization Aanmaken</span>
           </Button>
         </div>
       </form>

@@ -267,7 +267,7 @@
 
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .login-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(30px);
     box-shadow: 

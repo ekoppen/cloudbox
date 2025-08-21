@@ -30,14 +30,23 @@
   $: sidebarState = $sidebarStore;
   $: isHovered = sidebarState.isHovered;
 
+  // Use context from store, fallback to prop
+  $: currentContext = sidebarState.context || context;
+  $: currentProjectId = sidebarState.projectId || projectId;
+  $: currentProjectName = sidebarState.projectName || projectName;
+
   onMount(() => {
-    // Initialize sidebar context
-    sidebarStore.setContext(context, projectId, projectName);
+    // Initialize sidebar context only if not already set in store
+    if (!sidebarState.context) {
+      sidebarStore.setContext(context, projectId, projectName);
+    }
   });
 
-  // Update context when props change
+  // Update context when props change (but don't override store values)
   $: {
-    sidebarStore.setContext(context, projectId, projectName);
+    if (!sidebarState.context) {
+      sidebarStore.setContext(context, projectId, projectName);
+    }
   }
 
   // Dashboard navigation items
@@ -85,7 +94,12 @@
       { 
         label: 'Database', 
         href: `/dashboard/projects/${projectId}/database`, 
-        icon: 'database' 
+        icon: 'database',
+        children: [
+          { label: 'Tabellen', href: `/dashboard/projects/${projectId}/database`, icon: 'database' },
+          { label: 'Visualisatie', href: `/dashboard/projects/${projectId}/data-visualization`, icon: 'bar-chart' },
+          { label: 'Schema', href: `/dashboard/projects/${projectId}/database/schema`, icon: 'git-branch' }
+        ]
       },
       { 
         label: 'Authenticatie', 
@@ -131,7 +145,8 @@
     ];
   }
 
-  $: projectItems = getProjectItems(projectId);
+  // Reactive project items computation
+  $: projectItems = getProjectItems(currentProjectId);
 
   // Admin navigation items
   const adminItems: NavigationItem[] = [
@@ -153,16 +168,9 @@
   ];
 
   // Get appropriate navigation items based on context
-  $: navigationItems = (() => {
-    switch (context) {
-      case 'project':
-        return projectItems;
-      case 'admin':
-        return adminItems;
-      default:
-        return dashboardItems;
-    }
-  })();
+  $: navigationItems = (currentContext === 'project') ? projectItems : 
+                      (currentContext === 'admin') ? adminItems : 
+                      dashboardItems;
 
   function isActive(item: NavigationItem, currentPath: string): boolean {
     if (item.exact) {
@@ -220,7 +228,7 @@
   );
 
   // Ensure reactivity for project context
-  $: if (context === 'project' && projectId) {
+  $: if (currentContext === 'project' && currentProjectId) {
     // Force recalculation when project context is active
     navigationItems; // Reference to trigger reactivity
   }
@@ -228,7 +236,7 @@
 
 <!-- Supabase-style Collapsible Sidebar -->
 <aside 
-  class="sidebar fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border group"
+  class="sidebar fixed inset-y-0 left-0 z-50 bg-sidebar group"
   class:w-sidebar-collapsed={!isHovered}
   class:w-sidebar={isHovered}
   on:mouseenter={handleMouseEnter}
@@ -238,7 +246,7 @@
 >
   <div class="flex h-full flex-col">
     <!-- Logo/Brand Section -->
-    <div class="flex h-16 items-center border-b border-sidebar-border px-4">
+    <div class="flex h-16 items-center px-4">
       {#if !isHovered}
         <!-- Collapsed state - just logo -->
         <div class="flex items-center justify-center w-full">
@@ -248,7 +256,7 @@
             </div>
           </a>
         </div>
-      {:else if context === 'project' && projectName}
+      {:else if currentContext === 'project' && currentProjectName}
         <!-- Project context header -->
         <div class="flex items-center space-x-3 min-w-0">
           <a href="/dashboard" class="flex-shrink-0">
@@ -259,7 +267,7 @@
           <div class="project-header min-w-0">
             <div class="flex items-center space-x-2">
               <Icon name="package" size={16} className="text-muted-foreground flex-shrink-0 icon-contrast" />
-              <span class="text-sm font-heading font-semibold text-foreground truncate">{projectName}</span>
+              <span class="text-sm font-heading font-semibold text-foreground truncate">{currentProjectName}</span>
             </div>
           </div>
         </div>
@@ -345,7 +353,7 @@
     </nav>
 
     <!-- User section at bottom -->
-    <div class="border-t border-sidebar-border p-2">
+    <div class="p-2">
       {#if !isHovered}
         <Tooltip text={user?.name || 'User'} position="right">
           <div class="nav-item flex items-center h-10 rounded-lg hover:bg-sidebar-hover cursor-pointer justify-center px-2">

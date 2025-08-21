@@ -44,7 +44,7 @@
   function getBucketStatusColor(bucket: StorageBucket): string {
     if (bucket.file_count === 0) return 'bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400';
     if (bucket.is_public) return 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400';
-    return 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400';
+    return 'bg-blue-100 dark:bg-gray-800 text-blue-600 dark:text-blue-400';
   }
 
   function handleBucketSelect(bucket: StorageBucket) {

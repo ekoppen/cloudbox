@@ -302,7 +302,7 @@
           <p class="text-sm font-medium text-muted-foreground">Totaal Gebruikers</p>
           <p class="text-2xl font-bold text-foreground">{userStats.total}</p>
         </div>
-        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
           <Icon name="users" size={20} className="text-blue-600 dark:text-blue-400" />
         </div>
       </div>
@@ -527,8 +527,10 @@
 
 <!-- Edit User Modal -->
 {#if showEditModal && editingUser}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => { showEditModal = false; editingUser = null; }}>
+    <div class="max-w-lg w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="edit" size={20} className="text-primary" />
@@ -605,14 +607,17 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}
 
 <!-- Delete User Modal -->
 {#if showDeleteModal && deletingUser}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => { showDeleteModal = false; deletingUser = null; }}>
+    <div class="max-w-lg w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
           <Icon name="trash" size={20} className="text-destructive" />
@@ -659,14 +664,17 @@
           </Button>
         </div>
       </div>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}
 
 <!-- Create User Modal -->
 {#if showCreateModal}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-lg w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
+       on:click={() => showCreateModal = false}>
+    <div class="max-w-lg w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+      <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="users" size={20} className="text-primary" />
@@ -808,6 +816,7 @@
           </Button>
         </div>
       </form>
-    </Card>
+      </Card>
+    </div>
   </div>
 {/if}

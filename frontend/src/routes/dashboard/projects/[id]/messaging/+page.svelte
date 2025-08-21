@@ -418,7 +418,7 @@
           <p class="text-sm font-medium text-muted-foreground">Verzonden</p>
           <p class="text-2xl font-bold text-foreground">{messagingStats.total_sent.toLocaleString()}</p>
         </div>
-        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
           <Icon name="messaging" size={20} className="text-blue-600 dark:text-blue-400" />
         </div>
       </div>
@@ -650,7 +650,7 @@
                           Update Beschikbaar
                         </Badge>
                       {:else if notification.metadata?.type === 'deployment_started'}
-                        <Badge class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                        <Badge class="bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-blue-200">
                           Deployment Gestart
                         </Badge>
                       {:else if notification.metadata?.type === 'webhook_test'}
@@ -854,7 +854,7 @@
           <h3 class="text-lg font-medium text-foreground">Browser Push Notificaties</h3>
         </div>
         <div class="space-y-4">
-          <div class="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+          <div class="text-sm text-muted-foreground bg-blue-50 dark:bg-gray-800/20 p-4 rounded-md border border-blue-200 dark:border-gray-600">
             <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-2">📱 Hoe werken Push Notificaties?</h4>
             <div class="space-y-2 text-blue-800 dark:text-blue-200">
               <p><strong>Browser Notificaties:</strong> CloudBox gebruikt de Web Push API om berichten rechtstreeks naar je browser te sturen, zelfs als de pagina niet open is.</p>
@@ -890,7 +890,7 @@
 
 <!-- Create Message Modal -->
 {#if showCreateMessage}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
     <Card class="max-w-2xl w-full p-6 max-h-screen overflow-y-auto border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">

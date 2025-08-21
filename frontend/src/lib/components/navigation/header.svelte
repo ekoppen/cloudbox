@@ -33,7 +33,7 @@
 <svelte:document on:click={handleClickOutside} />
 
 <!-- Header -->
-<header class="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+<header class="sticky top-0 z-40 bg-card/95 backdrop-blur-xl supports-[backdrop-filter]:bg-card/85 shadow-sm">
   <div class="flex h-16 items-center justify-between px-6">
     <!-- Breadcrumbs -->
     <div class="flex items-center space-x-4">

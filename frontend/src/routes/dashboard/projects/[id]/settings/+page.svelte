@@ -480,7 +480,7 @@
   function getPermissionColor(permission: string): string {
     switch (permission) {
       case 'read': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
-      case 'write': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+      case 'write': return 'bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-blue-200';
       case 'delete': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
       default: return 'bg-muted text-muted-foreground';
     }
@@ -492,10 +492,17 @@
   <title>Instellingen - CloudBox</title>
 </svelte:head>
 
-<!-- Page Header -->
-<div class="mb-8">
-  <h1 class="text-3xl font-bold text-foreground font-['Inter'] mb-2">Project Settings</h1>
-  <p class="text-muted-foreground text-base">Configure your project's API keys, CORS settings, and general preferences</p>
+<!-- Page Header with modern styling -->
+<div class="flex items-center justify-between mb-8">
+  <div class="flex items-center space-x-4">
+    <div class="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
+      <Icon name="settings" size={24} className="text-primary" />
+    </div>
+    <div>
+      <h1 class="text-2xl font-bold text-foreground">Instellingen</h1>
+      <p class="text-sm text-muted-foreground">Beheer API keys, CORS configuratie en project instellingen</p>
+    </div>
+  </div>
 </div>
 
 <!-- Sub-tabs within settings -->
@@ -551,15 +558,17 @@
 
   <!-- API Keys Tab -->
   {#if activeTab === 'api-keys'}
-    <div class="space-y-8">
+    <div class="space-y-6">
       <div class="flex justify-between items-center">
-        <div>
-          <h2 class="text-2xl font-semibold text-foreground">API Keys</h2>
-          <p class="text-muted-foreground mt-1">Manage access to your project API</p>
-        </div>
-        <Button on:click={() => showCreateKey = true} className="h-10 px-6">
-          <Icon name="plus" size={16} className="mr-2" />
-          <span>Create API Key</span>
+        <span class="text-lg font-semibold text-foreground">Toegang tot project API beheren</span>
+        <Button 
+          on:click={() => showCreateKey = true}
+          variant="floating"
+          size="icon-lg"
+          iconOnly={true}
+          tooltip="Nieuwe API Key"
+        >
+          <Icon name="plus" size={20} />
         </Button>
       </div>
 
@@ -581,9 +590,14 @@
             <p class="text-muted-foreground mb-6 max-w-sm mx-auto">
               Create your first API key to start accessing your project programmatically.
             </p>
-            <Button on:click={() => showCreateKey = true} className="px-8">
-              <Icon name="plus" size={16} className="mr-2" />
-              Create API Key
+            <Button 
+              on:click={() => showCreateKey = true}
+              variant="floating"
+              size="icon-lg"
+              iconOnly={true}
+              tooltip="Eerste API Key Aanmaken"
+            >
+              <Icon name="plus" size={20} />
             </Button>
           </div>
         {:else}
@@ -853,8 +867,8 @@
 
 <!-- Create API Key Modal -->
 {#if showCreateKey}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
+    <Card class="glassmorphism-modal max-w-md w-full">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="auth" size={20} className="text-primary" />
@@ -916,8 +930,8 @@
 
 <!-- API Key Details Modal -->
 {#if showKeyDetails}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="glassmorphism-modal max-w-lg w-full p-6 border-2 shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
+    <Card class="glassmorphism-modal max-w-lg w-full">
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -1001,8 +1015,8 @@
 
 <!-- Delete Project Confirmation Modal -->
 {#if showDeleteConfirm}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <Card class="max-w-md w-full p-6 border-2 border-destructive shadow-2xl">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
+    <Card class="glassmorphism-modal max-w-md w-full border-destructive/20">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
           <Icon name="backup" size={20} className="text-destructive" />

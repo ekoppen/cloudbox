@@ -40,6 +40,11 @@
   // Watch for page changes to update navigation
   $: if ($page.url.pathname) {
     navigation.navigate($page.url.pathname);
+    
+    // Reset sidebar context when not in a project route
+    if (!$page.url.pathname.startsWith('/dashboard/projects/') || $page.url.pathname === '/dashboard/projects') {
+      sidebarStore.setContext('dashboard');
+    }
   }
 </script>
 
@@ -55,42 +60,68 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(
-      135deg,
-      rgba(102, 126, 234, 0.03) 0%,
-      rgba(118, 75, 162, 0.02) 25%,
-      rgba(240, 147, 251, 0.025) 50%,
-      rgba(245, 87, 108, 0.02) 75%,
-      rgba(79, 172, 254, 0.03) 100%
-    );
-    background-size: 400% 400%;
-    animation: subtleGradientShift 30s ease infinite;
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 80%, rgba(102, 126, 234, 0.4) 0%, transparent 50%),
+      linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.08) 0%,
+        rgba(118, 75, 162, 0.06) 25%,
+        rgba(240, 147, 251, 0.08) 50%,
+        rgba(245, 87, 108, 0.06) 75%,
+        rgba(79, 172, 254, 0.1) 100%
+      );
+    background-size: 400% 400%, 300% 300%, 500% 500%, 400% 400%;
+    animation: vibrantGradientShift 20s ease infinite;
     z-index: 1;
     pointer-events: none;
+    filter: blur(40px);
+    opacity: 0.7;
   }
 
-  @keyframes subtleGradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+  @keyframes vibrantGradientShift {
+    0% { 
+      background-position: 0% 50%, 100% 0%, 50% 100%, 0% 50%; 
+      transform: scale(1);
+    }
+    33% { 
+      background-position: 50% 100%, 0% 50%, 100% 0%, 50% 100%; 
+      transform: scale(1.05);
+    }
+    66% { 
+      background-position: 100% 0%, 50% 100%, 0% 50%, 100% 0%; 
+      transform: scale(1.02);
+    }
+    100% { 
+      background-position: 0% 50%, 100% 0%, 50% 100%, 0% 50%; 
+      transform: scale(1);
+    }
   }
 
-  /* Dark mode support - CloudBox theme system */
+  /* Dark mode support - CloudBox theme system - Neutral grey gradient */
   :global(.cloudbox-dark) .dashboard-gradient {
-    background: linear-gradient(
-      135deg,
-      rgba(102, 126, 234, 0.05) 0%,
-      rgba(118, 75, 162, 0.04) 25%,
-      rgba(240, 147, 251, 0.045) 50%,
-      rgba(245, 87, 108, 0.04) 75%,
-      rgba(79, 172, 254, 0.05) 100%
-    );
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(64, 64, 64, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(96, 96, 96, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 40% 80%, rgba(80, 80, 80, 0.2) 0%, transparent 50%),
+      linear-gradient(
+        135deg,
+        rgba(48, 48, 48, 0.08) 0%,
+        rgba(64, 64, 64, 0.06) 25%,
+        rgba(96, 96, 96, 0.1) 50%,
+        rgba(80, 80, 80, 0.06) 75%,
+        rgba(112, 112, 112, 0.12) 100%
+      );
+    filter: blur(60px);
+    opacity: 0.7;
   }
 
   /* Reduce motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
     .dashboard-gradient {
       animation: none;
+      filter: blur(20px);
     }
   }
 </style>

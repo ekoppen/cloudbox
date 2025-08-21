@@ -199,7 +199,7 @@
   }
 
   function getTypeColor(type: string): string {
-    if (type.includes('INTEGER') || type.includes('SERIAL')) return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
+    if (type.includes('INTEGER') || type.includes('SERIAL')) return 'bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-blue-200';
     if (type.includes('VARCHAR') || type.includes('TEXT')) return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
     if (type.includes('BOOLEAN')) return 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200';
     if (type.includes('TIMESTAMP') || type.includes('DATE')) return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
@@ -275,13 +275,24 @@
         </p>
       </div>
     </div>
-    <Button 
-      on:click={() => showCreateTable = true}
-      class="flex items-center space-x-2"
-    >
-      <Icon name="package" size={16} />
-      <span>Nieuwe Tabel</span>
-    </Button>
+    <div class="flex items-center space-x-3">
+      <Button
+        href={`/dashboard/projects/${$page.params.id}/data-visualization`}
+        variant="secondary"
+        size="md"
+        class="flex items-center space-x-2"
+      >
+        <Icon name="bar-chart" size={16} />
+        <span>Schema Visualisatie</span>
+      </Button>
+      <Button 
+        on:click={() => showCreateTable = true}
+        class="flex items-center space-x-2"
+      >
+        <Icon name="package" size={16} />
+        <span>Nieuwe Tabel</span>
+      </Button>
+    </div>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -492,7 +503,7 @@
 
 <!-- Create Table Modal -->
 {#if showCreateTable}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
     <Card class="glassmorphism-modal max-w-md w-full p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -538,7 +549,7 @@
 
 <!-- Add Row Modal -->
 {#if showAddRow && tableData}
-  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50">
     <Card class="glassmorphism-modal max-w-2xl w-full p-6 max-h-96 overflow-y-auto border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-4">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">

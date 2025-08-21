@@ -36,7 +36,7 @@
         };
       case 'loading':
         return {
-          color: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+          color: 'bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-blue-200',
           icon: 'package',
           text: 'Laden...'
         };

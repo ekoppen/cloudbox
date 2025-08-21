@@ -106,20 +106,37 @@
   <title>Admin Settings - CloudBox</title>
 </svelte:head>
 
-<div>
+<div class="space-y-6">
+  <!-- Page Header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center space-x-4">
+      <div class="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
+        <Icon name="shield-check" size={24} className="text-primary" />
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-foreground">Admin</h1>
+        <p class="text-sm text-muted-foreground">CloudBox administratie en systeembeheer</p>
+      </div>
+    </div>
+  </div>
 
   {#if loading}
-    <div class="text-center py-8">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      <p class="mt-2 text-muted-foreground">Laden van instellingen...</p>
+    <div class="text-center py-12">
+      <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+      </div>
+      <p class="text-foreground font-medium">Laden van instellingen...</p>
+      <p class="text-sm text-muted-foreground mt-1">Even geduld alstublieft</p>
     </div>
   {:else}
     <!-- General Settings -->
     {#if settings.general}
-      <Card class="p-6">
+      <Card class="p-6 bg-card/50 backdrop-blur-sm border-border shadow-sm">
         <div class="flex items-center space-x-3 mb-6">
-          <Icon name="settings" size={24} />
-          <h2 class="text-xl font-semibold text-card-foreground">Algemene Instellingen</h2>
+          <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+            <Icon name="settings" size={20} className="text-primary" />
+          </div>
+          <h2 class="text-xl font-semibold text-foreground">Algemene Instellingen</h2>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

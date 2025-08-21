@@ -81,7 +81,7 @@
   function getTypeColor(type: string): string {
     const lowerType = type.toLowerCase();
     if (lowerType.includes('int') || lowerType.includes('serial') || lowerType.includes('number')) {
-      return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200';
+      return 'bg-blue-100 dark:bg-gray-800/30 text-blue-800 dark:text-blue-200';
     }
     if (lowerType.includes('varchar') || lowerType.includes('text') || lowerType.includes('string')) {
       return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200';

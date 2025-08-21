@@ -243,7 +243,7 @@
 
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .glassmorphism-card {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(26, 26, 26, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 
       0 8px 25px -8px rgba(0, 0, 0, 0.6),
@@ -253,7 +253,7 @@
   }
   
   :global(.cloudbox-dark) .glassmorphism-card:hover {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(33, 33, 33, 0.8);
     box-shadow: 
       0 12px 35px -12px rgba(0, 0, 0, 0.7),
       0 8px 20px -8px rgba(0, 0, 0, 0.5),
@@ -276,7 +276,7 @@
   }
 
   :global(.cloudbox-dark) .glassmorphism-modal {
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(26, 26, 26, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(40px);
     box-shadow: 
@@ -336,9 +336,9 @@
 </style>
 
 {#if isOpen}
-  <!-- Enhanced Modal Backdrop with proper full viewport coverage -->
+  <!-- Enhanced Modal Backdrop with proper full viewport coverage and scrolling -->
   <div 
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-16 sm:pt-20 overflow-y-auto"
     role="dialog"
     aria-modal="true"
     aria-labelledby="marketplace-title"
@@ -348,9 +348,10 @@
     on:click={closeModal}
     on:keydown={(e) => e.key === 'Escape' && closeModal()}
   >
-    <!-- Main Modal -->
+    <!-- Main Modal with better height management -->
     <div 
-      class="max-w-7xl w-full max-h-[95vh] glassmorphism-modal rounded-xl flex flex-col overflow-hidden relative z-10"
+      class="max-w-7xl w-full glassmorphism-modal rounded-xl flex flex-col my-auto min-h-0"
+      style="max-height: calc(100vh - 8rem);"
       role="document"
       on:click|stopPropagation
     >
@@ -450,7 +451,7 @@
             {/if}
           </div>
         {:else}
-          <div class="flex-1 overflow-y-auto p-8" style="max-height: calc(95vh - 200px);">
+          <div class="flex-1 overflow-y-auto p-8 min-h-0">
             <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {#each $marketplacePlugins as plugin (plugin.repository)}
               <div 
