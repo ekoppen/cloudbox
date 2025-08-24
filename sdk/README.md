@@ -41,7 +41,7 @@ import { CloudBoxClient } from '@ekoppen/cloudbox-sdk';
 
 // Initialize the client
 const client = new CloudBoxClient({
-  projectId: 'your-project-id',
+  projectId: 2,
   apiKey: 'your-api-key',
   endpoint: 'https://api.cloudbox.dev' // Optional, defaults to localhost:8080
 });

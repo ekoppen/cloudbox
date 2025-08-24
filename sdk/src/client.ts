@@ -34,10 +34,19 @@ import { AuthManager } from './managers/auth';
  * ```typescript
  * import { CloudBoxClient } from '@ekoppen/cloudbox-sdk';
  * 
+ * // Project authentication (default - for most applications)
  * const client = new CloudBoxClient({
- *   projectId: 'my-app',
+ *   projectId: 2,
  *   apiKey: 'your-api-key',
  *   endpoint: 'https://api.cloudbox.dev'
+ * });
+ * 
+ * // Admin authentication (for CloudBox admin interfaces)
+ * const adminClient = new CloudBoxClient({
+ *   projectId: 2,
+ *   apiKey: 'your-admin-api-key',
+ *   endpoint: 'https://api.cloudbox.dev',
+ *   authMode: 'admin'
  * });
  * 
  * // Collections
@@ -84,7 +93,8 @@ export class CloudBoxClient {
     this.config = {
       projectId: config.projectId,
       apiKey: config.apiKey,
-      endpoint: config.endpoint || 'http://localhost:8080'
+      endpoint: config.endpoint || 'http://localhost:8080',
+      authMode: config.authMode || 'project'
     };
 
     // Build base URL following CloudBox API standards
@@ -115,8 +125,10 @@ export class CloudBoxClient {
    * ```
    */
   async request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
-    // Determine if this is an admin/auth endpoint
-    const isAdminEndpoint = path.startsWith('/api/v1/');
+    // Determine if this is an admin endpoint based on path or authMode
+    const isAdminEndpoint = path.startsWith('/api/v1/') || 
+      (this.config.authMode === 'admin' && (path.startsWith('/users/') || path.includes('/auth')));
+    
     const url = isAdminEndpoint 
       ? `${this.config.endpoint}${path}` 
       : `${this.baseUrl}${path}`;
@@ -289,7 +301,8 @@ export class CloudBoxClient {
   getConfig(): Omit<CloudBoxConfig, 'apiKey'> {
     return {
       projectId: this.config.projectId,
-      endpoint: this.config.endpoint
+      endpoint: this.config.endpoint,
+      authMode: this.config.authMode
     };
   }
 
@@ -363,5 +376,14 @@ export class CloudBoxClient {
    */
   getAuthToken(): string | undefined {
     return this.authToken;
+  }
+
+  /**
+   * Get authentication mode
+   * 
+   * @returns Current authentication mode
+   */
+  getAuthMode(): 'admin' | 'project' {
+    return this.config.authMode;
   }
 }

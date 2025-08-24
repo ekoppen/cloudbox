@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -75,9 +74,17 @@ func RequireAuth(cfg *config.Config) gin.HandlerFunc {
 // ProjectAuth middleware validates project access via API key
 func ProjectAuth(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		projectSlug := c.Param("project_slug")
-		if projectSlug == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Project slug required"})
+		projectIDStr := c.Param("project_id")
+		if projectIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Project ID required"})
+			c.Abort()
+			return
+		}
+		
+		// Parse project ID as integer
+		projectID, parseErr := strconv.ParseUint(projectIDStr, 10, 32)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID format"})
 			c.Abort()
 			return
 		}
@@ -90,18 +97,9 @@ func ProjectAuth(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Find project and validate API key
+		// Find project by ID
 		var project models.Project
-		var key models.APIKey
-
-		// Try to parse as ID first (numeric), then by slug
-		var err error
-		if projectID, parseErr := strconv.ParseUint(projectSlug, 10, 32); parseErr == nil {
-			err = db.Where("id = ?", uint(projectID)).First(&project).Error
-		}
-		if err != nil {
-			err = db.Where("slug = ?", projectSlug).First(&project).Error
-		}
+		err := db.Where("id = ?", uint(projectID)).First(&project).Error
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 			c.Abort()
@@ -132,7 +130,7 @@ func ProjectAuth(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		key = *validKey
+		key := *validKey
 
 		// Check if key is expired
 		if key.ExpiresAt != nil && key.ExpiresAt.Before(time.Now()) {
@@ -202,59 +200,33 @@ func RequireAdminOrSuperAdmin() gin.HandlerFunc {
 	}
 }
 
-// ProjectOnly middleware validates project exists without requiring authentication
+// ProjectOnly middleware validates project exists by ID without requiring authentication
 func ProjectOnly(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		projectSlug := c.Param("project_slug")
-		if projectSlug == "" {
-			log.Printf("ProjectOnly: No project_slug in URL path")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Project slug required"})
+		projectIDStr := c.Param("project_id")
+		if projectIDStr == "" {
+			log.Printf("ProjectOnly: No project_id in URL path")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Project ID required"})
 			c.Abort()
 			return
 		}
 
-		log.Printf("ProjectOnly: Looking for project with slug: %s", projectSlug)
-
-		// Test database connection
-		var testCount int64
-		if err := db.Model(&models.Project{}).Count(&testCount).Error; err != nil {
-			log.Printf("ProjectOnly: Database connection error: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection error"})
+		// Parse project ID as integer
+		projectID, parseErr := strconv.ParseUint(projectIDStr, 10, 32)
+		if parseErr != nil {
+			log.Printf("ProjectOnly: Invalid project ID '%s': %v", projectIDStr, parseErr)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID format"})
 			c.Abort()
 			return
 		}
-		log.Printf("ProjectOnly: Database has %d projects total", testCount)
 
-		// Find the project - try by ID first, then by slug
+		log.Printf("ProjectOnly: Looking for project with ID: %d", uint(projectID))
+
+		// Find the project by ID only
 		var project models.Project
-		var err error
-		
-		// Try to parse as ID first (numeric) - photoportfolio is not numeric so skip this
-		if projectID, parseErr := strconv.ParseUint(projectSlug, 10, 32); parseErr == nil {
-			log.Printf("ProjectOnly: Trying to find project by ID: %d", uint(projectID))
-			err = db.Where("id = ?", uint(projectID)).First(&project).Error
-			if err != nil {
-				log.Printf("ProjectOnly: Error finding by ID: %v", err)
-			} else {
-				log.Printf("ProjectOnly: Found by ID - ID: %d, Name: %s, Slug: %s", project.ID, project.Name, project.Slug)
-			}
-		} else {
-			log.Printf("ProjectOnly: '%s' is not numeric, will search by slug", projectSlug)
-		}
-		
-		// If not found by ID (or slug is not numeric), try by slug
-		if err != nil || project.ID == 0 {
-			log.Printf("ProjectOnly: Trying to find project by slug: %s", projectSlug)
-			err = db.Where("slug = ?", projectSlug).First(&project).Error
-			if err != nil {
-				log.Printf("ProjectOnly: Error finding by slug: %v", err)
-			} else {
-				log.Printf("ProjectOnly: Found by slug - ID: %d, Name: %s, Slug: %s", project.ID, project.Name, project.Slug)
-			}
-		}
-		
+		err := db.Where("id = ?", uint(projectID)).First(&project).Error
 		if err != nil {
-			log.Printf("ProjectOnly: Project not found for slug '%s', error: %v", projectSlug, err)
+			log.Printf("ProjectOnly: Project not found for ID %d, error: %v", uint(projectID), err)
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 			c.Abort()
 			return
@@ -272,29 +244,24 @@ func ProjectOnly(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 // ProjectAuthOrJWT middleware accepts both JWT tokens and API keys for project access
 func ProjectAuthOrJWT(cfg *config.Config, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		projectSlug := c.Param("project_slug")
-		if projectSlug == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Project slug required"})
+		projectIDStr := c.Param("project_id")
+		if projectIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Project ID required"})
+			c.Abort()
+			return
+		}
+		
+		// Parse project ID as integer
+		projectID, parseErr := strconv.ParseUint(projectIDStr, 10, 32)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID format"})
 			c.Abort()
 			return
 		}
 
-		// Find the project first - try by ID first, then by slug
+		// Find the project by ID
 		var project models.Project
-		var err error
-		
-		// Try to parse as ID first (numeric)
-		if projectID, parseErr := strconv.ParseUint(projectSlug, 10, 32); parseErr == nil {
-			err = db.Where("id = ?", uint(projectID)).First(&project).Error
-		} else {
-			err = fmt.Errorf("not numeric") // Ensure err is set so we try slug lookup
-		}
-		
-		// If not found by ID, try by slug
-		if err != nil {
-			err = db.Where("slug = ?", projectSlug).First(&project).Error
-		}
-		
+		err := db.Where("id = ?", uint(projectID)).First(&project).Error
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 			c.Abort()

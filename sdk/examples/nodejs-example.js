@@ -11,7 +11,7 @@
  * 
  * Make sure to set your environment variables:
  *   CLOUDBOX_API_KEY=your-api-key
- *   CLOUDBOX_PROJECT_ID=your-project-id
+ *   CLOUDBOX_PROJECT_ID=2
  */
 
 // In a real project, you would import from '@ekoppen/cloudbox-sdk'
@@ -33,7 +33,7 @@ class CloudBoxSDKDemo {
   }
 
   getProjectApiPath() {
-    return `/p/${this.config.projectSlug || this.config.projectId}/api`;
+    return `/p/${this.config.projectId}/api`;
   }
 
   getAdminApiPath() {
@@ -414,7 +414,7 @@ async function runCloudBoxDemo() {
     // Initialize CloudBox SDK
     const config = {
       apiKey: process.env.CLOUDBOX_API_KEY || 'demo-api-key',
-      projectId: process.env.CLOUDBOX_PROJECT_ID || 'demo-project-id',
+      projectId: process.env.CLOUDBOX_PROJECT_ID || 2,
       endpoint: 'https://api.cloudbox.dev'
     };
     

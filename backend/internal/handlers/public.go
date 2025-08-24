@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,11 +29,18 @@ func NewPublicFileHandler(db *gorm.DB, cfg *config.Config) *PublicFileHandler {
 }
 
 // ServePublicFile serves public files with security validation
-// GET /public/{project_slug}/{bucket_name}/{file_path}
+// GET /public/{project_id}/{bucket_name}/{file_path}
 func (h *PublicFileHandler) ServePublicFile(c *gin.Context) {
-	projectSlug := c.Param("project_slug")
+	projectIDStr := c.Param("project_id")
 	bucketName := c.Param("bucket_name")
 	filePath := c.Param("file_path")
+
+	// Parse project ID as integer
+	projectID, parseErr := strconv.ParseUint(projectIDStr, 10, 32)
+	if parseErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID format"})
+		return
+	}
 
 	// Security: Clean the file path to prevent directory traversal
 	filePath = filepath.Clean(filePath)
@@ -42,7 +50,7 @@ func (h *PublicFileHandler) ServePublicFile(c *gin.Context) {
 	}
 
 	// 1. Validate project (fail fast)
-	project, err := h.validateActiveProject(projectSlug)
+	project, err := h.validateActiveProject(uint(projectID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found or inactive"})
 		return
@@ -67,9 +75,9 @@ func (h *PublicFileHandler) ServePublicFile(c *gin.Context) {
 }
 
 // validateActiveProject checks if project exists and is active
-func (h *PublicFileHandler) validateActiveProject(projectSlug string) (*models.Project, error) {
+func (h *PublicFileHandler) validateActiveProject(projectID uint) (*models.Project, error) {
 	var project models.Project
-	if err := h.db.Where("slug = ? AND is_active = ?", projectSlug, true).First(&project).Error; err != nil {
+	if err := h.db.Where("id = ? AND is_active = ?", projectID, true).First(&project).Error; err != nil {
 		return nil, err
 	}
 	return &project, nil

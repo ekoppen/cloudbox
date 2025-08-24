@@ -8,12 +8,14 @@
 // ===============================
 
 export interface CloudBoxConfig {
-  /** Project identifier (slug) for API routes */
-  projectId: string;
+  /** Project ID (numeric) for API routes */
+  projectId: number;
   /** API key for authentication */
   apiKey: string;
   /** CloudBox endpoint URL (default: http://localhost:8080) */
   endpoint?: string;
+  /** Authentication mode - 'project' for project APIs, 'admin' for CloudBox admin APIs (default: 'project') */
+  authMode?: 'admin' | 'project';
 }
 
 export interface RequestOptions {
@@ -364,7 +366,7 @@ export interface ConnectionTestResult {
   success: boolean;
   message: string;
   endpoint: string;
-  project_id: string;
+  project_id: number;
   response_time?: number;
   api_version?: string;
 }

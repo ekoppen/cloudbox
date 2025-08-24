@@ -594,6 +594,7 @@ func (h *ProjectHandler) UpdateProjectNotes(c *gin.Context) {
 
 // Helper functions
 
+
 // canAccessProject checks if user can access a project based on role
 func (h *ProjectHandler) canAccessProject(c *gin.Context, projectID uint) (models.Project, bool) {
 	userID := c.GetUint("user_id")

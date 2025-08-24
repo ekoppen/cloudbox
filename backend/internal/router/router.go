@@ -85,7 +85,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// Public file access (no authentication required)
 	public := r.Group("/public")
 	{
-		public.GET("/:project_slug/:bucket_name/*file_path", publicFileHandler.ServePublicFile)
+		public.GET("/:project_id/:bucket_name/*file_path", publicFileHandler.ServePublicFile)
 	}
 
 	// ===========================================
@@ -416,16 +416,16 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		}
 		
 		// Note: Collection management moved to project data API routes
-		// Admin can access collections via /p/{project_slug}/api/collections with proper auth
+		// Admin can access collections via /p/{project_id}/api/collections with proper auth
 	}
 
 	// ===========================================
-	// PROJECT DATA API ROUTES (/p/{slug}/api/*)
+	// PROJECT DATA API ROUTES (/p/{id}/api/*)
 	// API Key (X-API-Key) Authentication Required
 	// ===========================================
 	
 	// Protected project routes (API key authentication required)
-	projectAPI := r.Group("/p/:project_slug/api")
+	projectAPI := r.Group("/p/:project_id/api")
 	projectAPI.Use(middleware.ProjectAuthOrJWT(cfg, db)) // API key authentication
 	projectAPI.Use(middleware.ProjectCORS(cfg, db))
 	{
@@ -581,12 +581,12 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	}
 
 	// ===========================================
-	// PUBLIC PROJECT API ROUTES (/p/{slug}/api/*)
+	// PUBLIC PROJECT API ROUTES (/p/{id}/api/*)
 	// No Authentication Required
 	// ===========================================
 	
 	// Public project routes (no authentication required) - registered AFTER protected routes
-	projectPublic := r.Group("/p/:project_slug/api")
+	projectPublic := r.Group("/p/:project_id/api")
 	projectPublic.Use(middleware.ProjectOnly(cfg, db)) // Only validate project exists
 	projectPublic.Use(middleware.ProjectCORS(cfg, db)) // Apply project-specific CORS
 	{

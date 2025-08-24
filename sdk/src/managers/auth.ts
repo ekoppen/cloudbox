@@ -17,6 +17,10 @@ import type {
 /**
  * Authentication manager for CloudBox
  * 
+ * Supports two authentication modes:
+ * - Project mode (default): Uses /users/* endpoints for project applications
+ * - Admin mode: Uses /api/v1/auth/* endpoints for CloudBox admin interfaces
+ * 
  * Provides methods for:
  * - User registration and login
  * - JWT token management
@@ -25,22 +29,48 @@ import type {
  * 
  * @example
  * ```typescript
- * // Register new user
+ * // Project mode authentication (default)
+ * const client = new CloudBoxClient({
+ *   projectId: 'my-app',
+ *   apiKey: 'project-api-key'
+ * });
+ * 
  * const { user, token } = await client.auth.register({
  *   email: 'user@example.com',
  *   password: 'securepassword',
  *   name: 'John Doe'
  * });
  * 
- * // Login existing user
- * const { user, token } = await client.auth.login({
- *   email: 'user@example.com', 
- *   password: 'securepassword'
+ * // Admin mode authentication
+ * const adminClient = new CloudBoxClient({
+ *   projectId: 'my-app',
+ *   apiKey: 'admin-api-key',
+ *   authMode: 'admin'
+ * });
+ * 
+ * const { user, token } = await adminClient.auth.login({
+ *   email: 'admin@example.com', 
+ *   password: 'adminpassword'
  * });
  * ```
  */
 export class AuthManager {
   constructor(private client: CloudBoxClient) {}
+
+  /**
+   * Get the appropriate auth endpoint path based on authMode
+   * @private
+   */
+  private getAuthPath(path: string): string {
+    const authMode = this.client.getAuthMode();
+    
+    if (authMode === 'admin') {
+      return `/api/v1/auth${path}`;
+    } else {
+      // Project mode uses /users endpoints
+      return `/users${path}`;
+    }
+  }
 
   /**
    * Register a new user
@@ -62,7 +92,7 @@ export class AuthManager {
    * ```
    */
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    return this.client.request<AuthResponse>('/api/v1/auth/register', {
+    return this.client.request<AuthResponse>(this.getAuthPath('/register'), {
       method: 'POST',
       body: data
     });
@@ -86,7 +116,7 @@ export class AuthManager {
    * ```
    */
   async login(data: LoginRequest): Promise<AuthResponse> {
-    return this.client.request<AuthResponse>('/api/v1/auth/login', {
+    return this.client.request<AuthResponse>(this.getAuthPath('/login'), {
       method: 'POST',
       body: data
     });
@@ -109,7 +139,7 @@ export class AuthManager {
    * ```
    */
   async refresh(refreshToken: string): Promise<AuthResponse> {
-    return this.client.request<AuthResponse>('/api/v1/auth/refresh', {
+    return this.client.request<AuthResponse>(this.getAuthPath('/refresh'), {
       method: 'POST',
       body: { refresh_token: refreshToken }
     });
@@ -127,7 +157,7 @@ export class AuthManager {
    * ```
    */
   async me(): Promise<AuthUser> {
-    return this.client.request<AuthUser>('/api/v1/auth/me');
+    return this.client.request<AuthUser>(this.getAuthPath('/me'));
   }
 
   /**
@@ -145,7 +175,7 @@ export class AuthManager {
    * ```
    */
   async updateProfile(data: UpdateProfileRequest): Promise<AuthUser> {
-    return this.client.request<AuthUser>('/api/v1/auth/me', {
+    return this.client.request<AuthUser>(this.getAuthPath('/me'), {
       method: 'PUT',
       body: data
     });
@@ -166,7 +196,7 @@ export class AuthManager {
    * ```
    */
   async changePassword(data: ChangePasswordRequest): Promise<{ message: string }> {
-    return this.client.request<{ message: string }>('/api/v1/auth/change-password', {
+    return this.client.request<{ message: string }>(this.getAuthPath('/change-password'), {
       method: 'PUT',
       body: data
     });
@@ -187,7 +217,7 @@ export class AuthManager {
    * ```
    */
   async logout(): Promise<{ message: string }> {
-    return this.client.request<{ message: string }>('/api/v1/auth/logout', {
+    return this.client.request<{ message: string }>(this.getAuthPath('/logout'), {
       method: 'POST'
     });
   }
