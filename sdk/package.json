@@ -1,6 +1,6 @@
 {
   "name": "@ekoppen/cloudbox-sdk",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "type": "module",
   "description": "Official TypeScript SDK for CloudBox BaaS platform - Complete type-safe client with authentication, advanced queries, batch operations, and schema validation",
   "main": "dist/index.js",
