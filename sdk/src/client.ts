@@ -11,7 +11,10 @@ import {
   RequestOptions,
   ApiResponse,
   ApiError,
-  ConnectionTestResult
+  ConnectionTestResult,
+  AuthHeaderStrategy,
+  CORSErrorInfo,
+  AuthConfiguration
 } from './types';
 
 import { CollectionManager } from './managers/collections';
@@ -62,10 +65,210 @@ import { AuthManager } from './managers/auth';
  * });
  * ```
  */
+/**
+ * Authentication header strategies for different client scenarios
+ */
+const DEFAULT_AUTH_STRATEGIES: Record<string, AuthHeaderStrategy> = {
+  project: {
+    primary: 'Session-Token',
+    fallbacks: ['session-token', 'X-Session-Token', 'x-session-token', 'Authorization'],
+    transform: (token: string) => token.startsWith('Bearer ') ? token.slice(7) : token
+  },
+  admin: {
+    primary: 'Authorization',
+    fallbacks: ['Bearer', 'X-Auth-Token'],
+    transform: (token: string) => token.startsWith('Bearer ') ? token : `Bearer ${token}`
+  }
+};
+
+/**
+ * Authentication Header Manager - Handles header fallback strategies
+ */
+class AuthHeaderManager {
+  constructor(
+    private client: CloudBoxClient,
+    private strategies: Record<string, AuthHeaderStrategy> = DEFAULT_AUTH_STRATEGIES
+  ) {}
+
+  /**
+   * Make authenticated request with header fallback strategy
+   */
+  async makeAuthenticatedRequest<T>(
+    url: string,
+    options: RequestOptions = {},
+    maxRetries: number = 3
+  ): Promise<T> {
+    const strategy = this.getStrategy();
+    const triedHeaders: string[] = [];
+    let lastError: any;
+
+    // Skip fallback if explicitly disabled
+    if (options.skipAuthFallback) {
+      return this.client.directRequest<T>(url, options);
+    }
+
+    // Try each header in order
+    for (const header of [strategy.primary, ...strategy.fallbacks]) {
+      try {
+        triedHeaders.push(header);
+        const response = await this.tryWithHeader<T>(url, options, header, strategy);
+        return response;
+      } catch (error: any) {
+        lastError = error;
+        
+        // If it's not a CORS error, don't try other headers
+        if (!this.isCORSError(error)) {
+          break;
+        }
+        
+        // Continue to next header for CORS errors
+        continue;
+      }
+    }
+
+    // All headers failed - create enhanced error
+    throw this.createEnhancedError(lastError, url, strategy, triedHeaders);
+  }
+
+  /**
+   * Try request with specific header
+   */
+  private async tryWithHeader<T>(
+    url: string,
+    options: RequestOptions,
+    headerName: string,
+    strategy: AuthHeaderStrategy
+  ): Promise<T> {
+    const authToken = this.client.getAuthToken();
+    if (!authToken) {
+      return this.client.directRequest<T>(url, options);
+    }
+
+    const transformedToken = strategy.transform ? strategy.transform(authToken) : authToken;
+    const enhancedOptions = {
+      ...options,
+      headers: {
+        ...options.headers,
+        [headerName]: transformedToken
+      }
+    };
+
+    return this.client.directRequest<T>(url, enhancedOptions);
+  }
+
+  /**
+   * Get current authentication strategy
+   */
+  private getStrategy(): AuthHeaderStrategy {
+    const authMode = this.client.getAuthMode();
+    return this.strategies[authMode] || this.strategies.project;
+  }
+
+  /**
+   * Detect if error is CORS-related
+   */
+  private isCORSError(error: any): boolean {
+    if (!error) return false;
+    
+    const corsPatterns = [
+      /Access to fetch.*blocked by CORS/,
+      /Cross-Origin Request Blocked/,
+      /No 'Access-Control-Allow-Origin' header/,
+      /CORS error/,
+      /Failed to fetch/,
+      /Network Error/,
+      /TypeError.*Failed to fetch/
+    ];
+    
+    const message = error.message || error.toString();
+    return corsPatterns.some(pattern => pattern.test(message)) || error.status === 0;
+  }
+
+  /**
+   * Create enhanced error with troubleshooting information
+   */
+  private createEnhancedError(
+    originalError: any,
+    url: string,
+    strategy: AuthHeaderStrategy,
+    triedHeaders: string[]
+  ): ApiError {
+    const corsInfo = this.detectCORSError(originalError, url, triedHeaders);
+    
+    const error = new Error(
+      corsInfo ? this.createCORSErrorMessage(corsInfo) : originalError.message
+    ) as ApiError;
+    
+    error.status = originalError.status || 0;
+    error.response = originalError.response || null;
+    error.code = originalError.code;
+    error.isCorsError = !!corsInfo;
+    error.suggestions = corsInfo?.suggestions || [];
+    error.triedHeaders = triedHeaders;
+    
+    return error;
+  }
+
+  /**
+   * Detect and analyze CORS errors
+   */
+  private detectCORSError(error: any, url: string, triedHeaders: string[]): CORSErrorInfo | null {
+    if (!this.isCORSError(error)) return null;
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+    
+    return {
+      type: 'cors',
+      origin,
+      endpoint: url,
+      suggestions: this.generateCORSSuggestions(origin, url, triedHeaders),
+      triedHeaders
+    };
+  }
+
+  /**
+   * Generate CORS troubleshooting suggestions
+   */
+  private generateCORSSuggestions(origin: string, url: string, triedHeaders: string[]): string[] {
+    const suggestions = [];
+    
+    suggestions.push('🔧 CORS Configuration Issue Detected');
+    suggestions.push(`Origin: ${origin}`);
+    suggestions.push(`Endpoint: ${url}`);
+    suggestions.push(`Tried headers: ${triedHeaders.join(', ')}`);
+    suggestions.push('');
+    
+    suggestions.push('💡 Quick Fix Options:');
+    suggestions.push(`1. Run: node scripts/setup-cors.js --origin="${origin}"`);
+    suggestions.push(`2. Add to .env: CORS_ORIGINS=${origin},http://localhost:*`);
+    suggestions.push('3. Restart CloudBox backend after .env changes');
+    suggestions.push('');
+    
+    if (origin.includes('localhost')) {
+      suggestions.push('🏠 Development Setup:');
+      suggestions.push('For localhost development, add wildcard support:');
+      suggestions.push('CORS_ORIGINS=http://localhost:*,https://localhost:*');
+      suggestions.push('');
+    }
+    
+    suggestions.push('📚 More help: https://docs.cloudbox.dev/cors-setup');
+    
+    return suggestions;
+  }
+
+  /**
+   * Create user-friendly CORS error message
+   */
+  private createCORSErrorMessage(corsInfo: CORSErrorInfo): string {
+    return `CloudBox CORS Error\n\n${corsInfo.suggestions.join('\n')}`;
+  }
+}
+
 export class CloudBoxClient {
   private readonly config: Required<CloudBoxConfig>;
   private readonly baseUrl: string;
   private authToken?: string;
+  private readonly authHeaderManager: AuthHeaderManager;
   
   // Service managers
   public readonly collections: CollectionManager;
@@ -80,7 +283,7 @@ export class CloudBoxClient {
    * @param config - Configuration object with project details
    * @throws {Error} When required configuration is missing
    */
-  constructor(config: CloudBoxConfig) {
+  constructor(config: CloudBoxConfig & { authConfig?: AuthConfiguration }) {
     // Validate required configuration
     if (!config.projectId) {
       throw new Error('CloudBox SDK: projectId is required');
@@ -100,6 +303,12 @@ export class CloudBoxClient {
     // Build base URL following CloudBox API standards
     this.baseUrl = `${this.config.endpoint}/p/${this.config.projectId}/api`;
 
+    // Initialize authentication header manager
+    this.authHeaderManager = new AuthHeaderManager(
+      this,
+      config.authConfig?.strategies || DEFAULT_AUTH_STRATEGIES
+    );
+    
     // Initialize service managers
     this.collections = new CollectionManager(this);
     this.storage = new StorageManager(this);
@@ -124,67 +333,27 @@ export class CloudBoxClient {
    * });
    * ```
    */
+  /**
+   * Make an authenticated HTTP request with header fallback strategies
+   */
   async request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
-    // Determine if this is an admin endpoint based on path or authMode
-    const isAdminEndpoint = path.startsWith('/api/v1/') || 
-      (this.config.authMode === 'admin' && (path.startsWith('/users/') || path.includes('/auth')));
+    // Use authentication header manager for enhanced error handling
+    const maxRetries = options.maxRetries || 3;
+    return this.authHeaderManager.makeAuthenticatedRequest<T>(
+      this.buildUrl(path, options),
+      options,
+      maxRetries
+    );
+  }
+
+  /**
+   * Direct request without header fallback (used internally)
+   */
+  async directRequest<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
+    const url = this.buildUrl(path, options);
     
-    const url = isAdminEndpoint 
-      ? `${this.config.endpoint}${path}` 
-      : `${this.baseUrl}${path}`;
-    
-    // Prepare request headers with authentication
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'User-Agent': 'CloudBoxSDK/1.0.0',
-      ...options.headers
-    };
-
-    // Add appropriate authentication header
-    if (isAdminEndpoint) {
-      // Admin endpoints use Bearer token if available, otherwise API key
-      const authToken = options.headers?.['Authorization'] || this.authToken;
-      if (authToken) {
-        headers['Authorization'] = authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`;
-      } else {
-        headers['X-API-Key'] = this.config.apiKey;
-      }
-    } else {
-      // Project endpoints use API key
-      headers['X-API-Key'] = this.config.apiKey;
-    }
-
-    // Prepare request body
-    let body: string | FormData | undefined;
-    if (options.body) {
-      if (options.body instanceof FormData) {
-        body = options.body;
-        // Remove Content-Type header for FormData (let browser set it)
-        delete headers['Content-Type'];
-      } else {
-        body = JSON.stringify(options.body);
-      }
-    }
-
-    // Build URL with query parameters
-    const requestUrl = new URL(url);
-    if (options.params) {
-      Object.entries(options.params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          requestUrl.searchParams.set(key, String(value));
-        }
-      });
-    }
-
     try {
-      // Make the HTTP request
-      const response = await fetch(requestUrl.toString(), {
-        method: options.method || 'GET',
-        headers,
-        body
-      });
-
-      // Handle response
+      const response = await fetch(url, this.buildFetchOptions(path, options));
       return await this.handleResponse<T>(response);
     } catch (error) {
       // Wrap network errors
@@ -198,6 +367,73 @@ export class CloudBoxClient {
       }
       throw error;
     }
+  }
+
+  /**
+   * Build complete URL for request
+   */
+  private buildUrl(path: string, options: RequestOptions): string {
+    // Determine if this is an admin endpoint based on path or authMode
+    const isAdminEndpoint = path.startsWith('/api/v1/') || 
+      (this.config.authMode === 'admin' && (path.startsWith('/users/') || path.includes('/auth')));
+    
+    const baseUrl = isAdminEndpoint 
+      ? `${this.config.endpoint}${path}` 
+      : `${this.baseUrl}${path}`;
+    
+    // Build URL with query parameters
+    const requestUrl = new URL(baseUrl);
+    if (options.params) {
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          requestUrl.searchParams.set(key, String(value));
+        }
+      });
+    }
+    
+    return requestUrl.toString();
+  }
+
+  /**
+   * Build fetch options for request
+   */
+  private buildFetchOptions(path: string, options: RequestOptions): RequestInit {
+    // Determine if this is an admin endpoint based on path or authMode
+    const isAdminEndpoint = path.startsWith('/api/v1/') || 
+      (this.config.authMode === 'admin' && (path.startsWith('/users/') || path.includes('/auth')));
+    
+    // Prepare request headers with authentication
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'CloudBoxSDK/1.0.0',
+      'X-CloudBox-Client': 'SDK',
+      'X-CloudBox-Version': '1.0.0',
+      ...options.headers
+    };
+
+    // Add API key for all requests
+    headers['X-API-Key'] = this.config.apiKey;
+    
+    // Add appropriate authentication headers (handled by AuthHeaderManager)
+    // This method handles the base headers, auth headers are added by the manager
+
+    // Prepare request body
+    let body: string | FormData | undefined;
+    if (options.body) {
+      if (options.body instanceof FormData) {
+        body = options.body;
+        // Remove Content-Type header for FormData (let browser set it)
+        delete headers['Content-Type'];
+      } else {
+        body = JSON.stringify(options.body);
+      }
+    }
+
+    return {
+      method: options.method || 'GET',
+      headers,
+      body
+    };
   }
 
   /**
@@ -330,11 +566,45 @@ export class CloudBoxClient {
    * });
    * ```
    */
-  withConfig(config: Partial<CloudBoxConfig>): CloudBoxClient {
+  withConfig(config: Partial<CloudBoxConfig & { authConfig?: AuthConfiguration }>): CloudBoxClient {
     return new CloudBoxClient({
       ...this.config,
       ...config
     });
+  }
+
+  /**
+   * Enable CORS error debugging
+   */
+  enableDebugMode(): void {
+    this.authHeaderManager.enableDebug?.();
+  }
+
+  /**
+   * Test different authentication headers manually
+   */
+  async testAuthHeaders(path: string = '/collections'): Promise<{ [header: string]: boolean }> {
+    const strategy = this.config.authMode === 'admin' 
+      ? DEFAULT_AUTH_STRATEGIES.admin 
+      : DEFAULT_AUTH_STRATEGIES.project;
+    
+    const results: { [header: string]: boolean } = {};
+    
+    for (const header of [strategy.primary, ...strategy.fallbacks]) {
+      try {
+        await this.directRequest(path, {
+          skipAuthFallback: true,
+          headers: {
+            [header]: this.authToken || ''
+          }
+        });
+        results[header] = true;
+      } catch (error) {
+        results[header] = false;
+      }
+    }
+    
+    return results;
   }
 
   /**
@@ -385,5 +655,12 @@ export class CloudBoxClient {
    */
   getAuthMode(): 'admin' | 'project' {
     return this.config.authMode;
+  }
+
+  /**
+   * Get authentication header strategies
+   */
+  getAuthStrategies(): Record<string, AuthHeaderStrategy> {
+    return DEFAULT_AUTH_STRATEGIES;
   }
 }

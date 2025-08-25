@@ -163,7 +163,7 @@
 </style>
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth';
   import { API_ENDPOINTS, API_BASE_URL, createApiRequest } from '$lib/config';
@@ -174,6 +174,7 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import Textarea from '$lib/components/ui/textarea.svelte';
   import Icon from '$lib/components/ui/icon.svelte';
+  import Modal from '$lib/components/ui/modal.svelte';
   import ProjectCard from '$lib/components/ui/project-card.svelte';
   
   interface Organization {
@@ -226,6 +227,8 @@
           console.log(`Project ${index}:`, {
             id: project.id,
             name: project.name,
+            organization: project.organization,
+            hasOrganization: !!project.organization,
             idType: typeof project.id
           });
         });
@@ -255,9 +258,22 @@
         organizations = await response.json();
         console.log('Loaded organizations:', organizations);
         
-        // If no organizations exist, auto-select the first one if available
-        if (organizations.length > 0 && newProject.organization_id === 0) {
+        // Auto-select organization if only one exists or if "Default Organization" exists
+        if (organizations.length === 1 && newProject.organization_id === 0) {
+          // Only one organization, auto-select it
           newProject.organization_id = organizations[0].id;
+        } else if (organizations.length > 0 && newProject.organization_id === 0) {
+          // Multiple organizations, try to find and select "Default Organization"
+          const defaultOrg = organizations.find(org => 
+            org.name === 'Default Organization' || 
+            org.name.toLowerCase().includes('default')
+          );
+          if (defaultOrg) {
+            newProject.organization_id = defaultOrg.id;
+          } else {
+            // No default found, select the first one
+            newProject.organization_id = organizations[0].id;
+          }
         }
       } else {
         console.error('Failed to load organizations, status:', response.status);
@@ -303,7 +319,11 @@
 
       if (response.ok) {
         const project = await response.json();
-        projects = [...projects, project];
+        console.log('Created project response:', project);
+        
+        // Reload projects to ensure we get the organization data
+        await loadProjects();
+        
         showCreateModal = false;
         newProject = { name: '', description: '', organization_id: 0 };
       } else {
@@ -353,7 +373,24 @@
       </div>
     </div>
     <Button
-      on:click={() => showCreateModal = true}
+      on:click={() => {
+        showCreateModal = true;
+        // Reset and try to auto-select organization when opening modal
+        newProject = { name: '', description: '', organization_id: 0 };
+        if (organizations.length === 1) {
+          newProject.organization_id = organizations[0].id;
+        } else if (organizations.length > 0) {
+          const defaultOrg = organizations.find(org => 
+            org.name === 'Default Organization' || 
+            org.name.toLowerCase().includes('default')
+          );
+          if (defaultOrg) {
+            newProject.organization_id = defaultOrg.id;
+          } else {
+            newProject.organization_id = organizations[0].id;
+          }
+        }
+      }}
       variant="floating"
       size="icon-lg"
       iconOnly={true}
@@ -461,20 +498,28 @@
 </div>
 
 <!-- Create Project Modal -->
-{#if showCreateModal}
-  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50 overflow-y-auto">
-    <div class="glassmorphism-card max-w-lg w-full border-2 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center space-x-3 mb-6">
-        <div class="glassmorphism-icon bg-primary/20">
-          <Icon name="package" size={20} className="text-primary" />
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-foreground">Nieuw Project</h2>
-          <p class="text-sm text-muted-foreground">Maak een nieuwe CloudBox BaaS project aan</p>
-        </div>
-      </div>
-      
-      <form on:submit|preventDefault={createProject} class="space-y-6">
+<Modal 
+  bind:open={showCreateModal} 
+  size="lg" 
+  closeOnEscape={true} 
+  closeOnClickOutside={true}
+  on:close={() => {
+    showCreateModal = false;
+    newProject = { name: '', description: '', organization_id: 0 };
+  }}
+>
+  <div slot="header" class="flex items-center space-x-3">
+    <div class="glassmorphism-icon bg-primary/20">
+      <Icon name="package" size={20} className="text-primary" />
+    </div>
+    <div>
+      <h2 class="text-xl font-bold text-foreground">Nieuw Project</h2>
+      <p class="text-sm text-muted-foreground">Maak een nieuwe CloudBox BaaS project aan</p>
+    </div>
+  </div>
+
+  <!-- Modal content with proper form structure -->
+  <form on:submit|preventDefault={createProject} class="space-y-6">
         <div class="space-y-2">
           <Label for="project-name" class="flex items-center space-x-2">
             <Icon name="type" size={14} />
@@ -530,9 +575,16 @@
               required
               class="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             >
-              <option value={0}>Selecteer een organization</option>
+              {#if newProject.organization_id === 0}
+                <option value={0}>Selecteer een organization</option>
+              {/if}
               {#each organizations as org}
-                <option value={org.id}>{org.name}</option>
+                <option value={org.id}>
+                  {org.name}
+                  {#if org.name === 'Default Organization' || org.name.toLowerCase().includes('default')}
+                    (Standaard)
+                  {/if}
+                </option>
               {/each}
             </select>
           {/if}
@@ -541,63 +593,61 @@
           </p>
         </div>
 
-        <!-- Project Features Preview -->
-        <div class="glassmorphism-card bg-muted/30 p-4 space-y-3">
-          <div class="flex items-center space-x-2 text-sm font-medium text-foreground">
-            <Icon name="cloud" size={16} className="text-primary" />
-            <span>Jouw project krijgt toegang tot:</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="flex items-center space-x-2">
-              <Icon name="database" size={12} className="text-green-600" />
-              <span class="text-muted-foreground">Database API</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <Icon name="storage" size={12} className="text-purple-600" />
-              <span class="text-muted-foreground">File Storage</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <Icon name="auth" size={12} className="text-blue-600" />
-              <span class="text-muted-foreground">Authentication</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <Icon name="functions" size={12} className="text-orange-600" />
-              <span class="text-muted-foreground">Cloud Functions</span>
-            </div>
-          </div>
+    <!-- Project Features Preview -->
+    <div class="glassmorphism-card bg-muted/30 p-4 space-y-3">
+      <div class="flex items-center space-x-2 text-sm font-medium text-foreground">
+        <Icon name="cloud" size={16} className="text-primary" />
+        <span>Jouw project krijgt toegang tot:</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="flex items-center space-x-2">
+          <Icon name="database" size={12} className="text-green-600" />
+          <span class="text-muted-foreground">Database API</span>
         </div>
-        
-        <div class="flex space-x-3 pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            on:click={() => {
-              showCreateModal = false;
-              newProject = { name: '', description: '', organization_id: 0 };
-            }}
-            disabled={creating}
-            class="flex-1 flex items-center justify-center space-x-2"
-          >
-            <Icon name="x" size={14} />
-            <span>Annuleren</span>
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={creating || !newProject.name.trim() || !newProject.organization_id}
-            class="flex-1 flex items-center justify-center space-x-2"
-            loading={creating}
-          >
-            {#if creating}
-              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Aanmaken...</span>
-            {:else}
-              <Icon name="plus" size={14} />
-              <span>Project Aanmaken</span>
-            {/if}
-          </Button>
+        <div class="flex items-center space-x-2">
+          <Icon name="storage" size={12} className="text-purple-600" />
+          <span class="text-muted-foreground">File Storage</span>
         </div>
-      </form>
+        <div class="flex items-center space-x-2">
+          <Icon name="auth" size={12} className="text-blue-600" />
+          <span class="text-muted-foreground">Authentication</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <Icon name="functions" size={12} className="text-orange-600" />
+          <span class="text-muted-foreground">Cloud Functions</span>
+        </div>
+      </div>
     </div>
+  </form>
+
+  <div slot="footer" class="flex space-x-3">
+    <Button
+      type="button"
+      variant="secondary"
+      on:click={() => {
+        showCreateModal = false;
+        newProject = { name: '', description: '', organization_id: 0 };
+      }}
+      disabled={creating}
+      class="flex-1 flex items-center justify-center space-x-2"
+    >
+      <Icon name="x" size={14} />
+      <span>Annuleren</span>
+    </Button>
+    <Button
+      on:click={createProject}
+      variant="primary"
+      disabled={creating || !newProject.name.trim() || !newProject.organization_id}
+      class="flex-1 flex items-center justify-center space-x-2"
+      loading={creating}
+    >
+      {#if creating}
+        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+        <span>Aanmaken...</span>
+      {:else}
+        <Icon name="plus" size={14} />
+        <span>Project Aanmaken</span>
+      {/if}
+    </Button>
   </div>
-{/if}
+</Modal>

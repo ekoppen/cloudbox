@@ -43,9 +43,10 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 			
 			c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
 			
-			// Handle AllowedHeaders - if wildcard, allow common headers including Authorization
+			// Handle AllowedHeaders - if wildcard, allow comprehensive headers including Authorization and session tokens
 			if len(cfg.AllowedHeaders) == 1 && cfg.AllowedHeaders[0] == "*" {
-				c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-API-Key")
+				allowedHeaders := getDefaultAllowedHeaders(cfg)
+				c.Header("Access-Control-Allow-Headers", strings.Join(allowedHeaders, ", "))
 			} else {
 				c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
 			}
@@ -74,9 +75,10 @@ func CORS(cfg *config.Config) gin.HandlerFunc {
 			}
 			c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
 			
-			// Handle AllowedHeaders - if wildcard, allow common headers including Authorization
+			// Handle AllowedHeaders - if wildcard, allow comprehensive headers including Authorization and session tokens
 			if len(cfg.AllowedHeaders) == 1 && cfg.AllowedHeaders[0] == "*" {
-				c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-API-Key")
+				allowedHeaders := getDefaultAllowedHeaders(cfg)
+				c.Header("Access-Control-Allow-Headers", strings.Join(allowedHeaders, ", "))
 			} else {
 				c.Header("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
 			}
@@ -103,7 +105,24 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 				return true
 			}
 		}
+		
+		// Handle localhost wildcard patterns (e.g., http://localhost:*)
+		if matchesLocalhostPattern(origin, allowed) {
+			return true
+		}
 	}
+	
+	// Fall back to localhost detection for development environments
+	// This provides extra flexibility for development setups
+	if isLocalhostOrigin(origin) {
+		// Check if any allowed origins suggest localhost development is allowed
+		for _, allowed := range allowedOrigins {
+			if isLocalhostOrigin(allowed) || isLocalhostPattern(allowed) {
+				return true
+			}
+		}
+	}
+	
 	return false
 }
 
@@ -114,6 +133,89 @@ func contains(slice []string, item string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// getDefaultAllowedHeaders returns comprehensive headers for wildcard configuration
+// This can be customized via environment variables or extended for specific use cases
+func getDefaultAllowedHeaders(cfg *config.Config) []string {
+	baseHeaders := []string{
+		"Accept",
+		"Content-Type", 
+		"Content-Length",
+		"Accept-Encoding",
+		"Authorization",
+		"X-CSRF-Token",
+		"X-API-Key",
+		"Cache-Control",
+		"X-Requested-With",
+	}
+	
+	// Add session token headers (both variations for compatibility)
+	sessionHeaders := []string{
+		"Session-Token",
+		"session-token", 
+		"X-Session-Token",
+		"x-session-token",
+	}
+	
+	// Add project-specific headers if needed
+	projectHeaders := []string{
+		"X-Project-ID",
+		"X-Project-Token",
+		"Project-ID",
+		"Project-Token",
+	}
+	
+	// Combine all headers
+	allHeaders := append(baseHeaders, sessionHeaders...)
+	allHeaders = append(allHeaders, projectHeaders...)
+	
+	return allHeaders
+}
+
+// isLocalhostOrigin checks if an origin is a localhost-based development origin
+func isLocalhostOrigin(origin string) bool {
+	return strings.Contains(origin, "localhost") || 
+		   strings.Contains(origin, "127.0.0.1") || 
+		   strings.Contains(origin, "[::1]")
+}
+
+// isLocalhostPattern checks if an allowed origin pattern matches localhost development
+func isLocalhostPattern(pattern string) bool {
+	// Support patterns like:
+	// "http://localhost:*" 
+	// "https://localhost:*"
+	// "localhost:*"
+	// "*://localhost:*"
+	if strings.Contains(pattern, "localhost") && strings.Contains(pattern, "*") {
+		return true
+	}
+	
+	// Support IP-based patterns
+	if (strings.Contains(pattern, "127.0.0.1") || strings.Contains(pattern, "[::1]")) && 
+	   strings.Contains(pattern, "*") {
+		return true
+	}
+	
+	return false
+}
+
+// matchesLocalhostPattern checks if origin matches a localhost wildcard pattern
+func matchesLocalhostPattern(origin, pattern string) bool {
+	if !isLocalhostPattern(pattern) {
+		return false
+	}
+	
+	// Extract the base pattern without wildcards
+	if strings.Contains(pattern, "localhost") {
+		// Match patterns like "http://localhost:*" with "http://localhost:4041"
+		basePattern := strings.Replace(pattern, "*", "", -1)
+		if strings.HasPrefix(origin, basePattern) {
+			return true
+		}
+	}
+	
 	return false
 }
 

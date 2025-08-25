@@ -93,7 +93,7 @@ export class StorageManager {
       formData.append('folder', options.folder);
     }
 
-    return this.client.request<StorageFile>(`/storage/buckets/${bucketName}/files`, {
+    return this.client.request<StorageFile>(`/storage/${bucketName}/files`, {
       method: 'POST',
       body: formData
     });
@@ -110,7 +110,7 @@ export class StorageManager {
       folder?: string;
     } = {}
   ): Promise<StorageFile[]> {
-    return this.client.request<StorageFile[]>(`/storage/buckets/${bucketName}/files`, {
+    return this.client.request<StorageFile[]>(`/storage/${bucketName}/files`, {
       params: options
     });
   }
@@ -119,14 +119,14 @@ export class StorageManager {
    * Get file information by ID
    */
   async getFile(bucketName: string, fileId: string): Promise<StorageFile> {
-    return this.client.request<StorageFile>(`/storage/buckets/${bucketName}/files/${fileId}`);
+    return this.client.request<StorageFile>(`/storage/${bucketName}/files/${fileId}`);
   }
 
   /**
    * Delete a file
    */
   async deleteFile(bucketName: string, fileId: string): Promise<void> {
-    await this.client.request(`/storage/buckets/${bucketName}/files/${fileId}`, {
+    await this.client.request(`/storage/${bucketName}/files/${fileId}`, {
       method: 'DELETE'
     });
   }
@@ -139,7 +139,7 @@ export class StorageManager {
     fileId: string, 
     metadata: Record<string, any>
   ): Promise<StorageFile> {
-    return this.client.request<StorageFile>(`/storage/buckets/${bucketName}/files/${fileId}`, {
+    return this.client.request<StorageFile>(`/storage/${bucketName}/files/${fileId}`, {
       method: 'PUT',
       body: { metadata }
     });
@@ -151,7 +151,7 @@ export class StorageManager {
    * Get public URL for a file (requires public bucket)
    */
   async getPublicUrl(bucketName: string, fileId: string): Promise<PublicUrlResponse> {
-    return this.client.request<PublicUrlResponse>(`/storage/buckets/${bucketName}/files/${fileId}/public-url`);
+    return this.client.request<PublicUrlResponse>(`/storage/${bucketName}/files/${fileId}/public-url`);
   }
 
   /**
@@ -161,7 +161,7 @@ export class StorageManager {
     bucketName: string, 
     fileIds: string[]
   ): Promise<BatchPublicUrlsResponse> {
-    return this.client.request<BatchPublicUrlsResponse>(`/storage/buckets/${bucketName}/public-urls`, {
+    return this.client.request<BatchPublicUrlsResponse>(`/storage/${bucketName}/public-urls`, {
       method: 'POST',
       body: { file_ids: fileIds }
     });
@@ -181,7 +181,7 @@ export class StorageManager {
    * Delete multiple files at once
    */
   async deleteFiles(bucketName: string, fileIds: string[]): Promise<void> {
-    await this.client.request(`/storage/buckets/${bucketName}/files/batch`, {
+    await this.client.request(`/storage/${bucketName}/files/batch`, {
       method: 'DELETE',
       body: { file_ids: fileIds }
     });

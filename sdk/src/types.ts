@@ -23,6 +23,8 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   body?: any;
   params?: Record<string, any>;
+  maxRetries?: number;
+  skipAuthFallback?: boolean;
 }
 
 // ===============================
@@ -41,6 +43,29 @@ export interface ApiError extends Error {
   status: number;
   response: any;
   code?: string;
+  isCorsError?: boolean;
+  suggestions?: string[];
+  triedHeaders?: string[];
+}
+
+export interface AuthHeaderStrategy {
+  primary: string;
+  fallbacks: string[];
+  transform?: (token: string) => string;
+}
+
+export interface CORSErrorInfo {
+  type: 'cors';
+  origin: string;
+  endpoint: string;
+  suggestions: string[];
+  triedHeaders?: string[];
+}
+
+export interface AuthConfiguration {
+  strategies: Record<string, AuthHeaderStrategy>;
+  corsErrorHandler?: (error: CORSErrorInfo) => void;
+  debug?: boolean;
 }
 
 // ===============================

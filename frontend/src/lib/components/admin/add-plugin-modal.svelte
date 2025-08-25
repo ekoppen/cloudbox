@@ -147,14 +147,29 @@
       closeModal();
     }
   }
+
+  // Manage body scroll
+  function manageBodyScroll(isOpen: boolean) {
+    if (typeof document !== 'undefined') {
+      if (isOpen) {
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = '0px';
+      } else {
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+      }
+    }
+  }
+
+  $: manageBodyScroll(isOpen);
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 {#if isOpen}
-  <!-- Modal backdrop with proper positioning -->
+  <!-- Modal backdrop with improved positioning -->
   <div 
-    class="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16 sm:pt-20 overflow-y-auto"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden"
     role="dialog"
     aria-modal="true"
     aria-labelledby="add-plugin-title"
@@ -163,31 +178,32 @@
     on:click={closeModal}
     on:keydown={(e) => e.key === 'Escape' && closeModal()}
   >
-    <!-- Modal content with better height management -->
-    <div 
-      class="max-w-2xl w-full bg-card border border-border rounded-lg shadow-lg my-auto min-h-0 flex flex-col"
-      style="max-height: calc(100vh - 8rem);"
-      role="document"
-      on:click|stopPropagation
-    >
-      <!-- Header -->
-      <div class="p-6 border-b border-border">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <Icon name="plus" size={24} className="text-primary" />
-            <div>
-              <h2 id="add-plugin-title" class="text-xl font-semibold text-foreground">Add Plugin to Marketplace</h2>
-              <p class="text-sm text-muted-foreground">Add a new plugin to the CloudBox marketplace</p>
+    <!-- Modal container with proper sizing -->
+    <div class="relative w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <!-- Modal content with better height management -->
+      <div 
+        class="w-full bg-card border border-border rounded-lg shadow-lg max-h-full flex flex-col"
+        role="document"
+        on:click|stopPropagation
+      >
+        <!-- Header - Fixed -->
+        <div class="p-6 border-b border-border flex-shrink-0">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <Icon name="plus" size={24} className="text-primary" />
+              <div>
+                <h2 id="add-plugin-title" class="text-xl font-semibold text-foreground">Add Plugin to Marketplace</h2>
+                <p class="text-sm text-muted-foreground">Add a new plugin to the CloudBox marketplace</p>
+              </div>
             </div>
+            <Button on:click={closeModal} variant="outline" size="sm">
+              <Icon name="x" size={16} />
+            </Button>
           </div>
-          <Button on:click={closeModal} variant="outline" size="sm">
-            <Icon name="x" size={16} />
-          </Button>
         </div>
-      </div>
 
-      <!-- Form with proper scrolling -->
-      <div class="p-6 overflow-y-auto flex-1 min-h-0 space-y-6">
+        <!-- Form with proper scrolling -->
+        <div class="p-6 overflow-y-auto flex-1 min-h-0">
         <form on:submit|preventDefault={submitForm} class="space-y-4">
           <!-- Basic Information -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -352,27 +368,28 @@
               <Label for="plugin-approved">Approved Plugin</Label>
             </div>
           </div>
-        </form>
-      </div>
+          </form>
+        </div>
 
-      <!-- Footer -->
-      <div class="p-6 border-t border-border flex justify-between">
-        <Button on:click={closeModal} variant="outline">
-          Cancel
-        </Button>
-        
-        <Button 
-          on:click={submitForm}
-          disabled={loading}
-        >
-          {#if loading}
-            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            Adding Plugin...
-          {:else}
-            <Icon name="plus" size={16} className="mr-2" />
-            Add to Marketplace
-          {/if}
-        </Button>
+        <!-- Footer - Fixed -->
+        <div class="p-6 border-t border-border flex justify-between flex-shrink-0">
+          <Button on:click={closeModal} variant="outline">
+            Cancel
+          </Button>
+          
+          <Button 
+            on:click={submitForm}
+            disabled={loading}
+          >
+            {#if loading}
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Adding Plugin...
+            {:else}
+              <Icon name="plus" size={16} className="mr-2" />
+              Add to Marketplace
+            {/if}
+          </Button>
+        </div>
       </div>
     </div>
   </div>

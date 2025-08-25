@@ -154,11 +154,11 @@
           <h3 class="text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors">
             {project.name}
           </h3>
-          {#if project.organization}
+          {#if project.organization && project.organization.id > 0 && project.organization.name}
             <div class="flex items-center space-x-1.5 mt-1">
               <div 
                 class="h-2 w-2 rounded-full"
-                style="background-color: {project.organization.color}"
+                style="background-color: {project.organization.color || '#3B82F6'}"
               ></div>
               <span class="text-sm text-muted-foreground">{project.organization.name}</span>
             </div>

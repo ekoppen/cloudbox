@@ -591,6 +591,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	projectPublic.Use(middleware.ProjectCORS(cfg, db)) // Apply project-specific CORS
 	{
 		// User authentication (public endpoints)
+		projectPublic.POST("/users/register", userHandler.RegisterUser)
 		projectPublic.POST("/users/login", userHandler.LoginUser)
 	}
 
@@ -601,8 +602,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// Static file serving for deployments
 	r.Static("/static", "./uploads/deployments")
 	
-	// Public file serving for storage buckets
-	r.Static("/storage", "./uploads")
+	// NOTE: Removed insecure static file serving - use /public/* endpoints with proper access control
 
 	return r
 }

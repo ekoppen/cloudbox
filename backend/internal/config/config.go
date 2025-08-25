@@ -75,7 +75,7 @@ func Load() (*Config, error) {
 
 	maxFileSize, _ := strconv.ParseInt(getEnvOrDefault("MAX_FILE_SIZE", "10485760"), 10, 64)
 
-	allowedMethods := getStringSliceFromEnv("ALLOWED_METHODS", []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
+	allowedMethods := getCORSMethods()
 	fmt.Printf("DEBUG: ALLOWED_METHODS from env: %v\n", allowedMethods)
 	
 	config := &Config{
@@ -89,7 +89,7 @@ func Load() (*Config, error) {
 		
 		AllowedOrigins: getCORSOrigins(),
 		AllowedMethods: allowedMethods,
-		AllowedHeaders: getStringSliceFromEnv("ALLOWED_HEADERS", []string{"*"}),
+		AllowedHeaders: getCORSHeaders(),
 		
 		RateLimitRequests: viper.GetInt("RATE_LIMIT_REQUESTS"),
 		RateLimitWindow:   viper.GetString("RATE_LIMIT_WINDOW"),
@@ -153,4 +153,64 @@ func getCORSOrigins() []string {
 	// Default: allow all origins (development mode)
 	fmt.Printf("DEBUG: Using default CORS origins: [*]\n")
 	return []string{"*"}
+}
+
+// getCORSHeaders gets CORS headers from environment variables
+// Tries CORS_HEADERS first, then ALLOWED_HEADERS, with sensible defaults
+func getCORSHeaders() []string {
+	// Try CORS_HEADERS first (preferred for CORS configuration)
+	if value := os.Getenv("CORS_HEADERS"); value != "" {
+		fmt.Printf("DEBUG: Found CORS_HEADERS = %s\n", value)
+		result := strings.Split(value, ",")
+		// Trim whitespace from each header
+		for i, header := range result {
+			result[i] = strings.TrimSpace(header)
+		}
+		fmt.Printf("DEBUG: CORS headers: %v\n", result)
+		return result
+	}
+	
+	// Fallback to ALLOWED_HEADERS (for backwards compatibility)
+	if value := os.Getenv("ALLOWED_HEADERS"); value != "" {
+		fmt.Printf("DEBUG: Found ALLOWED_HEADERS = %s\n", value)
+		result := strings.Split(value, ",")
+		for i, header := range result {
+			result[i] = strings.TrimSpace(header)
+		}
+		return result
+	}
+	
+	// Default: wildcard (will use comprehensive headers from middleware)
+	fmt.Printf("DEBUG: Using default CORS headers: [*]\n")
+	return []string{"*"}
+}
+
+// getCORSMethods gets CORS methods from environment variables
+// Tries CORS_METHODS first, then ALLOWED_METHODS, with sensible defaults
+func getCORSMethods() []string {
+	// Try CORS_METHODS first (preferred for CORS configuration)
+	if value := os.Getenv("CORS_METHODS"); value != "" {
+		fmt.Printf("DEBUG: Found CORS_METHODS = %s\n", value)
+		result := strings.Split(value, ",")
+		// Trim whitespace from each method
+		for i, method := range result {
+			result[i] = strings.TrimSpace(method)
+		}
+		fmt.Printf("DEBUG: CORS methods: %v\n", result)
+		return result
+	}
+	
+	// Fallback to ALLOWED_METHODS (for backwards compatibility)
+	if value := os.Getenv("ALLOWED_METHODS"); value != "" {
+		fmt.Printf("DEBUG: Found ALLOWED_METHODS = %s\n", value)
+		result := strings.Split(value, ",")
+		for i, method := range result {
+			result[i] = strings.TrimSpace(method)
+		}
+		return result
+	}
+	
+	// Default: standard REST methods
+	fmt.Printf("DEBUG: Using default CORS methods\n")
+	return []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 }

@@ -498,7 +498,7 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 	privateURL := fmt.Sprintf("%s/p/%s/api/storage/%s/files/%s", baseURL, strconv.Itoa(int(project.ID)), bucketName, fileID)
 	
 	if bucket.IsPublic {
-		publicURL = fmt.Sprintf("%s/storage/%s/%s/%s", baseURL, strconv.Itoa(int(project.ID)), bucketName, fileName)
+		publicURL = fmt.Sprintf("%s/public/%s/%s/%s", baseURL, strconv.Itoa(int(project.ID)), bucketName, fileName)
 	}
 	
 	// Create file record
@@ -1295,7 +1295,9 @@ func (h *StorageHandler) AdminGetFilePublicURL(c *gin.Context) {
 	// Generate public URL
 	var publicURL string
 	if bucket.IsPublic {
-		publicURL = fmt.Sprintf("%s/public/%s/%s/%s", h.cfg.BaseURL, project.Slug, bucketName, file.FilePath)
+		// Extract just the filename from the file_path (which contains uploads/project_id/bucket_name/filename)
+		fileName := filepath.Base(file.FilePath)
+		publicURL = fmt.Sprintf("%s/public/%d/%s/%s", h.cfg.BaseURL, project.ID, bucketName, fileName)
 	}
 	
 	c.JSON(http.StatusOK, gin.H{
@@ -1349,7 +1351,9 @@ func (h *StorageHandler) GetFilePublicURL(c *gin.Context) {
 	// Generate public URL
 	var publicURL string
 	if bucket.IsPublic {
-		publicURL = fmt.Sprintf("%s/public/%s/%s/%s", h.cfg.BaseURL, project.Slug, bucketName, file.FilePath)
+		// Extract just the filename from the file_path (which contains uploads/project_id/bucket_name/filename)
+		fileName := filepath.Base(file.FilePath)
+		publicURL = fmt.Sprintf("%s/public/%d/%s/%s", h.cfg.BaseURL, project.ID, bucketName, fileName)
 	}
 	
 	c.JSON(http.StatusOK, gin.H{
@@ -1393,7 +1397,9 @@ func (h *StorageHandler) GetBatchFilePublicURLs(c *gin.Context) {
 	publicURLs := make(map[string]string)
 	for _, file := range files {
 		if bucket.IsPublic {
-			publicURLs[file.ID] = fmt.Sprintf("%s/public/%s/%s/%s", h.cfg.BaseURL, project.Slug, bucketName, file.FilePath)
+			// Extract just the filename from the file_path (which contains uploads/project_id/bucket_name/filename)
+			fileName := filepath.Base(file.FilePath)
+			publicURLs[file.ID] = fmt.Sprintf("%s/public/%d/%s/%s", h.cfg.BaseURL, project.ID, bucketName, fileName)
 		} else {
 			publicURLs[file.ID] = "" // Empty string for private buckets
 		}

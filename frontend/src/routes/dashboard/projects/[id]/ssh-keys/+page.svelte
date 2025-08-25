@@ -285,12 +285,15 @@
 </div>
 
 <!-- Create SSH Key Modal -->
-{#if showCreateModal}
-  <Modal open={showCreateModal} on:close={() => showCreateModal = false} size="xl">
-    <div class="p-8 max-h-[80vh] overflow-y-auto">
-      <h2 class="text-xl font-semibold mb-4">SSH Key Genereren</h2>
-      
-      <form on:submit|preventDefault={createSSHKey} class="space-y-4">
+<Modal 
+  bind:open={showCreateModal} 
+  title="SSH Key Genereren"
+  size="lg" 
+  closeOnEscape={true} 
+  closeOnClickOutside={true}
+  on:close={() => showCreateModal = false}
+>
+  <form on:submit|preventDefault={createSSHKey} class="space-y-4">
         <div>
           <Label for="name">Naam</Label>
           <Input
@@ -335,26 +338,30 @@
           </p>
         </div>
 
-        <div class="flex justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" on:click={() => showCreateModal = false}>
-            <Icon name="x" size={16} className="mr-2" />
-            Annuleren
-          </Button>
-          <Button type="submit" class="bg-primary text-primary-foreground">
-            <Icon name="shield" size={16} className="mr-2" />
-            SSH Key Genereren
-          </Button>
-        </div>
-      </form>
-    </div>
-  </Modal>
-{/if}
+  </form>
+
+  <div slot="footer" class="flex justify-end space-x-2">
+    <Button type="button" variant="outline" on:click={() => showCreateModal = false}>
+      <Icon name="x" size={16} className="mr-2" />
+      Annuleren
+    </Button>
+    <Button on:click={createSSHKey} class="bg-primary text-primary-foreground">
+      <Icon name="shield" size={16} className="mr-2" />
+      SSH Key Genereren
+    </Button>
+  </div>
+</Modal>
 
 <!-- Show Public Key Modal -->
-{#if showKeyModal && selectedKey}
-  <Modal open={showKeyModal} on:close={() => showKeyModal = false} size="xl">
-    <div class="p-8 max-h-[80vh] overflow-y-auto">
-      <h2 class="text-xl font-semibold mb-4">Public Key: {selectedKey.name}</h2>
+<Modal 
+  bind:open={showKeyModal} 
+  title="Public Key: {selectedKey?.name || ''}"
+  size="xl" 
+  closeOnEscape={true} 
+  closeOnClickOutside={true}
+  on:close={() => showKeyModal = false}
+>
+  {#if selectedKey}
       
       <div class="space-y-4">
         <div>
@@ -390,21 +397,26 @@
           <p><strong>Type:</strong> {selectedKey.key_type.toUpperCase()} {selectedKey.key_size} bits</p>
         </div>
 
-        <div class="flex justify-end pt-4">
-          <Button on:click={() => showKeyModal = false}>
-            Sluiten
-          </Button>
-        </div>
-      </div>
     </div>
-  </Modal>
-{/if}
+  {/if}
+
+  <div slot="footer" class="flex justify-end">
+    <Button on:click={() => showKeyModal = false}>
+      Sluiten
+    </Button>
+  </div>
+</Modal>
 
 <!-- Edit SSH Key Modal -->
-{#if showEditModal && editingKey}
-  <Modal open={showEditModal} on:close={() => showEditModal = false} size="xl">
-    <div class="p-8 max-h-[80vh] overflow-y-auto">
-      <h2 class="text-xl font-semibold mb-4">SSH Key Bewerken: {editingKey.name}</h2>
+<Modal 
+  bind:open={showEditModal} 
+  title="SSH Key Bewerken: {editingKey?.name || ''}"
+  size="lg" 
+  closeOnEscape={true} 
+  closeOnClickOutside={true}
+  on:close={() => showEditModal = false}
+>
+  {#if editingKey}
       
       <form on:submit|preventDefault={updateSSHKey} class="space-y-4">
         <div>
@@ -434,17 +446,17 @@
           </p>
         </div>
 
-        <div class="flex justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" on:click={() => showEditModal = false}>
-            <Icon name="x" size={16} className="mr-2" />
-            Annuleren
-          </Button>
-          <Button type="submit" class="bg-primary text-primary-foreground">
-            <Icon name="save" size={16} className="mr-2" />
-            Bijwerken
-          </Button>
-        </div>
       </form>
-    </div>
-  </Modal>
-{/if}
+  {/if}
+
+  <div slot="footer" class="flex justify-end space-x-2">
+    <Button type="button" variant="outline" on:click={() => showEditModal = false}>
+      <Icon name="x" size={16} className="mr-2" />
+      Annuleren
+    </Button>
+    <Button on:click={updateSSHKey} class="bg-primary text-primary-foreground">
+      <Icon name="save" size={16} className="mr-2" />
+      Bijwerken
+    </Button>
+  </div>
+</Modal>

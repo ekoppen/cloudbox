@@ -40,80 +40,95 @@
     dispatch('close');
   }
 
-  onMount(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
+  // Better body scroll management
+  function manageBodyScroll(isOpen: boolean) {
+    if (typeof document !== 'undefined') {
+      if (isOpen) {
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = '0px'; // Prevent layout shift
+      } else {
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+      }
     }
+  }
 
+  onMount(() => {
+    manageBodyScroll(open);
+    
     return () => {
-      document.body.style.overflow = '';
+      manageBodyScroll(false);
     };
   });
 
-  $: if (open) {
-    document.body.style.overflow = 'hidden';
-  } else {
-    document.body.style.overflow = '';
-  }
+  $: manageBodyScroll(open);
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 {#if open}
-  <!-- Enhanced Modal with proper backdrop coverage and scrolling -->
-  <div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto" transition:fade={{ duration: 200 }}>
-    <!-- Full screen backdrop -->
+  <!-- Enhanced Modal with improved scrolling and positioning -->
+  <div 
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden" 
+    transition:fade={{ duration: 200 }}
+  >
+    <!-- Full screen backdrop with proper scroll blocking -->
     <div 
-      class="absolute inset-0 modal-backdrop-enhanced" 
+      class="absolute inset-0 bg-black/50 backdrop-blur-md dark:bg-black/70 dark:backdrop-blur-lg" 
       on:click={closeOnClickOutside ? close : undefined}
       role="presentation"
     ></div>
     
-    <!-- Modal content with proper positioning -->
-    <div
-      bind:this={modalElement}
-      class="{sizeClasses[size]} relative z-10 my-auto min-h-0 flex flex-col"
-      style="max-height: calc(100vh - 8rem);"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? 'modal-title' : undefined}
-      transition:scale={{ duration: 200 }}
-      on:click|stopPropagation
+    <!-- Modal container with proper overflow handling -->
+    <div 
+      class="relative z-10 w-full max-w-[90vw] max-h-[90vh] flex flex-col"
+      style="max-width: {size === 'sm' ? '24rem' : size === 'md' ? '32rem' : size === 'lg' ? '42rem' : size === 'xl' ? '56rem' : size === '2xl' ? '72rem' : '80rem'};"
     >
-      <!-- Header -->
-      {#if title || $$slots.header}
-        <div class="flex items-center justify-between mb-4">
-          {#if $$slots.header}
-            <slot name="header" />
-          {:else}
-            <h2 id="modal-title" class="text-lg font-semibold">
-              {title}
-            </h2>
-          {/if}
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            on:click={close}
-            class="btn-sm btn-square"
-            aria-label="Sluiten"
-          >
-            <Icon name="x" size={16} className="icon-contrast" />
-          </Button>
-        </div>
-      {/if}
+      <!-- Modal content with scrollable body -->
+      <div
+        bind:this={modalElement}
+        class="{sizeClasses[size]} w-full max-h-full flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+        transition:scale={{ duration: 200 }}
+        on:click|stopPropagation
+      >
+        <!-- Header - Fixed at top -->
+        {#if title || $$slots.header}
+          <div class="flex items-center justify-between mb-4 flex-shrink-0">
+            {#if $$slots.header}
+              <slot name="header" />
+            {:else}
+              <h2 id="modal-title" class="text-lg font-semibold">
+                {title}
+              </h2>
+            {/if}
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              on:click={close}
+              class="btn-sm btn-square"
+              aria-label="Sluiten"
+            >
+              <Icon name="x" size={16} className="icon-contrast" />
+            </Button>
+          </div>
+        {/if}
 
-      <!-- Content with proper scrolling -->
-      <div class="modal-content flex-1 min-h-0 overflow-y-auto">
-        <slot />
+        <!-- Content with proper scrolling -->
+        <div class="modal-content flex-1 min-h-0 overflow-y-auto">
+          <slot />
+        </div>
+
+        <!-- Footer - Fixed at bottom -->
+        {#if $$slots.footer}
+          <div class="modal-action flex-shrink-0">
+            <slot name="footer" />
+          </div>
+        {/if}
       </div>
-
-      <!-- Footer -->
-      {#if $$slots.footer}
-        <div class="modal-action">
-          <slot name="footer" />
-        </div>
-      {/if}
     </div>
   </div>
 {/if}

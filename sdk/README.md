@@ -57,6 +57,48 @@ if (connection.success) {
 
 ## 📚 Core Features
 
+### 🔐 Authentication
+
+JWT-based authentication with complete session management. The auth manager handles user registration, login, and session management.
+
+```typescript
+// Register a new user
+const { user, token } = await client.auth.register({
+  email: 'user@example.com',
+  password: 'securePassword123',
+  name: 'John Doe'
+});
+
+// Login existing user
+const { user, token } = await client.auth.login({
+  email: 'user@example.com',
+  password: 'securePassword123'
+});
+
+// IMPORTANT: Set token for authenticated requests
+client.setAuthToken(token);
+
+// Get current authenticated user
+// Note: me() uses the token already set on the client, no parameters needed!
+const currentUser = await client.auth.me();
+console.log('Logged in as:', currentUser.email);
+
+// Update profile
+await client.auth.updateProfile({
+  name: 'Jane Doe',
+  metadata: { bio: 'Software Developer' }
+});
+
+// Change password
+await client.auth.changePassword({
+  current_password: 'oldPassword123',
+  new_password: 'newPassword456'
+});
+
+// Logout
+await client.auth.logout();
+```
+
 ### 📊 Collections (Database)
 
 Manage NoSQL collections with schema validation and powerful querying.
@@ -209,9 +251,10 @@ interface CloudBoxConfig {
 
 #### Service Managers
 
+- `client.auth`: Authentication and session management (register, login, me, logout)
 - `client.collections`: Collection and document operations
 - `client.storage`: File storage and bucket operations  
-- `client.users`: User management and authentication
+- `client.users`: User management operations (admin)
 - `client.functions`: Serverless function operations
 
 ## 🔗 Related Links

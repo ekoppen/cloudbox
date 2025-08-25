@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -314,6 +316,13 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 // LoginUser authenticates a user and creates a session
 func (h *UserHandler) LoginUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
+	
+	// Debug: Print raw request body
+	if data, err := c.GetRawData(); err == nil {
+		fmt.Printf("LoginUser: Raw request body: %s\n", string(data))
+		// Reset the body for binding
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(data))
+	}
 	
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -750,6 +759,78 @@ func (h *UserHandler) AdminUpdateAuthSettings(c *gin.Context) {
 	
 	// Call the regular UpdateAuthSettings method
 	h.UpdateAuthSettings(c)
+}
+
+// RegisterUser handles user registration for project applications
+func (h *UserHandler) RegisterUser(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	
+	var req struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required,min=8"`
+		Name     string `json:"name" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Check if user already exists in this project
+	var existingUser models.AppUser
+	if err := h.db.Where("project_id = ? AND email = ?", project.ID, req.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
+		return
+	}
+	
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	
+	// Create user
+	user := models.AppUser{
+		ProjectID:    project.ID,
+		Email:        req.Email,
+		PasswordHash: string(hashedPassword),
+		Name:         req.Name,
+		IsActive:     true,
+	}
+	
+	if err := h.db.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+	
+	// Create session
+	sessionToken, err := generateSecureToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate session token"})
+		return
+	}
+	
+	session := models.AppSession{
+		UserID:      user.ID,
+		ProjectID:   project.ID,
+		Token:       sessionToken,
+		ExpiresAt:   time.Now().Add(24 * time.Hour),
+		IPAddress:   c.ClientIP(),
+		UserAgent:   c.GetHeader("User-Agent"),
+		IsActive:    true,
+	}
+	
+	if err := h.db.Create(&session).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+		return
+	}
+	
+	c.JSON(http.StatusCreated, gin.H{
+		"user": user,
+		"token": sessionToken,
+		"expires_at": session.ExpiresAt,
+	})
 }
 
 // Helper functions

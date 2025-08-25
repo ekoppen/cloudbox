@@ -34,7 +34,9 @@ func (h *PublicFileHandler) ServePublicFile(c *gin.Context) {
 	projectIDStr := c.Param("project_id")
 	bucketName := c.Param("bucket_name")
 	filePath := c.Param("file_path")
-
+	
+	log.Printf("[DEBUG] PublicFile request: project=%s, bucket=%s, file=%s", projectIDStr, bucketName, filePath)
+	
 	// Parse project ID as integer
 	projectID, parseErr := strconv.ParseUint(projectIDStr, 10, 32)
 	if parseErr != nil {
@@ -43,8 +45,17 @@ func (h *PublicFileHandler) ServePublicFile(c *gin.Context) {
 	}
 
 	// Security: Clean the file path to prevent directory traversal
-	filePath = filepath.Clean(filePath)
-	if strings.Contains(filePath, "..") || strings.HasPrefix(filePath, "/") {
+	// The /*file_path parameter includes leading slash, so strip it
+	filePath = strings.TrimPrefix(filePath, "/")
+	
+	// Basic security check - no directory traversal allowed
+	if strings.Contains(filePath, "..") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
+		return
+	}
+	
+	// Validate that we have a non-empty filename
+	if len(filePath) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
 		return
 	}
@@ -95,7 +106,12 @@ func (h *PublicFileHandler) validatePublicBucket(projectID uint, bucketName stri
 // validateFile checks if file exists and belongs to project/bucket
 func (h *PublicFileHandler) validateFile(projectID uint, bucketName, filePath string) (*models.File, error) {
 	var file models.File
-	if err := h.db.Where("project_id = ? AND bucket_name = ? AND file_path = ?", projectID, bucketName, filePath).First(&file).Error; err != nil {
+	
+	// First try to find the file by filename (extract from file_path)
+	// The filePath parameter contains just the filename, but database stores full path
+	expectedFilePath := fmt.Sprintf("uploads/%d/%s/%s", projectID, bucketName, filePath)
+	
+	if err := h.db.Where("project_id = ? AND bucket_name = ? AND file_path = ?", projectID, bucketName, expectedFilePath).First(&file).Error; err != nil {
 		return nil, err
 	}
 	return &file, nil
@@ -103,8 +119,8 @@ func (h *PublicFileHandler) validateFile(projectID uint, bucketName, filePath st
 
 // serveFileWithCache serves the file with proper caching headers
 func (h *PublicFileHandler) serveFileWithCache(c *gin.Context, file *models.File, bucket *models.Bucket) {
-	// Build full file path
-	fullPath := filepath.Join("./uploads", fmt.Sprintf("%d", file.ProjectID), file.BucketName, file.FilePath)
+	// Build full file path - file.FilePath already contains the full path (uploads/project_id/bucket_name/filename)
+	fullPath := filepath.Join(".", file.FilePath)
 
 	// Check if file exists on disk
 	fileInfo, err := os.Stat(fullPath)

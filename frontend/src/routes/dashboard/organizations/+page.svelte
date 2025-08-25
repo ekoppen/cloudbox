@@ -184,7 +184,7 @@
 </style>
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { auth } from '$lib/stores/auth';
   import { toastStore } from '$lib/stores/toast';
   import { API_ENDPOINTS, createApiRequest } from '$lib/config';
@@ -223,8 +223,20 @@
     '#84CC16', // Lime
   ];
 
+  // Toggle body scroll when modal opens/closes
+  $: if (showCreateModal) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+
   onMount(async () => {
     await loadOrganizations();
+  });
+
+  onDestroy(() => {
+    // Clean up body scroll on component destroy
+    document.body.style.overflow = '';
   });
 
   async function loadOrganizations() {
@@ -458,18 +470,18 @@
 
 <!-- Create Organization Modal -->
 {#if showCreateModal}
-  <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => showCreateModal = false}>
-    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl my-auto modal-content-wrapper"
+  <div class="fixed inset-0 modal-backdrop-enhanced flex items-center justify-center p-4 z-50 overflow-y-auto" 
+       on:click|self={() => showCreateModal = false}>
+    <div class="glassmorphism-card max-w-md w-full border-2 shadow-2xl my-8 max-h-[90vh] flex flex-col"
          on:click|stopPropagation>
-      <div class="flex items-center space-x-3 mb-6">
+      <div class="flex items-center space-x-3 mb-6 flex-shrink-0">
         <div class="glassmorphism-icon bg-primary/20">
           <Icon name="building" size={20} className="text-primary" />
         </div>
         <h2 class="text-xl font-bold text-foreground">Nieuwe Organization</h2>
       </div>
       
-      <form on:submit|preventDefault={createOrganization} class="space-y-6">
+      <form on:submit|preventDefault={createOrganization} class="space-y-6 overflow-y-auto flex-1 pr-2">
         <div class="space-y-2">
           <Label for="org-name" class="flex items-center space-x-2">
             <Icon name="type" size={14} />
@@ -548,33 +560,33 @@
             </div>
           </div>
         </div>
-
-        <div class="flex space-x-3 pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            on:click={() => {
-              showCreateModal = false;
-              newOrgName = '';
-              newOrgDescription = '';
-              newOrgColor = '#3B82F6';
-            }}
-            class="flex-1 flex items-center justify-center space-x-2"
-          >
-            <Icon name="x" size={14} />
-            <span>Annuleren</span>
-          </Button>
-          <Button 
-            type="submit"
-            variant="primary"
-            disabled={!newOrgName.trim()}
-            class="flex-1 flex items-center justify-center space-x-2"
-          >
-            <Icon name="plus" size={14} />
-            <span>Organization Aanmaken</span>
-          </Button>
-        </div>
       </form>
+      
+      <div class="flex space-x-3 pt-4 flex-shrink-0 border-t mt-4">
+        <Button
+          type="button"
+          variant="secondary"
+          on:click={() => {
+            showCreateModal = false;
+            newOrgName = '';
+            newOrgDescription = '';
+            newOrgColor = '#3B82F6';
+          }}
+          class="flex-1 flex items-center justify-center space-x-2"
+        >
+          <Icon name="x" size={14} />
+          <span>Annuleren</span>
+        </Button>
+        <Button 
+          on:click={createOrganization}
+          variant="primary"
+          disabled={!newOrgName.trim()}
+          class="flex-1 flex items-center justify-center space-x-2"
+        >
+          <Icon name="plus" size={14} />
+          <span>Organization Aanmaken</span>
+        </Button>
+      </div>
     </div>
   </div>
 {/if}
