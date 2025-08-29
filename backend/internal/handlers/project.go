@@ -475,11 +475,15 @@ type ProjectStatsResponse struct {
 	APIKeysCount     int64   `json:"api_keys_count"`
 	DatabaseTables   int64   `json:"database_tables"`
 	StorageUsed      int64   `json:"storage_used"`
+	StorageLimit     int64   `json:"storage_limit"`     // Storage limit in MB
 	UsersCount       int64   `json:"users_count"`
 	DeploymentsCount int64   `json:"deployments_count"`
 	BucketsCount     int64   `json:"buckets_count"`
 	FilesCount       int64   `json:"files_count"`
+	APILimit         int     `json:"api_limit"`          // Monthly API request limit
+	Uptime           float64 `json:"uptime"`             // Uptime percentage
 	ActivityData     []gin.H `json:"activity_data"`
+	RecentActivity   []gin.H `json:"recent_activity"`   // Recent API activity
 }
 
 // GetProjectStats returns statistics for a specific project
@@ -589,6 +593,63 @@ func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 			"day":      dayName,
 			"date":     dateStr,
 			"requests": requests,
+		})
+	}
+
+	// Set storage limit (can be made configurable per project later)
+	stats.StorageLimit = 1000 // 1GB in MB
+	
+	// Set API limit (can be made configurable per project later)
+	stats.APILimit = 100000 // 100k requests per month
+	
+	// Calculate uptime based on error rate (simplified calculation)
+	var totalRequests, successRequests int64
+	h.db.Model(&models.APIRequestLog{}).Where("project_id = ?", projectID).Count(&totalRequests)
+	h.db.Model(&models.APIRequestLog{}).Where("project_id = ? AND status_code < 400", projectID).Count(&successRequests)
+	
+	if totalRequests > 0 {
+		stats.Uptime = float64(successRequests) / float64(totalRequests) * 100
+	} else {
+		stats.Uptime = 100.0 // Default to 100% if no requests
+	}
+	
+	// Get recent API activity (last 10 requests)
+	type RecentActivity struct {
+		ID           uint   `json:"id"`
+		Method       string `json:"method"`
+		Endpoint     string `json:"endpoint"`
+		StatusCode   int    `json:"status_code"`
+		ResponseTime int    `json:"response_time_ms"`
+		CreatedAt    time.Time `json:"created_at"`
+	}
+	
+	var recentLogs []RecentActivity
+	h.db.Model(&models.APIRequestLog{}).
+		Where("project_id = ?", projectID).
+		Order("created_at DESC").
+		Limit(10).
+		Find(&recentLogs)
+	
+	// Convert to activity format
+	stats.RecentActivity = make([]gin.H, 0)
+	for _, log := range recentLogs {
+		status := "success"
+		if log.StatusCode >= 400 {
+			status = "error"
+		} else if log.StatusCode >= 300 {
+			status = "warning"
+		}
+		
+		// Format message
+		message := fmt.Sprintf("%s %s", log.Method, log.Endpoint)
+		timestamp := log.CreatedAt.Format("15:04")
+		
+		stats.RecentActivity = append(stats.RecentActivity, gin.H{
+			"id":        log.ID,
+			"type":      "API Request",
+			"message":   message,
+			"status":    status,
+			"timestamp": timestamp,
 		})
 	}
 

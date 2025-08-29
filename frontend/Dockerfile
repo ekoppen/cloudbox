@@ -18,6 +18,8 @@ ARG PUBLIC_API_URL
 ENV PUBLIC_API_URL=$PUBLIC_API_URL
 
 # Build the application
+# First sync SvelteKit to generate .svelte-kit directory
+RUN npx svelte-kit sync || (echo "SvelteKit sync failed, using fallback tsconfig" && cp tsconfig.fallback.json tsconfig.json)
 RUN npm run build
 
 # Production stage

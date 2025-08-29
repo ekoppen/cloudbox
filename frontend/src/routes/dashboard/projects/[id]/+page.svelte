@@ -14,8 +14,12 @@
     api_keys_count: number;
     database_tables: number;
     storage_used: number;
+    storage_limit: number;
     users_count: number;
     deployments_count: number;
+    api_limit: number;
+    uptime: number;
+    recent_activity?: RecentActivity[];
   }
 
   interface RecentActivity {
@@ -33,8 +37,12 @@
     api_keys_count: 0,
     database_tables: 0,
     storage_used: 0,
+    storage_limit: 1000,
     users_count: 0,
-    deployments_count: 0
+    deployments_count: 0,
+    api_limit: 100000,
+    uptime: 100,
+    recent_activity: []
   };
 
   let recentActivity: RecentActivity[] = [];
@@ -44,6 +52,9 @@
 
   // Chart data - will be loaded from API
   let chartData: Array<{day: string, requests: number}> = [];
+  
+  // Calculate maximum requests for chart scaling
+  $: chartMaxRequests = chartData.length > 0 ? Math.max(...chartData.map(d => d.requests), 1) : 1;
 
   onMount(() => {
     loadProjectStats();
@@ -64,6 +75,7 @@
         const data = await response.json();
         stats = data;
         chartData = data.activity_data || [];
+        recentActivity = data.recent_activity || [];
       } else {
         console.error('Failed to load project stats');
       }
@@ -191,7 +203,7 @@
               <div class="bg-muted rounded-full h-2">
                 <div 
                   class="bg-primary h-2 rounded-full" 
-                  style="width: {(day.requests / 2000) * 100}%"
+                  style="width: {chartMaxRequests > 0 ? (day.requests / chartMaxRequests) * 100 : 0}%"
                 ></div>
               </div>
             </div>
@@ -211,12 +223,12 @@
         <div>
           <div class="flex justify-between text-sm">
             <span class="text-muted-foreground">Opslag gebruikt</span>
-            <span class="font-medium text-foreground">{stats.storage_used} MB / 1000 MB</span>
+            <span class="font-medium text-foreground">{stats.storage_used} MB / {stats.storage_limit} MB</span>
           </div>
           <div class="mt-1 bg-muted rounded-full h-2">
             <div 
               class="bg-green-500 h-2 rounded-full" 
-              style="width: {(stats.storage_used / 1000) * 100}%"
+              style="width: {Math.min((stats.storage_used / stats.storage_limit) * 100, 100)}%"
             ></div>
           </div>
         </div>
@@ -224,12 +236,12 @@
         <div>
           <div class="flex justify-between text-sm">
             <span class="text-muted-foreground">API Limiet</span>
-            <span class="font-medium text-foreground">{stats.requests_month.toLocaleString()} / 100,000</span>
+            <span class="font-medium text-foreground">{stats.requests_month.toLocaleString()} / {stats.api_limit.toLocaleString()}</span>
           </div>
           <div class="mt-1 bg-muted rounded-full h-2">
             <div 
               class="bg-blue-500 h-2 rounded-full" 
-              style="width: {(stats.requests_month / 100000) * 100}%"
+              style="width: {Math.min((stats.requests_month / stats.api_limit) * 100, 100)}%"
             ></div>
           </div>
         </div>
@@ -240,7 +252,7 @@
             <p class="text-sm text-muted-foreground">Deployments</p>
           </div>
           <div class="text-center">
-            <p class="text-2xl font-bold text-foreground">99.9%</p>
+            <p class="text-2xl font-bold text-foreground">{stats.uptime.toFixed(1)}%</p>
             <p class="text-sm text-muted-foreground">Uptime</p>
           </div>
         </div>
@@ -257,28 +269,45 @@
       </div>
     </div>
     <div class="divide-y divide-border">
-      {#each recentActivity as activity}
-        <div class="px-6 py-4 flex items-center space-x-4">
-          <div class="flex-shrink-0">
-            <span class="inline-flex items-center justify-center h-8 w-8 rounded-full {getStatusColor(activity.status)}">
-              {getStatusIcon(activity.status)}
-            </span>
+      {#if recentActivity && recentActivity.length > 0}
+        {#each recentActivity as activity}
+          <div class="px-6 py-4 flex items-center space-x-4">
+            <div class="flex-shrink-0">
+              <span class="inline-flex items-center justify-center h-8 w-8 rounded-full {getStatusColor(activity.status)}">
+                {getStatusIcon(activity.status)}
+              </span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-foreground">{activity.message}</p>
+              <p class="text-sm text-muted-foreground">{activity.type} • {activity.timestamp}</p>
+            </div>
+            <div class="flex-shrink-0">
+              <Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground">
+                Meer info
+              </Button>
+            </div>
           </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-foreground">{activity.message}</p>
-            <p class="text-sm text-muted-foreground">{activity.type} • {activity.timestamp}</p>
+        {/each}
+      {:else}
+        <div class="px-6 py-8 text-center">
+          <div class="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
+            <Icon name="functions" size={24} className="text-muted-foreground" />
           </div>
-          <div class="flex-shrink-0">
-            <Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground">
-              Meer info
-            </Button>
-          </div>
+          <h3 class="text-sm font-medium text-foreground mb-1">Geen recente activiteit</h3>
+          <p class="text-sm text-muted-foreground">
+            API requests zullen hier verschijnen zodra je API wordt gebruikt.
+          </p>
         </div>
-      {/each}
+      {/if}
     </div>
     <div class="px-6 py-3 bg-muted/30 text-center">
-      <Button variant="ghost" size="sm" class="text-primary hover:text-primary/80 font-medium">
-        Alle activiteit bekijken
+      <Button 
+        href="/dashboard/projects/{projectId}/api/stats"
+        variant="ghost" 
+        size="sm" 
+        class="text-primary hover:text-primary/80 font-medium"
+      >
+        Alle API statistieken bekijken
       </Button>
     </div>
   </Card>
@@ -298,9 +327,9 @@
         <Icon name="auth" size={16} />
         <span>API Keys</span>
       </Button>
-      <Button href="/dashboard/projects/{projectId}/settings" variant="outline" class="flex items-center justify-center space-x-2 h-12">
-        <Icon name="settings" size={16} />
-        <span>CORS Instellen</span>
+      <Button href="/dashboard/projects/{projectId}/api" variant="outline" class="flex items-center justify-center space-x-2 h-12">
+        <Icon name="zap" size={16} />
+        <span>API Beheren</span>
       </Button>
       <Button class="flex items-center justify-center space-x-2 h-12">
         <Icon name="backup" size={16} />
