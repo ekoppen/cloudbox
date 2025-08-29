@@ -349,11 +349,14 @@ export class CloudBoxClient {
   /**
    * Direct request without header fallback (used internally)
    */
-  async directRequest<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
-    const url = this.buildUrl(path, options);
+  async directRequest<T = any>(pathOrUrl: string, options: RequestOptions = {}): Promise<T> {
+    // Check if pathOrUrl is already a complete URL
+    const url = (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) 
+      ? pathOrUrl 
+      : this.buildUrl(pathOrUrl, options);
     
     try {
-      const response = await fetch(url, this.buildFetchOptions(path, options));
+      const response = await fetch(url, this.buildFetchOptions(pathOrUrl, options));
       return await this.handleResponse<T>(response);
     } catch (error) {
       // Wrap network errors
@@ -373,6 +376,17 @@ export class CloudBoxClient {
    * Build complete URL for request
    */
   private buildUrl(path: string, options: RequestOptions): string {
+    // Check if path is already a full URL (fallback protection)
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      // Extract just the path part from the full URL
+      try {
+        const url = new URL(path);
+        path = url.pathname + url.search + url.hash;
+      } catch (e) {
+        // If parsing fails, use as-is
+      }
+    }
+    
     // Determine if this is an admin endpoint based on path or authMode
     const isAdminEndpoint = path.startsWith('/api/v1/') || 
       (this.config.authMode === 'admin' && (path.startsWith('/users/') || path.includes('/auth')));
@@ -577,7 +591,7 @@ export class CloudBoxClient {
    * Enable CORS error debugging
    */
   enableDebugMode(): void {
-    this.authHeaderManager.enableDebug?.();
+    // Debug mode enabled by default in development
   }
 
   /**
@@ -662,5 +676,80 @@ export class CloudBoxClient {
    */
   getAuthStrategies(): Record<string, AuthHeaderStrategy> {
     return DEFAULT_AUTH_STRATEGIES;
+  }
+
+  /**
+   * Refresh API discovery for the current project
+   * 
+   * Triggers a programmatic refresh of the API route discovery system.
+   * Useful for:
+   * - App updates and deployments
+   * - Database schema changes
+   * - Template installations/updates
+   * 
+   * @param options - Refresh options
+   * @returns Promise resolving to refresh result
+   * 
+   * @example
+   * ```typescript
+   * // Basic refresh after app update
+   * const result = await client.refreshAPIDiscovery({
+   *   reason: 'App update deployed',
+   *   source: 'PhotoPortfolio App v2.1.0'
+   * });
+   * console.log(`✅ Refreshed ${result.routeCount} API routes`);
+   * 
+   * // Advanced refresh with webhook
+   * await client.refreshAPIDiscovery({
+   *   reason: 'Database migration completed',
+   *   source: 'Migration Script',
+   *   forceRescan: true,
+   *   templates: ['photoportfolio'],
+   *   webhook: 'https://myapp.com/webhooks/discovery-updated'
+   * });
+   * ```
+   */
+  async refreshAPIDiscovery(options: {
+    /** Why the refresh was triggered */
+    reason?: string;
+    /** What app/service triggered this refresh */
+    source?: string;
+    /** Specific templates to refresh (optional) */
+    templates?: string[];
+    /** Force full database rescan */
+    forceRescan?: boolean;
+    /** Optional webhook URL to call when refresh completes */
+    webhook?: string;
+  } = {}): Promise<{
+    success: boolean;
+    message: string;
+    projectId: number;
+    routeCount: number;
+    categories: string[];
+    triggeredBy: string;
+    reason: string;
+    discovery: any;
+  }> {
+    const refreshData = {
+      reason: options.reason || 'SDK refresh trigger',
+      source: options.source || 'CloudBox SDK',
+      templates: options.templates,
+      forceRescan: options.forceRescan !== false, // default true
+      webhook: options.webhook
+    };
+
+    try {
+      const result = await this.request('/discovery/refresh', {
+        method: 'POST',
+        body: refreshData
+      });
+
+      return result;
+    } catch (error) {
+      // Handle and re-throw with better context
+      const apiError = error as ApiError;
+      apiError.message = `Failed to refresh API discovery: ${apiError.message}`;
+      throw apiError;
+    }
   }
 }

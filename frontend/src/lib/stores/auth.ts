@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
+import { browser, dev } from '$app/environment';
 import { API_ENDPOINTS, createApiRequest } from '$lib/config';
 
 export interface User {
@@ -37,6 +37,30 @@ function createAuthStore() {
     // Initialize auth state from localStorage
     async init() {
       console.log('Auth store: initializing...');
+      
+      // Development bypass - automatically login with mock user
+      if (dev && browser) {
+        console.log('Auth store: DEV MODE - bypassing authentication');
+        const mockUser: User = {
+          id: 1,
+          email: 'dev@cloudbox.com',
+          name: 'Development User',
+          role: 'superadmin',
+          created_at: new Date().toISOString()
+        };
+        const mockToken = 'dev-token-' + Date.now();
+        
+        set({
+          user: mockUser,
+          token: mockToken,
+          refreshToken: null,
+          isLoading: false,
+          isAuthenticated: true,
+        });
+        
+        console.log('Auth store: DEV MODE - logged in as', mockUser.email);
+        return;
+      }
       
       if (browser) {
         const token = localStorage.getItem('cloudbox_token');

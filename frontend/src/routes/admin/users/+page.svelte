@@ -528,15 +528,22 @@
 <!-- Edit User Modal -->
 {#if showEditModal && editingUser}
   <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => { showEditModal = false; editingUser = null; }}>
-    <div class="max-w-lg w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="edit-modal-title"
+       on:click={() => { showEditModal = false; editingUser = null; }}
+       on:keydown={(e) => e.key === 'Escape' && (showEditModal = false, editingUser = null)}>
+    <div class="max-w-lg w-full my-auto modal-content-wrapper" 
+         role="document"
+         on:click|stopPropagation
+         on:keydown|stopPropagation>
       <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="edit" size={20} className="text-primary" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-foreground">Gebruiker Bewerken</h2>
+          <h2 id="edit-modal-title" class="text-xl font-bold text-foreground">Gebruiker Bewerken</h2>
           <p class="text-sm text-muted-foreground">Bewerk gebruikersgegevens en rechten</p>
         </div>
       </div>
@@ -615,15 +622,22 @@
 <!-- Delete User Modal -->
 {#if showDeleteModal && deletingUser}
   <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => { showDeleteModal = false; deletingUser = null; }}>
-    <div class="max-w-lg w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="delete-modal-title"
+       on:click={() => { showDeleteModal = false; deletingUser = null; }}
+       on:keydown={(e) => e.key === 'Escape' && (showDeleteModal = false, deletingUser = null)}>
+    <div class="max-w-lg w-full my-auto modal-content-wrapper" 
+         role="document"
+         on:click|stopPropagation
+         on:keydown|stopPropagation>
       <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
           <Icon name="trash" size={20} className="text-destructive" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-foreground">Gebruiker Verwijderen</h2>
+          <h2 id="delete-modal-title" class="text-xl font-bold text-foreground">Gebruiker Verwijderen</h2>
           <p class="text-sm text-muted-foreground">Dit kan niet ongedaan gemaakt worden</p>
         </div>
       </div>
@@ -672,15 +686,22 @@
 <!-- Create User Modal -->
 {#if showCreateModal}
   <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => showCreateModal = false}>
-    <div class="max-w-lg w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="create-modal-title"
+       on:click={() => showCreateModal = false}
+       on:keydown={(e) => e.key === 'Escape' && (showCreateModal = false)}>
+    <div class="max-w-lg w-full my-auto modal-content-wrapper" 
+         role="document"
+         on:click|stopPropagation
+         on:keydown|stopPropagation>
       <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="users" size={20} className="text-primary" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-foreground">Nieuwe Gebruiker</h2>
+          <h2 id="create-modal-title" class="text-xl font-bold text-foreground">Nieuwe Gebruiker</h2>
           <p class="text-sm text-muted-foreground">Maak een nieuwe gebruiker aan</p>
         </div>
       </div>

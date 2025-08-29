@@ -1370,3 +1370,54 @@ func (u *AppUser) AfterFind(tx *gorm.DB) (err error) {
 	}
 	return
 }
+
+// APIRequestLog represents an individual API request log entry
+type APIRequestLog struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at"`
+	
+	ProjectID *uint `json:"project_id" gorm:"index:idx_api_logs_project_created"`
+	
+	// Request details
+	Method       string `json:"method" gorm:"size:10;not null"`
+	Endpoint     string `json:"endpoint" gorm:"size:255;not null;index:idx_api_logs_endpoint"`
+	FullPath     string `json:"full_path" gorm:"type:text"`
+	UserAgent    string `json:"user_agent" gorm:"type:text"`
+	IPAddress    string `json:"ip_address" gorm:"type:inet"`
+	
+	// Response details
+	StatusCode        int `json:"status_code" gorm:"not null;index:idx_api_logs_status"`
+	ResponseTimeMs    int `json:"response_time_ms" gorm:"not null"`
+	ResponseSizeBytes int `json:"response_size_bytes" gorm:"default:0"`
+	
+	// Authentication info
+	APIKeyID *uint `json:"api_key_id" gorm:"index:idx_api_logs_api_key"`
+	UserID   *uint `json:"user_id" gorm:"index:idx_api_logs_user"`
+	
+	// Relationships
+	Project *Project `json:"project,omitempty"`
+	APIKey  *APIKey  `json:"api_key,omitempty"`
+	User    *User    `json:"user,omitempty"`
+}
+
+// APIRouteStats represents aggregated daily statistics for API routes
+type APIRouteStats struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	
+	ProjectID uint   `json:"project_id" gorm:"not null;uniqueIndex:idx_route_stats_unique"`
+	Method    string `json:"method" gorm:"size:10;not null;uniqueIndex:idx_route_stats_unique"`
+	Endpoint  string `json:"endpoint" gorm:"size:255;not null;uniqueIndex:idx_route_stats_unique"`
+	Date      time.Time `json:"date" gorm:"type:date;not null;uniqueIndex:idx_route_stats_unique;index:idx_route_stats_project_date"`
+	
+	// Aggregated stats
+	TotalRequests         int   `json:"total_requests" gorm:"default:0"`
+	SuccessRequests       int   `json:"success_requests" gorm:"default:0"`
+	ErrorRequests         int   `json:"error_requests" gorm:"default:0"`
+	AvgResponseTimeMs     float64 `json:"avg_response_time_ms" gorm:"default:0"`
+	TotalResponseSizeBytes int64   `json:"total_response_size_bytes" gorm:"default:0"`
+	
+	// Relationships
+	Project *Project `json:"project,omitempty"`
+}

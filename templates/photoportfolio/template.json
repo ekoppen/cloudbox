@@ -169,6 +169,28 @@
             "order": 1,
             "tags": ["portfolio", "highlights", "best"],
             "location": "Various Locations"
+          },
+          {
+            "id": "nature-photography",
+            "name": "Nature Photography",
+            "description": "Capturing the beauty of the natural world in all its forms.",
+            "cover_photo": "nature_1",
+            "photos": ["nature_1", "nature_2", "nature_3", "nature_4", "nature_5"],
+            "published": true,
+            "order": 2,
+            "tags": ["nature", "landscape", "wildlife"],
+            "location": "National Parks"
+          },
+          {
+            "id": "portrait-sessions",
+            "name": "Portrait Sessions",
+            "description": "Professional portrait photography capturing personality and emotion.",
+            "cover_photo": "portrait_1",
+            "photos": ["portrait_1", "portrait_2", "portrait_3"],
+            "published": true,
+            "order": 3,
+            "tags": ["portrait", "people", "studio"],
+            "location": "Studio & Outdoor"
           }
         ]
       },
@@ -193,7 +215,63 @@
           "is_featured:boolean",
           "created_at:datetime"
         ],
-        "indexes": ["tags", "date_taken", "camera", "is_featured"]
+        "indexes": ["tags", "date_taken", "camera", "is_featured"],
+        "seed_data": [
+          {
+            "id": "highlight_1",
+            "title": "Golden Hour Landscape",
+            "description": "A breathtaking sunset over mountain peaks",
+            "filename": "golden-hour-landscape.jpg",
+            "url": "/images/golden-hour-landscape.jpg",
+            "thumbnail_url": "/thumbnails/golden-hour-landscape-thumb.jpg",
+            "alt_text": "Mountain landscape during golden hour with dramatic sky",
+            "tags": ["landscape", "sunset", "mountains", "golden-hour"],
+            "camera": "Canon EOS R5",
+            "lens": "Canon RF 24-70mm f/2.8L IS USM",
+            "settings": {"aperture": "f/8", "shutter": "1/125s", "iso": 200},
+            "location": "Rocky Mountains",
+            "date_taken": "2024-07-15",
+            "file_size": 8388608,
+            "dimensions": {"width": 6000, "height": 4000},
+            "is_featured": true
+          },
+          {
+            "id": "nature_1",
+            "title": "Forest Waterfall",
+            "description": "Serene waterfall cascading through ancient forest",
+            "filename": "forest-waterfall.jpg",
+            "url": "/images/forest-waterfall.jpg",
+            "thumbnail_url": "/thumbnails/forest-waterfall-thumb.jpg",
+            "alt_text": "Waterfall flowing through lush green forest",
+            "tags": ["nature", "waterfall", "forest", "long-exposure"],
+            "camera": "Sony A7R IV",
+            "lens": "Sony FE 16-35mm f/2.8 GM",
+            "settings": {"aperture": "f/11", "shutter": "2s", "iso": 100},
+            "location": "Pacific Northwest",
+            "date_taken": "2024-06-22",
+            "file_size": 7340032,
+            "dimensions": {"width": 7952, "height": 5304},
+            "is_featured": false
+          },
+          {
+            "id": "portrait_1",
+            "title": "Studio Portrait",
+            "description": "Professional headshot with dramatic lighting",
+            "filename": "studio-portrait.jpg",
+            "url": "/images/studio-portrait.jpg",
+            "thumbnail_url": "/thumbnails/studio-portrait-thumb.jpg",
+            "alt_text": "Professional portrait with dramatic studio lighting",
+            "tags": ["portrait", "studio", "headshot", "professional"],
+            "camera": "Canon EOS R6",
+            "lens": "Canon RF 85mm f/1.2L USM",
+            "settings": {"aperture": "f/2.8", "shutter": "1/160s", "iso": 400},
+            "location": "Studio",
+            "date_taken": "2024-08-10",
+            "file_size": 5242880,
+            "dimensions": {"width": 4000, "height": 6000},
+            "is_featured": false
+          }
+        ]
       },
       {
         "name": "settings",

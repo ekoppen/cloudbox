@@ -28,7 +28,14 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.Use(gin.Recovery())
 	
 	// Global CORS middleware for admin and standard API requests
-	r.Use(middleware.CORS(cfg))
+	r.Use(middleware.SmartCORS(cfg))
+	
+	// API logging middleware for statistics (skip health checks and system calls)
+	r.Use(middleware.APILoggingMiddleware(middleware.APILoggingConfig{
+		DB: db,
+		SkipPaths: []string{"/health", "/metrics", "/favicon.ico", "/robots.txt"},
+		LogOnlyAPI: true, // Only log API calls (/api/* and /p/*)
+	}))
 	
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(db, cfg)
@@ -54,6 +61,8 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	publicFileHandler := handlers.NewPublicFileHandler(db, cfg)
 	pluginHandler := handlers.NewPluginHandler(db, cfg)
 	scriptRunnerHandler := handlers.NewScriptRunnerHandler(db, cfg)
+	apiDiscoveryHandler := handlers.NewAPIDiscoveryHandler(db, cfg)
+	apiStatsHandler := handlers.NewAPIStatsHandler(db, cfg)
 
 	// ===========================================
 	// SYSTEM & HEALTH ENDPOINTS
@@ -177,6 +186,10 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 				projects.PUT("/:id", projectHandler.UpdateProject)
 				projects.DELETE("/:id", projectHandler.DeleteProject)
 				projects.GET("/:id/stats", projectHandler.GetProjectStats)
+				
+				// API Usage Statistics
+				projects.GET("/:id/api-stats", apiStatsHandler.GetProjectAPIStats)
+				projects.GET("/:id/api-logs", apiStatsHandler.GetRecentAPILogs)
 				
 				// Project-specific routes
 				projects.GET("/:id/api-keys", projectHandler.ListAPIKeys)
@@ -427,8 +440,13 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// Protected project routes (API key authentication required)
 	projectAPI := r.Group("/p/:project_id/api")
 	projectAPI.Use(middleware.ProjectAuthOrJWT(cfg, db)) // API key authentication
-	projectAPI.Use(middleware.ProjectCORS(cfg, db))
+	projectAPI.Use(middleware.ProjectSmartCORS(cfg, db))
 	{
+		// API Discovery (Supabase-style)
+		projectAPI.GET("/discovery/routes", apiDiscoveryHandler.GetAPIDiscovery)
+		projectAPI.GET("/discovery/schema", apiDiscoveryHandler.GetAPISchema)
+		projectAPI.POST("/discovery/refresh", apiDiscoveryHandler.RefreshAPIDiscovery)
+		
 		// Collections management
 		projectAPI.GET("/collections", dataHandler.ListCollections)
 		projectAPI.POST("/collections", dataHandler.CreateCollection)
@@ -588,7 +606,7 @@ func Initialize(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// Public project routes (no authentication required) - registered AFTER protected routes
 	projectPublic := r.Group("/p/:project_id/api")
 	projectPublic.Use(middleware.ProjectOnly(cfg, db)) // Only validate project exists
-	projectPublic.Use(middleware.ProjectCORS(cfg, db)) // Apply project-specific CORS
+	projectPublic.Use(middleware.ProjectSmartCORS(cfg, db)) // Apply project-specific CORS
 	{
 		// User authentication (public endpoints)
 		projectPublic.POST("/users/register", userHandler.RegisterUser)

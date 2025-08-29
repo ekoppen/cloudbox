@@ -5,6 +5,33 @@ All notable changes to the CloudBox TypeScript SDK will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2025-01-29
+
+### ✨ New Features
+- **API Discovery Integration**: Added programmatic API discovery refresh functionality
+  - New `refreshAPIDiscovery()` method for triggering route discovery updates
+  - Perfect for CI/CD pipelines, app deployments, and database migrations
+  - Supports webhooks for completion notifications
+  - Integrates with CloudBox's dynamic route generation system
+  
+### 📚 Documentation Updates
+- Added comprehensive API Discovery section to README with real-world examples
+- Included CI/CD pipeline integration examples
+- Added use cases for app updates, database migrations, and template management
+
+### 🔧 Enhanced Integration
+- Seamless integration with CloudBox's Supabase-inspired API discovery system
+- Support for template-based route generation
+- Dynamic database schema scanning and route creation
+
+## [3.0.6] - 2025-01-25
+
+### 🐛 Bug Fixes
+- **URL Duplication Fix**: Fixed critical URL duplication issue in `directRequest` method
+  - Previously, complete URLs passed to `directRequest` were processed again by `buildUrl`, causing malformed URLs like `http://localhost:8080/p/4/apihttp://localhost:8080/p/4/api/users/login`
+  - Added URL validation in both `directRequest` and `buildUrl` methods to prevent duplication
+  - Ensures reliable authentication and API calls for PhotoPortfolio and other integrations
+
 ## [2.0.0] - 2025-01-15
 
 ### 🎉 Major Release - Production Ready!

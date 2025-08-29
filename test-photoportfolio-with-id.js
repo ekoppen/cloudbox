@@ -5,7 +5,7 @@
  */
 
 const CLOUDBOX_URL = 'http://localhost:8080';
-const PROJECT_ID = 2; // Using project ID directly
+const PROJECT_ID = 6; // Using PhotoPortfolio project ID directly
 const API_KEY = 'eb8624e56a8ab37c1c14b088808a772bfeaac620a4a7f32b10465fc29f441400'; // PhotoPortfolio API key
 
 async function testCORS() {

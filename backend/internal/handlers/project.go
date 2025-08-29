@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cloudbox/backend/internal/config"
 	"github.com/cloudbox/backend/internal/models"
@@ -521,20 +522,74 @@ func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 	// Get users count (for now we'll use a simple count, can be enhanced later)
 	h.db.Model(&models.User{}).Where("is_active = ?", true).Count(&stats.UsersCount)
 
-	// Mock API request data for now (can be enhanced with real tracking later)
-	stats.RequestsToday = 47
-	stats.RequestsWeek = 324
-	stats.RequestsMonth = 1247
+	// Get real API request statistics from logs
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	weekAgo := now.AddDate(0, 0, -7).Format("2006-01-02")
+	monthAgo := now.AddDate(0, -1, 0).Format("2006-01-02")
+	
+	// Get real API request statistics from logs
+	var requestsToday, requestsWeek, requestsMonth int64
+	
+	// Requests today
+	h.db.Model(&models.APIRequestLog{}).
+		Where("project_id = ? AND DATE(created_at) = ?", projectID, today).
+		Count(&requestsToday)
+	stats.RequestsToday = int(requestsToday)
+	
+	// Requests this week  
+	h.db.Model(&models.APIRequestLog{}).
+		Where("project_id = ? AND DATE(created_at) >= ?", projectID, weekAgo).
+		Count(&requestsWeek)
+	stats.RequestsWeek = int(requestsWeek)
+	
+	// Requests this month
+	h.db.Model(&models.APIRequestLog{}).
+		Where("project_id = ? AND DATE(created_at) >= ?", projectID, monthAgo).
+		Count(&requestsMonth)
+	stats.RequestsMonth = int(requestsMonth)
 
-	// Generate mock activity data for charts
-	stats.ActivityData = []gin.H{
-		{"day": "Maandag", "requests": 45},
-		{"day": "Dinsdag", "requests": 52},
-		{"day": "Woensdag", "requests": 38},
-		{"day": "Donderdag", "requests": 67},
-		{"day": "Vrijdag", "requests": 73},
-		{"day": "Zaterdag", "requests": 29},
-		{"day": "Zondag", "requests": 20},
+	// Get activity data for the past 7 days from aggregated stats
+	type DayActivity struct {
+		Date     string `json:"date"`
+		Requests int    `json:"requests"`
+		Day      string `json:"day"`
+	}
+	
+	var dailyStats []DayActivity
+	h.db.Model(&models.APIRouteStats{}).
+		Select("date, SUM(total_requests) as requests").
+		Where("project_id = ? AND date >= ?", projectID, weekAgo).
+		Group("date").
+		Order("date ASC").
+		Scan(&dailyStats)
+	
+	// Convert to chart format with Dutch day names
+	stats.ActivityData = make([]gin.H, 0)
+	dayNames := []string{"Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"}
+	
+	// Create a map for quick lookup
+	statsMap := make(map[string]int)
+	for _, stat := range dailyStats {
+		statsMap[stat.Date] = stat.Requests
+	}
+	
+	// Generate data for the last 7 days
+	for i := 6; i >= 0; i-- {
+		date := now.AddDate(0, 0, -i)
+		dateStr := date.Format("2006-01-02")
+		dayName := dayNames[date.Weekday()]
+		
+		requests, exists := statsMap[dateStr]
+		if !exists {
+			requests = 0
+		}
+		
+		stats.ActivityData = append(stats.ActivityData, gin.H{
+			"day":      dayName,
+			"date":     dateStr,
+			"requests": requests,
+		})
 	}
 
 	c.JSON(http.StatusOK, stats)

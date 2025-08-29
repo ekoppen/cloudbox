@@ -84,6 +84,7 @@
 
     try {
       // Load collections using admin API
+      console.log('Database page - Loading collections for project:', project.id);
       const response = await createApiRequest(API_ENDPOINTS.admin.projects.collections.list(project.id.toString()), {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -91,8 +92,10 @@
         },
       });
 
+      console.log('Database page - Collections response status:', response.status);
       if (response.ok) {
         const collections = await response.json();
+        console.log('Database page - Loaded collections:', collections);
         const collectionData = [];
 
         // Get document count for each collection
@@ -277,13 +280,22 @@
     </div>
     <div class="flex items-center space-x-3">
       <Button
-        href={`/dashboard/projects/${$page.params.id}/data-visualization`}
+        href={`/dashboard/projects/${$page.params.id}/database/schema`}
         variant="secondary"
         size="md"
         class="flex items-center space-x-2"
       >
         <Icon name="bar-chart" size={16} />
         <span>Schema Visualisatie</span>
+      </Button>
+      <Button
+        href={`/dashboard/projects/${$page.params.id}/database/relationships`}
+        variant="secondary"
+        size="md"
+        class="flex items-center space-x-2"
+      >
+        <Icon name="share-2" size={16} />
+        <span>Relatie Diagram</span>
       </Button>
       <Button 
         on:click={() => showCreateTable = true}

@@ -59,6 +59,7 @@
 
   async function loadProject() {
     try {
+      console.log('Loading project with ID:', projectId);
       const response = await createApiRequest(API_ENDPOINTS.projects.get(projectId), {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
@@ -68,9 +69,11 @@
 
       if (response.ok) {
         project = await response.json();
+        console.log('Loaded project:', project);
         await loadSchema();
       } else {
         error = 'Project niet gevonden';
+        console.error('Project response not OK:', response.status, response.statusText);
       }
     } catch (err) {
       error = 'Fout bij laden van project';
@@ -86,15 +89,34 @@
 
     try {
       // Load collections using admin API
-      const response = await createApiRequest(API_ENDPOINTS.admin.projects.collections.list(project.id.toString()), {
+      console.log('Loading collections for project:', project.id);
+      const collectionsUrl = API_ENDPOINTS.admin.projects.collections.list(project.id.toString());
+      console.log('Collections API URL:', collectionsUrl);
+      
+      const response = await createApiRequest(collectionsUrl, {
         headers: {
           'Authorization': `Bearer ${$auth.token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('Collections response status:', response.status);
       if (response.ok) {
         const collections = await response.json();
+        console.log('Loaded collections:', collections);
+        
+        if (!collections || !Array.isArray(collections)) {
+          console.warn('No collections found or invalid response format');
+          tables = [];
+          schemaStats = {
+            totalTables: 0,
+            totalColumns: 0,
+            totalRecords: 0,
+            averageTableSize: '0 KB'
+          };
+          return;
+        }
+        
         const schemaData: TableSchema[] = [];
         let totalRecords = 0;
         let totalColumns = 0;
@@ -102,13 +124,19 @@
         // Process each collection to build schema
         for (const collection of collections) {
           try {
-            // Get documents to analyze structure
+            // Get documents to analyze structure with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
             const documentsResponse = await createApiRequest(API_ENDPOINTS.admin.projects.collections.documents.list(project.id.toString(), collection.name), {
               headers: {
                 'Authorization': `Bearer ${$auth.token}`,
                 'Content-Type': 'application/json',
               },
+              signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
 
             let columns: TableSchema['columns'] = [];
             let documentCount = 0;
@@ -118,11 +146,14 @@
               const documents = documentsData.documents || [];
               documentCount = documents.length;
               totalRecords += documentCount;
+              console.log(`Collection ${collection.name}: ${documentCount} documents found`);
 
               // Analyze document structure to generate schema
               if (documents.length > 0) {
+                console.log(`Analyzing documents for collection ${collection.name}:`, documents);
                 const sampleDoc = documents[0];
                 const docData = sampleDoc.data || sampleDoc;
+                console.log(`Sample document data for ${collection.name}:`, docData);
                 
                 // Add default columns
                 columns.push({
@@ -135,11 +166,13 @@
                 // Analyze document fields
                 for (const [key, value] of Object.entries(docData)) {
                   if (key !== 'id') {
+                    const foreignKey = detectForeignKey(key, value, collections);
                     columns.push({
                       name: key,
                       type: getFieldType(value),
                       nullable: true,
-                      default_value: undefined
+                      default_value: undefined,
+                      foreign_key: foreignKey
                     });
                   }
                 }
@@ -159,7 +192,25 @@
                 );
 
                 totalColumns += columns.length;
+              } else {
+                // No documents found, create basic schema
+                console.log(`No documents found for collection ${collection.name}, creating basic schema`);
+                columns = [
+                  { name: 'id', type: 'STRING', nullable: false, primary_key: true },
+                  { name: 'created_at', type: 'TIMESTAMP', nullable: false },
+                  { name: 'updated_at', type: 'TIMESTAMP', nullable: false }
+                ];
+                totalColumns += columns.length;
               }
+            } else {
+              console.warn(`Failed to load documents for collection ${collection.name}:`, documentsResponse.status);
+              // Create basic schema even if documents can't be loaded
+              columns = [
+                { name: 'id', type: 'STRING', nullable: false, primary_key: true },
+                { name: 'created_at', type: 'TIMESTAMP', nullable: false },
+                { name: 'updated_at', type: 'TIMESTAMP', nullable: false }
+              ];
+              totalColumns += columns.length;
             }
 
             schemaData.push({
@@ -167,7 +218,7 @@
               columns,
               row_count: documentCount,
               size: `${Math.round((JSON.stringify(collection).length / 1024) * 10) / 10} KB`,
-              relationships: [] // TODO: Implement relationship detection
+              relationships: detectRelationships(collection, collections)
             });
 
           } catch (err) {
@@ -182,12 +233,21 @@
               ],
               row_count: 0,
               size: '0 KB',
-              relationships: []
+              relationships: detectRelationships(collection, collections)
             });
           }
         }
 
         tables = schemaData;
+        
+        console.log('Final tables array for visualization:', tables);
+        console.log('Number of tables with columns:', tables.filter(t => t.columns.length > 0).length);
+        console.log('Tables data structure:', tables.map(t => ({ 
+          name: t.name, 
+          columnCount: t.columns.length, 
+          hasPosition: !!t.position,
+          relationships: t.relationships?.length || 0
+        })));
         
         // Calculate statistics
         schemaStats = {
@@ -206,6 +266,14 @@
     } catch (err) {
       error = 'Fout bij laden van schema';
       console.error('Load schema error:', err);
+      // Ensure we always stop loading even on error
+      tables = [];
+      schemaStats = {
+        totalTables: 0,
+        totalColumns: 0,
+        totalRecords: 0,
+        averageTableSize: '0 KB'
+      };
     } finally {
       loading = false;
     }
@@ -235,6 +303,92 @@
         }
         return 'VARCHAR';
     }
+  }
+
+  function detectForeignKey(fieldName: string, value: any, collections: any[]): { table: string; column: string } | undefined {
+    const collectionNames = collections.map(c => c.name);
+    
+    // PhotoPortfolio specific foreign keys
+    if (fieldName === 'featured_image' && collectionNames.includes('images')) {
+      return { table: 'images', column: 'id' };
+    }
+    
+    if (fieldName === 'photos' && Array.isArray(value) && collectionNames.includes('images')) {
+      return { table: 'images', column: 'id' };
+    }
+    
+    // Generic foreign key detection based on naming patterns
+    for (const collectionName of collectionNames) {
+      const patterns = [
+        `${collectionName}_id`,
+        `${collectionName.slice(0, -1)}_id`, // singular form
+      ];
+      
+      if (patterns.some(pattern => fieldName === pattern)) {
+        return { table: collectionName, column: 'id' };
+      }
+    }
+    
+    return undefined;
+  }
+
+  function detectRelationships(collection: any, allCollections: any[]): TableSchema['relationships'] {
+    const relationships: TableSchema['relationships'] = [];
+    const collectionNames = allCollections.map(c => c.name);
+    
+    // PhotoPortfolio specific relationships
+    if (collection.name === 'albums') {
+      // albums -> images (one-to-many via photos array)
+      if (collectionNames.includes('images')) {
+        relationships.push({
+          to_table: 'images',
+          from_column: 'photos',
+          to_column: 'id',
+          type: 'one-to-many'
+        });
+      }
+    }
+    
+    if (collection.name === 'images') {
+      // images -> albums (many-to-one, reverse of albums->images)
+      if (collectionNames.includes('albums')) {
+        relationships.push({
+          to_table: 'albums',
+          from_column: 'id',
+          to_column: 'photos',
+          type: 'many-to-one'
+        });
+      }
+    }
+    
+    if (collection.name === 'pages') {
+      // pages -> images (one-to-one via featured_image)
+      if (collectionNames.includes('images')) {
+        relationships.push({
+          to_table: 'images',
+          from_column: 'featured_image',
+          to_column: 'id',
+          type: 'one-to-one'
+        });
+      }
+    }
+    
+    // Generic relationship detection based on naming conventions
+    for (const otherCollection of allCollections) {
+      if (otherCollection.name === collection.name) continue;
+      
+      // Look for foreign key patterns in field names
+      const foreignKeyPatterns = [
+        `${otherCollection.name}_id`,
+        `${otherCollection.name.slice(0, -1)}_id`, // singular form
+        `${otherCollection.name}`
+      ];
+      
+      // Check if any fields match foreign key patterns
+      // This would require analyzing actual document structure
+    }
+    
+    return relationships;
   }
 
   function handleTableSelect(event: CustomEvent) {

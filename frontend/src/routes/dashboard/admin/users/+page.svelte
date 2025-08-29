@@ -484,15 +484,22 @@
 <!-- Create User Modal -->
 {#if showCreateModal}
   <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => showCreateModal = false}>
-    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="dash-create-modal-title"
+       on:click={() => showCreateModal = false}
+       on:keydown={(e) => e.key === 'Escape' && (showCreateModal = false)}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" 
+         role="document"
+         on:click|stopPropagation
+         on:keydown|stopPropagation>
       <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="user" size={20} className="text-primary" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-foreground">Nieuwe Gebruiker</h2>
+          <h2 id="dash-create-modal-title" class="text-xl font-bold text-foreground">Nieuwe Gebruiker</h2>
           <p class="text-sm text-muted-foreground">Maak een nieuwe CloudBox gebruiker aan</p>
         </div>
       </div>
@@ -586,15 +593,22 @@
 <!-- Edit User Modal -->
 {#if showEditModal && selectedUser}
   <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => showEditModal = false}>
-    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="dash-edit-modal-title"
+       on:click={() => showEditModal = false}
+       on:keydown={(e) => e.key === 'Escape' && (showEditModal = false)}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" 
+         role="document"
+         on:click|stopPropagation
+         on:keydown|stopPropagation>
       <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="edit" size={20} className="text-primary" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-foreground">Gebruiker Bewerken</h2>
+          <h2 id="dash-edit-modal-title" class="text-xl font-bold text-foreground">Gebruiker Bewerken</h2>
           <p class="text-sm text-muted-foreground">Wijzig gebruikersgegevens</p>
         </div>
       </div>
@@ -676,15 +690,22 @@
 <!-- Assign Organization Admin Modal -->
 {#if showOrgAdminModal && selectedUser}
   <div class="fixed inset-0 modal-backdrop-enhanced flex items-start justify-center p-4 pt-16 sm:pt-20 overflow-y-auto z-50"
-       on:click={() => showOrgAdminModal = false}>
-    <div class="max-w-md w-full my-auto modal-content-wrapper" on:click|stopPropagation>
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="dash-org-admin-modal-title"
+       on:click={() => showOrgAdminModal = false}
+       on:keydown={(e) => e.key === 'Escape' && (showOrgAdminModal = false)}>
+    <div class="max-w-md w-full my-auto modal-content-wrapper" 
+         role="document"
+         on:click|stopPropagation
+         on:keydown|stopPropagation>
       <Card class="p-6 border-2 shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
           <Icon name="package" size={20} className="text-primary" />
         </div>
         <div>
-          <h2 class="text-xl font-bold text-foreground">Organization Admin Toewijzen</h2>
+          <h2 id="dash-org-admin-modal-title" class="text-xl font-bold text-foreground">Organization Admin Toewijzen</h2>
           <p class="text-sm text-muted-foreground">Wijs {selectedUser.name} toe aan een organization</p>
         </div>
       </div>

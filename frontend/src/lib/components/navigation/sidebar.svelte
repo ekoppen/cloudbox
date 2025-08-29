@@ -92,14 +92,9 @@
         exact: true 
       },
       { 
-        label: 'Database', 
-        href: `/dashboard/projects/${projectId}/database`, 
-        icon: 'database',
-        children: [
-          { label: 'Tabellen', href: `/dashboard/projects/${projectId}/database`, icon: 'database' },
-          { label: 'Visualisatie', href: `/dashboard/projects/${projectId}/data-visualization`, icon: 'bar-chart' },
-          { label: 'Schema', href: `/dashboard/projects/${projectId}/database/schema`, icon: 'git-branch' }
-        ]
+        label: 'Visualisatie', 
+        href: `/dashboard/projects/${projectId}/data-visualization`, 
+        icon: 'bar-chart'
       },
       { 
         label: 'Authenticatie', 

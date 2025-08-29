@@ -17,6 +17,7 @@ CloudBox SDK provides a complete, type-safe interface to the CloudBox Backend-as
 - **🚀 Batch Operations** - Efficient bulk create/delete operations
 - **🏗️ Schema Validation** - Type-safe collection schemas with validation
 - **💾 File Storage** - Bucket-based file management with public/private access
+- **🔍 API Discovery** - Dynamic API route discovery with external refresh triggers
 - **⚡ TypeScript First** - Full type safety with comprehensive interfaces
 - **🔄 Backward Compatible** - Smooth migration from v1.x
 
@@ -222,6 +223,62 @@ const func = await client.functions.create({
 const result = await client.functions.execute(func.id, {
   imageUrl: 'https://example.com/image.jpg',
   targetSize: { width: 800, height: 600 }
+});
+```
+
+### 🔍 API Discovery
+
+CloudBox automatically discovers and generates API routes based on your database schema and installed templates. You can programmatically refresh this discovery when your app updates.
+
+```typescript
+// Basic refresh after app deployment
+const result = await client.refreshAPIDiscovery({
+  reason: 'App update deployed',
+  source: 'PhotoPortfolio App v2.1.0'
+});
+
+console.log(`✅ Refreshed ${result.routeCount} API routes`);
+console.log(`Categories: ${result.categories.join(', ')}`);
+
+// Advanced refresh with webhook notification
+await client.refreshAPIDiscovery({
+  reason: 'Database migration completed',
+  source: 'Migration Script',
+  forceRescan: true,
+  templates: ['photoportfolio', 'ecommerce'],
+  webhook: 'https://myapp.com/webhooks/discovery-updated'
+});
+
+// Perfect for deployment workflows
+async function deployApp() {
+  // Deploy your app changes
+  await deployToProduction();
+  
+  // Refresh CloudBox API discovery
+  const discovery = await client.refreshAPIDiscovery({
+    reason: 'Production deployment',
+    source: `${appName} v${appVersion}`,
+    forceRescan: true
+  });
+  
+  console.log(`🚀 Deployed with ${discovery.routeCount} API routes ready`);
+}
+```
+
+**Use Cases:**
+- **App Updates**: Refresh routes after deploying new features
+- **Database Migrations**: Update routes after schema changes  
+- **Template Management**: Refresh when installing/updating templates
+- **CI/CD Integration**: Automate discovery updates in deployment pipelines
+- **Webhook Notifications**: Get callbacks when refresh completes
+
+```typescript
+// CI/CD Pipeline Example
+await client.refreshAPIDiscovery({
+  reason: `Build #${buildNumber} deployed`,
+  source: `${process.env.CI_PIPELINE_SOURCE}`,
+  webhook: `${process.env.WEBHOOK_URL}/api-updated`,
+  forceRescan: true
 });
 ```
 

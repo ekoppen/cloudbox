@@ -28,6 +28,8 @@ export const API_ENDPOINTS = {
     update: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
     delete: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}`,
     stats: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/stats`,
+    apiStats: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/api-stats`,
+    apiLogs: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/api-logs`,
     github: {
       config: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/github/config`,
       test: (id: string) => `${API_BASE_URL}/api/v1/projects/${id}/github/config/test`,
