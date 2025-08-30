@@ -107,8 +107,8 @@ func (h *APIDiscoveryHandler) GetAPIDiscovery(c *gin.Context) {
 		return
 	}
 
-	// Generate base URL
-	baseURL := fmt.Sprintf("http://localhost:8080/p/%d/api", project.ID)
+	// Generate base URL using config
+	baseURL := fmt.Sprintf("%s/p/%d/api", h.cfg.BaseURL, project.ID)
 
 	// Collect all routes
 	var allRoutes []APIRoute
@@ -281,21 +281,36 @@ func (h *APIDiscoveryHandler) getDatabaseRoutes(projectID int) ([]APIRoute, *DBS
 func (h *APIDiscoveryHandler) getProjectTables(projectID int) []TableSchema {
 	var tables []TableSchema
 
-	// For now, we'll return a basic set of commonly used tables
-	// In a real implementation, you would query the database schema
-	// and filter tables based on the project context
+	// Get project-specific tables - only show tables that are actually used by templates
+	// or are part of the project's data model, not all CloudBox system tables
 	
-	// Query to get table information from information_schema
-	// For PostgreSQL, use 'public' schema or CURRENT_SCHEMA()
-	rows, err := h.db.Raw(`
+	// First, get template-specific tables for this project
+	templateTables := h.getTemplateSpecificTables(projectID)
+	
+	// Query only template-relevant tables from information_schema
+	if len(templateTables) == 0 {
+		// No templates detected, return empty (only core routes will be shown)
+		return tables
+	}
+	
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(templateTables))
+	args := make([]interface{}, len(templateTables))
+	for i, table := range templateTables {
+		placeholders[i] = "?"
+		args[i] = table
+	}
+	
+	query := fmt.Sprintf(`
 		SELECT table_name, column_name, data_type, is_nullable, 
 		       CASE WHEN column_name = 'id' THEN 'PRI' ELSE '' END as column_key
 		FROM information_schema.columns 
 		WHERE table_schema = 'public'
-		AND table_name NOT LIKE 'migrations%'
-		AND table_name NOT LIKE 'system_%'
+		AND table_name IN (%s)
 		ORDER BY table_name, ordinal_position
-	`).Rows()
+	`, strings.Join(placeholders, ","))
+	
+	rows, err := h.db.Raw(query, args...).Rows()
 	
 	if err != nil {
 		return tables
@@ -335,6 +350,45 @@ func (h *APIDiscoveryHandler) getProjectTables(projectID int) []TableSchema {
 	}
 
 	return tables
+}
+
+// getTemplateSpecificTables returns only tables that are relevant for the project's templates
+func (h *APIDiscoveryHandler) getTemplateSpecificTables(projectID int) []string {
+	var templateTables []string
+	
+	// Get installed templates for this project
+	installedTemplates := h.getInstalledTemplates(projectID)
+	
+	for _, templateName := range installedTemplates {
+		switch templateName {
+		case "photoportfolio":
+			templateTables = append(templateTables, []string{
+				"pages", "albums", "images", "portfolio_settings", "branding",
+				"translations", "portfolio_users",
+			}...)
+		case "blog":
+			templateTables = append(templateTables, []string{
+				"posts", "categories", "tags", "comments", "blog_settings",
+			}...)
+		case "ecommerce":
+			templateTables = append(templateTables, []string{
+				"products", "categories", "orders", "payments", "customers",
+			}...)
+		// Add more template mappings as needed
+		}
+	}
+	
+	// Remove duplicates
+	seen := make(map[string]bool)
+	var uniqueTables []string
+	for _, table := range templateTables {
+		if !seen[table] {
+			seen[table] = true
+			uniqueTables = append(uniqueTables, table)
+		}
+	}
+	
+	return uniqueTables
 }
 
 // generateIntelligentRoutes creates intelligent CRUD routes based on table structure and content
@@ -1345,7 +1399,7 @@ func (h *APIDiscoveryHandler) RefreshAPIDiscovery(c *gin.Context) {
 	}
 
 	// Perform discovery refresh
-	baseURL := fmt.Sprintf("http://localhost:8080/p/%d/api", project.ID)
+	baseURL := fmt.Sprintf("%s/p/%d/api", h.cfg.BaseURL, project.ID)
 	
 	// Get all routes (this will re-scan everything)
 	var allRoutes []APIRoute
