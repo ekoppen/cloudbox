@@ -300,7 +300,7 @@
         <div>
           <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Backend Server Niet Beschikbaar</h3>
           <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-            De backend server draait niet op localhost:8080. Start de backend server om alle functionaliteit te gebruiken.
+            De backend server is niet bereikbaar op {API_BASE_URL}. Controleer of de backend server draait.
           </p>
         </div>
       </div>

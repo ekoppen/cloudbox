@@ -650,7 +650,7 @@
             <h4 class="font-medium text-blue-800 mb-2">Automatische Configuratie</h4>
             <div class="text-sm text-blue-700 space-y-1">
               <div><strong>Port:</strong> Wordt automatisch overgenomen van cloudbox.json ports.web.port (default: {deploymentForm.port})</div>
-              <div><strong>API URL:</strong> http://localhost:8080/api/projects/{projectId}</div>
+              <div><strong>API URL:</strong> {API_BASE_URL}/api/projects/{projectId}</div>
               <div><strong>Project ID:</strong> {projectId}</div>
               <div><strong>Environment:</strong> production</div>
             </div>

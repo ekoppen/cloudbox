@@ -2,7 +2,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
-  import { API_ENDPOINTS, createApiRequest } from '$lib/config';
+  import { API_ENDPOINTS, createApiRequest, API_BASE_URL } from '$lib/config';
   import Card from '$lib/components/ui/card.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -58,7 +58,7 @@
   let error = '';
 
   $: projectId = $page.params.id;
-  $: baseURL = apiDiscovery?.baseURL || (project ? `http://localhost:8080/p/${project.id}/api` : '');
+  $: baseURL = apiDiscovery?.baseURL || (project ? `${API_BASE_URL}/p/${project.id}/api` : '');
   $: apiEndpoints = apiDiscovery?.routes || [];
   $: availableCategories = apiDiscovery?.categories ? ['all', ...apiDiscovery.categories] : ['all'];
 
@@ -106,7 +106,7 @@
     discoveryLoading = true;
     try {
       // Use discovery endpoint (requires auth or will fallback to basic routes)
-      const discoveryURL = `http://localhost:8080/p/${project.id}/api/discovery/routes`;
+      const discoveryURL = `${API_BASE_URL}/p/${project.id}/api/discovery/routes`;
       const response = await fetch(discoveryURL, {
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +120,7 @@
         console.warn('Could not load API discovery, falling back to basic routes');
         // Fallback to basic routes if discovery fails
         apiDiscovery = {
-          baseURL: `http://localhost:8080/p/${project.id}/api`,
+          baseURL: `${API_BASE_URL}/p/${project.id}/api`,
           routes: getBasicRoutes(),
           categories: ['System', 'Authentication', 'Storage'],
         };
@@ -129,7 +129,7 @@
       console.error('API Discovery error:', err);
       // Fallback to basic routes
       apiDiscovery = {
-        baseURL: `http://localhost:8080/p/${project.id}/api`,
+        baseURL: `${API_BASE_URL}/p/${project.id}/api`,
         routes: getBasicRoutes(),
         categories: ['System', 'Authentication', 'Storage'],
       };
@@ -205,7 +205,7 @@
     
     try {
       // Call the refresh endpoint directly instead of just reloading
-      const refreshURL = `http://localhost:8080/p/${project.id}/api/discovery/refresh`;
+      const refreshURL = `${API_BASE_URL}/p/${project.id}/api/discovery/refresh`;
       const refreshResponse = await fetch(refreshURL, {
         method: 'POST',
         headers: {
