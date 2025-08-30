@@ -40,7 +40,7 @@
         <!-- Status indicator -->
         <div class="status">
           <span class="status-dot"></span>
-          Development Preview
+          Production Ready
         </div>
       </div>
     </div>
