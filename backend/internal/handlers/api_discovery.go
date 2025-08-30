@@ -925,11 +925,9 @@ func (h *APIDiscoveryHandler) getInstalledTemplates(projectID int) []string {
 		}
 	}
 
-	// Backwards compatibility: Check for existing PhotoPortfolio data
-	// (for projects created before template_deployments tracking)
-	if !h.containsTemplate(templates, "photoportfolio") && h.hasPhotoPortfolioData(projectID) {
-		templates = append(templates, "photoportfolio")
-	}
+	// Note: Removed backwards compatibility check as it was causing new projects
+	// to incorrectly detect PhotoPortfolio as installed. New projects should only
+	// show templates that are explicitly deployed via template_deployments table.
 
 	return templates
 }
@@ -946,7 +944,7 @@ func (h *APIDiscoveryHandler) containsTemplate(templates []string, templateName 
 
 // hasPhotoPortfolioData checks for existing PhotoPortfolio data (backwards compatibility)
 func (h *APIDiscoveryHandler) hasPhotoPortfolioData(projectID int) bool {
-	// Check if PhotoPortfolio-specific tables exist and have data
+	// Check if PhotoPortfolio-specific tables exist and have actual data
 	var count int64
 	err := h.db.Raw(`
 		SELECT COUNT(*) FROM information_schema.tables 
@@ -958,12 +956,12 @@ func (h *APIDiscoveryHandler) hasPhotoPortfolioData(projectID int) bool {
 		return false
 	}
 
-	// Additional check: see if there's actual PhotoPortfolio data
+	// Additional check: see if there's actual PhotoPortfolio data (must have pages > 0)
 	var dataCount int64
 	h.db.Raw("SELECT COUNT(*) FROM pages").Scan(&dataCount)
 	
-	// If we have PhotoPortfolio tables and some data, consider it installed
-	return count >= 2 && dataCount >= 0
+	// Only consider PhotoPortfolio installed if we have the tables AND actual data
+	return count >= 2 && dataCount > 0
 }
 
 // getTemplateRoutesByName returns routes for a specific template
