@@ -72,7 +72,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - PUBLIC_API_URL=${PUBLIC_API_URL:-http://localhost:8080}
+        - PUBLIC_API_URL=${PUBLIC_API_URL}
     container_name: cloudbox-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
