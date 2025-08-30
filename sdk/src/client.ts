@@ -24,10 +24,83 @@ import { FunctionManager } from './managers/functions';
 import { AuthManager } from './managers/auth';
 
 /**
+ * Endpoint Detection Utility
+ * Automatically detects CloudBox endpoint from various sources
+ */
+class EndpointDetector {
+  private static readonly DETECTION_SOURCES = [
+    // Environment variables (Node.js)
+    () => typeof process !== 'undefined' && process.env?.CLOUDBOX_ENDPOINT,
+    () => typeof process !== 'undefined' && process.env?.VITE_CLOUDBOX_ENDPOINT,
+    () => typeof process !== 'undefined' && process.env?.REACT_APP_CLOUDBOX_ENDPOINT,
+    () => typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_CLOUDBOX_ENDPOINT,
+    
+    // Browser globals (set by deployment scripts)
+    () => typeof window !== 'undefined' && (window as any).CLOUDBOX_ENDPOINT,
+    () => typeof window !== 'undefined' && (window as any).CLOUDBOX_CONFIG?.endpoint,
+    
+    // Meta tags in HTML (for static deployments)
+    () => {
+      if (typeof document !== 'undefined') {
+        const meta = document.querySelector('meta[name="cloudbox-endpoint"]');
+        return meta?.getAttribute('content');
+      }
+      return null;
+    },
+    
+    // URL-based detection (same origin as current page)
+    () => {
+      if (typeof window !== 'undefined' && window.location) {
+        const { protocol, hostname, port } = window.location;
+        const detectedPort = port && port !== '80' && port !== '443' ? `:${port}` : '';
+        return `${protocol}//${hostname}${detectedPort}`;
+      }
+      return null;
+    }
+  ];
+
+  /**
+   * Detect CloudBox endpoint automatically
+   */
+  static detect(): string {
+    for (const detector of this.DETECTION_SOURCES) {
+      try {
+        const endpoint = detector();
+        if (endpoint && typeof endpoint === 'string' && endpoint.startsWith('http')) {
+          return endpoint.replace(/\/+$/, ''); // Remove trailing slashes
+        }
+      } catch (error) {
+        // Ignore detection errors, try next source
+        continue;
+      }
+    }
+    
+    // Fallback to localhost for development
+    return 'http://localhost:8080';
+  }
+
+  /**
+   * Validate if endpoint is reachable
+   */
+  static async validate(endpoint: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${endpoint}/health`, { 
+        method: 'GET',
+        mode: 'cors'
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
  * Main CloudBox SDK Client
  * 
  * Provides a unified interface to CloudBox BaaS platform with:
  * - Type-safe API interactions
+ * - Automatic endpoint detection
  * - Automatic error handling
  * - Built-in retry logic
  * - Connection testing
@@ -37,7 +110,14 @@ import { AuthManager } from './managers/auth';
  * ```typescript
  * import { CloudBoxClient } from '@ekoppen/cloudbox-sdk';
  * 
- * // Project authentication (default - for most applications)
+ * // Auto-detect endpoint (recommended for production)
+ * const client = new CloudBoxClient({
+ *   projectId: 2,
+ *   apiKey: 'your-api-key'
+ *   // endpoint will be auto-detected
+ * });
+ * 
+ * // Explicit endpoint (for custom setups)
  * const client = new CloudBoxClient({
  *   projectId: 2,
  *   apiKey: 'your-api-key',
@@ -292,11 +372,11 @@ export class CloudBoxClient {
       throw new Error('CloudBox SDK: apiKey is required');
     }
 
-    // Set up configuration with defaults
+    // Set up configuration with automatic endpoint detection
     this.config = {
       projectId: config.projectId,
       apiKey: config.apiKey,
-      endpoint: config.endpoint || 'http://localhost:8080',
+      endpoint: config.endpoint || EndpointDetector.detect(),
       authMode: config.authMode || 'project'
     };
 
@@ -669,6 +749,20 @@ export class CloudBoxClient {
    */
   getAuthMode(): 'admin' | 'project' {
     return this.config.authMode;
+  }
+
+  /**
+   * Detect CloudBox endpoint automatically (static method for use without client instance)
+   */
+  static detectEndpoint(): string {
+    return EndpointDetector.detect();
+  }
+
+  /**
+   * Validate CloudBox endpoint (static method for use without client instance)
+   */
+  static async validateEndpoint(endpoint: string): Promise<boolean> {
+    return EndpointDetector.validate(endpoint);
   }
 
   /**

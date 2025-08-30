@@ -5,7 +5,26 @@ All notable changes to the CloudBox TypeScript SDK will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.1.0] - 2025-01-29
+## [3.1.0] - 2024-08-30
+
+### ✨ New Features
+- **Automatic Endpoint Detection**: SDK now automatically detects CloudBox endpoint from multiple sources
+  - Environment variables (CLOUDBOX_ENDPOINT, VITE_CLOUDBOX_ENDPOINT, REACT_APP_CLOUDBOX_ENDPOINT, NEXT_PUBLIC_CLOUDBOX_ENDPOINT)
+  - Browser globals (window.CLOUDBOX_ENDPOINT, window.CLOUDBOX_CONFIG)
+  - HTML meta tags (`<meta name="cloudbox-endpoint" content="...">`)
+  - Same-origin detection (automatically uses current page origin)
+- **Static Detection Methods**: `CloudBoxClient.detectEndpoint()` and `CloudBoxClient.validateEndpoint()` for use without client instance
+- **Improved Production Support**: No more hardcoded localhost URLs - perfect for generic BaaS deployments
+
+### 🔧 Changed
+- **Default Endpoint Behavior**: When no endpoint is provided, SDK now auto-detects instead of defaulting to localhost
+- **Enhanced Documentation**: Updated examples to show auto-detection usage
+
+### 🐛 Fixed
+- **Production Deployment Issue**: Resolves CORS errors when apps are deployed to production but SDK was hardcoded to localhost
+- **Generic BaaS Support**: Enables true framework-agnostic backend-as-a-service functionality
+
+## [3.0.7] - 2025-01-29
 
 ### ✨ New Features
 - **API Discovery Integration**: Added programmatic API discovery refresh functionality
