@@ -36,12 +36,6 @@
             Create Account
           </a>
         </div>
-        
-        <!-- Status indicator -->
-        <div class="status">
-          <span class="status-dot"></span>
-          Production Ready
-        </div>
       </div>
     </div>
   </div>
@@ -242,28 +236,6 @@
     text-underline-offset: 4px;
   }
 
-  .status {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: #6b7280;
-    font-size: 14px;
-    opacity: 0.7;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #10b981, #34d399);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.2); }
-  }
 
   /* Dark mode support - CloudBox theme system */
   :global(.cloudbox-dark) .login-card {
@@ -282,10 +254,6 @@
   }
   
   :global(.cloudbox-dark) .subtitle {
-    color: #cbd5e1;
-  }
-  
-  :global(.cloudbox-dark) .status {
     color: #cbd5e1;
   }
   
